@@ -210,23 +210,38 @@ impl NinjaTable {
     // クリックイベントを処理するメソッド（JavaScript側から呼び出される）
     #[wasm_bindgen]
     pub fn handle_canvas_click(&mut self, canvas_x: f64, canvas_y: f64) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("🖱️ [DEBUG] Processing click at canvas coords ({}, {})", canvas_x, canvas_y).into());
-
-        // 左上角のクリック判定
-        if canvas_x < self.config.row_header_width && canvas_y < self.config.header_height {
-            web_sys::console::log_1(&"🔲 [DEBUG] Clicked top-left corner - Select all".into());
-            // 全選択の処理（現在は最初のセルを選択）
-            self.selected_cell = Some((0, 0));
+        web_sys::console::log_1(&format!("🖱️ [DEBUG] Canvas click at ({}, {})", canvas_x, canvas_y).into());
+        
+        if let Some((row, col)) = self.pixel_to_cell(canvas_x, canvas_y) {
+            web_sys::console::log_1(&format!("🎯 [DEBUG] Clicked cell ({}, {})", row, col).into());
+            
+            // 編集中の場合の処理
+            if let Some((editing_row, editing_col)) = self.editing_cell {
+                // 同じセルをクリックした場合は何もしない（編集継続）
+                if editing_row == row && editing_col == col {
+                    return Ok(());
+                }
+                
+                // 異なるセルをクリックした場合は編集を終了
+                web_sys::console::log_1(&format!("📝 [DEBUG] Finishing edit on ({}, {}) and moving to ({}, {})", editing_row, editing_col, row, col).into());
+                self.finish_editing()?;
+            }
+            
+            // 新しいセルを選択
+            self.selected_cell = Some((row, col));
             self.render()?;
-            return Ok(());
+            
+            // グローバル関数でレンダリングをトリガー
+            if let Some(window) = web_sys::window() {
+                if let Some(trigger_render) = window.get("triggerRender") {
+                    let js_value: wasm_bindgen::JsValue = trigger_render.into();
+                    if let Ok(function) = js_value.dyn_into::<js_sys::Function>() {
+                        let _ = function.call0(&window);
+                    }
+                }
+            }
         }
-
-        if let Some(cell_pos) = self.select_cell(canvas_x, canvas_y) {
-            web_sys::console::log_1(&format!("📌 [DEBUG] Selected cell: {}", cell_pos).into());
-            self.render()?;
-        } else {
-            web_sys::console::log_1(&"❌ [DEBUG] Click outside valid cell area".into());
-        }
+        
         Ok(())
     }
 
@@ -245,42 +260,8 @@ impl NinjaTable {
     // キーボードイベントを処理するメソッド（JavaScript側から呼び出される）
     #[wasm_bindgen]
     pub fn handle_canvas_keydown(&mut self, key: &str) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("⌨️ [DEBUG] Processing key: {}", key).into());
+        web_sys::console::log_1(&format!("⌨️ [DEBUG] Key pressed: {}", key).into());
         
-        // 編集中の場合の処理
-        if self.editing_cell.is_some() {
-            match key {
-                "Enter" => {
-                    self.finish_editing()?;
-                    // 下のセルに移動
-                    if let Some((row, col)) = self.selected_cell {
-                        if row < self.config.row_count - 1 {
-                            self.selected_cell = Some((row + 1, col));
-                            self.render()?;
-                        }
-                    }
-                }
-                "Tab" => {
-                    self.finish_editing()?;
-                    // 右のセルに移動
-                    if let Some((row, col)) = self.selected_cell {
-                        if col < self.config.col_count - 1 {
-                            self.selected_cell = Some((row, col + 1));
-                            self.render()?;
-                        }
-                    }
-                }
-                "Escape" => {
-                    self.cancel_editing()?;
-                }
-                _ => {
-                    // 編集中は他のキーは無視（入力要素が処理）
-                }
-            }
-            return Ok(());
-        }
-        
-        // 編集中でない場合の処理
         match key {
             "ArrowUp" => {
                 if let Some((row, col)) = self.selected_cell {
@@ -292,7 +273,7 @@ impl NinjaTable {
             }
             "ArrowDown" => {
                 if let Some((row, col)) = self.selected_cell {
-                    if row < self.config.row_count - 1 {
+                    if row + 1 < self.config.row_count {
                         self.selected_cell = Some((row + 1, col));
                         self.render()?;
                     }
@@ -308,51 +289,86 @@ impl NinjaTable {
             }
             "ArrowRight" => {
                 if let Some((row, col)) = self.selected_cell {
-                    if col < self.config.col_count - 1 {
+                    if col + 1 < self.config.col_count {
                         self.selected_cell = Some((row, col + 1));
                         self.render()?;
                     }
                 }
             }
             "Enter" => {
-                if let Some((row, col)) = self.selected_cell {
-                    self.start_editing(row, col)?;
-                }
-            }
-            "F2" => {
-                if let Some((row, col)) = self.selected_cell {
-                    self.start_editing(row, col)?;
-                }
-            }
-            "Delete" | "Backspace" => {
-                // セルの内容を削除
-                if let Some((row, col)) = self.selected_cell {
-                    self.set_cell_data(row, col, "".to_string())?;
+                if let Some((row, col)) = self.editing_cell {
+                    // 編集中の場合：編集を完了して下のセルに移動
+                    self.finish_editing()?;
+                    
+                    if row + 1 < self.config.row_count {
+                        self.selected_cell = Some((row + 1, col));
+                        web_sys::console::log_1(&format!("⬇️ [DEBUG] Moved to cell ({}, {})", row + 1, col).into());
+                    }
                     self.render()?;
+                } else if let Some((row, col)) = self.selected_cell {
+                    // 選択中の場合：編集開始
+                    self.start_editing(row, col)?;
                 }
             }
             "Tab" => {
-                // 右のセルに移動
-                if let Some((row, col)) = self.selected_cell {
-                    if col < self.config.col_count - 1 {
+                if let Some((row, col)) = self.editing_cell {
+                    // 編集中の場合：編集を完了して右のセルに移動
+                    self.finish_editing()?;
+                    
+                    if col + 1 < self.config.col_count {
                         self.selected_cell = Some((row, col + 1));
+                        web_sys::console::log_1(&format!("➡️ [DEBUG] Moved to cell ({}, {})", row, col + 1).into());
+                    }
+                    self.render()?;
+                } else if let Some((row, col)) = self.selected_cell {
+                    // 選択中の場合：右のセルに移動
+                    if col + 1 < self.config.col_count {
+                        self.selected_cell = Some((row, col + 1));
+                        web_sys::console::log_1(&format!("➡️ [DEBUG] Moved to cell ({}, {})", row, col + 1).into());
                         self.render()?;
                     }
                 }
             }
+            "Escape" => {
+                if self.editing_cell.is_some() {
+                    // 編集中の場合：編集をキャンセル
+                    self.cancel_editing()?;
+                    web_sys::console::log_1(&"❌ [DEBUG] Cancelled editing with Escape".into());
+                }
+            }
+            "F2" => {
+                if let Some((row, col)) = self.selected_cell {
+                    if self.editing_cell.is_none() {
+                        // F2で編集開始（既存の値を保持）
+                        self.start_editing(row, col)?;
+                        web_sys::console::log_1(&format!("📝 [DEBUG] Started editing with F2 at ({}, {})", row, col).into());
+                    }
+                }
+            }
+            "Delete" | "Backspace" => {
+                if let Some((row, col)) = self.selected_cell {
+                    if self.editing_cell.is_none() {
+                        // 編集中でない場合：セルの内容をクリア
+                        self.set_cell_data(row, col, String::new())?;
+                        self.render()?;
+                        web_sys::console::log_1(&format!("🗑️ [DEBUG] Cleared cell ({}, {})", row, col).into());
+                    }
+                }
+            }
             _ => {
-                // 文字キーの場合は直接編集開始
+                // 印刷可能な文字の場合
                 if self.is_printable_character(key) {
                     if let Some((row, col)) = self.selected_cell {
-                        // セルの内容をクリアして編集開始
-                        self.set_cell_data(row, col, "".to_string())?;
-                        self.start_editing(row, col)?;
-                        // 入力された文字を設定
-                        self.set_cell_data(row, col, key.to_string())?;
+                        if self.editing_cell.is_none() {
+                            // 編集開始（既存の値をクリアして新しい文字から開始）
+                            self.start_editing_with_value(row, col, key)?;
+                            web_sys::console::log_1(&format!("✏️ [DEBUG] Started editing with character '{}' at ({}, {})", key, row, col).into());
+                        }
                     }
                 }
             }
         }
+        
         Ok(())
     }
     
@@ -636,32 +652,54 @@ impl NinjaTable {
     }
 
     // 編集を完了する
+    #[wasm_bindgen]
     pub fn finish_editing(&mut self) -> Result<(), JsValue> {
-        if let Some(input) = self.editing_input.take() {
-            if let Some((row, col)) = self.editing_cell {
+        if let Some((row, col)) = self.editing_cell {
+            // 編集入力フィールドから値を取得して保存
+            if let Some(input) = &self.editing_input {
                 let value = input.value();
-                self.set_cell_data(row, col, value)?;
-                input.remove();
-                self.editing_cell = None;
-                self.render()?;
+                web_sys::console::log_1(&format!("💾 [DEBUG] Saving edited value: '{}' to cell ({}, {})", value, row, col).into());
                 
-                web_sys::console::log_1(&format!("✅ [DEBUG] Finished editing cell {}:{}", row, col).into());
+                // セルデータを更新
+                self.set_cell_data(row, col, value)?;
             }
+            
+            // 編集入力フィールドを削除
+            if let Some(input) = &self.editing_input {
+                if let Some(parent) = input.parent_node() {
+                    parent.remove_child(input)?;
+                }
+            }
+            
+            // 編集状態をクリア
+            self.editing_cell = None;
+            self.editing_input = None;
+            
+            web_sys::console::log_1(&format!("✅ [DEBUG] Finished editing cell ({}, {})", row, col).into());
         }
+        
         Ok(())
     }
     
     // 編集をキャンセルする
+    #[wasm_bindgen]
     pub fn cancel_editing(&mut self) -> Result<(), JsValue> {
-        if let Some(input) = self.editing_input.take() {
-            if let Some((row, col)) = self.editing_cell {
-                input.remove();
-                self.editing_cell = None;
-                self.render()?;
-                
-                web_sys::console::log_1(&format!("❌ [DEBUG] Cancelled editing cell {}:{}", row, col).into());
+        if let Some((row, col)) = self.editing_cell {
+            // 編集入力フィールドを削除（値は保存しない）
+            if let Some(input) = &self.editing_input {
+                if let Some(parent) = input.parent_node() {
+                    parent.remove_child(input)?;
+                }
             }
+            
+            // 編集状態をクリア
+            self.editing_cell = None;
+            self.editing_input = None;
+            self.render()?;
+            
+            web_sys::console::log_1(&format!("❌ [DEBUG] Cancelled editing cell ({}, {})", row, col).into());
         }
+        
         Ok(())
     }
 
@@ -1093,5 +1131,50 @@ impl NinjaTable {
             "centerX": x + width / 2.0,
             "centerY": y + height / 2.0
         }).to_string()
+    }
+
+    /// 指定した値で編集を開始する
+    #[wasm_bindgen]
+    pub fn start_editing_with_value(&mut self, row: usize, col: usize, initial_value: &str) -> Result<(), JsValue> {
+        // 既存の編集を終了
+        if self.editing_cell.is_some() {
+            self.finish_editing()?;
+        }
+        
+        self.editing_cell = Some((row, col));
+        
+        // 入力要素を作成
+        let document = web_sys::window().unwrap().document().unwrap();
+        let input = document.create_element("input")?.dyn_into::<web_sys::HtmlInputElement>()?;
+        
+        // 初期値を設定
+        input.set_value(initial_value);
+        
+        // スタイルを設定
+        let style = input.style();
+        style.set_property("position", "fixed")?;
+        style.set_property("z-index", "1000")?;
+        style.set_property("border", "2px solid #007bff")?;
+        style.set_property("padding", "2px 4px")?;
+        style.set_property("font-family", &self.config.font_family)?;
+        style.set_property("font-size", &format!("{}px", self.config.font_size))?;
+        style.set_property("background", "white")?;
+        style.set_property("outline", "none")?;
+        
+        // 位置を設定
+        self.update_editing_input_position(&input, row, col)?;
+        
+        // DOMに追加
+        document.body().unwrap().append_child(&input)?;
+        
+        // フォーカスして全選択
+        input.focus()?;
+        input.select();
+        
+        self.editing_input = Some(input);
+        
+        web_sys::console::log_1(&format!("📝 [DEBUG] Started editing cell ({}, {}) with value '{}'", row, col, initial_value).into());
+        
+        Ok(())
     }
 } 

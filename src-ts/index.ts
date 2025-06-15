@@ -249,6 +249,7 @@ export class NinjaTable {
   private isInitialized = false;
   private tooltipElement: HTMLElement | null = null;
   private canvas: HTMLCanvasElement;
+  private isComposing = false; // IME入力状態を管理
 
   private constructor(
     wasmTable: ExtendedWasmNinjaTable,
@@ -391,13 +392,39 @@ export class NinjaTable {
   }
 
   /**
-   * 編集中かどうかを取得
+   * 編集状態かどうかを確認
    * 
    * @returns 編集中の場合true
    */
   public isEditing(): boolean {
     this.ensureInitialized();
     return this.wasmTable.is_editing();
+  }
+
+  /**
+   * 編集を完了
+   */
+  public finishEditing(): void {
+    this.ensureInitialized();
+    this.wasmTable.finish_editing();
+    
+    // 編集完了後に検証エラーを更新
+    setTimeout(() => {
+      this.updateValidationTooltip();
+    }, 100);
+  }
+
+  /**
+   * 編集をキャンセル
+   */
+  public cancelEditing(): void {
+    this.ensureInitialized();
+    this.wasmTable.cancel_editing();
+    
+    // 編集キャンセル後に検証エラーを更新
+    setTimeout(() => {
+      this.updateValidationTooltip();
+    }, 100);
   }
 
   /**
@@ -717,9 +744,26 @@ export class NinjaTable {
     };
 
     (window as any).handleTableKey = (key: string) => {
+      // IME入力中（日本語変換中）の場合はEnterとTabの処理をスキップ
+      if (this.isComposing && (key === 'Enter' || key === 'Tab')) {
+        console.log('🈴 [DEBUG] Skipping key during IME composition:', key);
+        return;
+      }
+      
       this.wasmTable.handle_canvas_keydown(key);
       this.triggerCellSelectEvent();
     };
+
+    // IME状態を監視
+    document.addEventListener('compositionstart', () => {
+      this.isComposing = true;
+      console.log('🈴 [DEBUG] IME composition started');
+    });
+
+    document.addEventListener('compositionend', () => {
+      this.isComposing = false;
+      console.log('🈴 [DEBUG] IME composition ended');
+    });
   }
 
   private triggerCellSelectEvent(): void {

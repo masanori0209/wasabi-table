@@ -64,6 +64,7 @@ export class NinjaTable {
         this.eventHandlers = {};
         this.isInitialized = false;
         this.tooltipElement = null;
+        this.isComposing = false; // IME入力状態を管理
         this.wasmTable = wasmTable;
         this.config = config;
         this.canvas = canvas;
@@ -183,13 +184,35 @@ export class NinjaTable {
         this.wasmTable.start_editing(row, col);
     }
     /**
-     * 編集中かどうかを取得
+     * 編集状態かどうかを確認
      *
      * @returns 編集中の場合true
      */
     isEditing() {
         this.ensureInitialized();
         return this.wasmTable.is_editing();
+    }
+    /**
+     * 編集を完了
+     */
+    finishEditing() {
+        this.ensureInitialized();
+        this.wasmTable.finish_editing();
+        // 編集完了後に検証エラーを更新
+        setTimeout(() => {
+            this.updateValidationTooltip();
+        }, 100);
+    }
+    /**
+     * 編集をキャンセル
+     */
+    cancelEditing() {
+        this.ensureInitialized();
+        this.wasmTable.cancel_editing();
+        // 編集キャンセル後に検証エラーを更新
+        setTimeout(() => {
+            this.updateValidationTooltip();
+        }, 100);
     }
     /**
      * テーブル統計情報を取得
@@ -480,9 +503,23 @@ export class NinjaTable {
             }, 150);
         };
         window.handleTableKey = (key) => {
+            // IME入力中（日本語変換中）の場合はEnterとTabの処理をスキップ
+            if (this.isComposing && (key === 'Enter' || key === 'Tab')) {
+                console.log('🈴 [DEBUG] Skipping key during IME composition:', key);
+                return;
+            }
             this.wasmTable.handle_canvas_keydown(key);
             this.triggerCellSelectEvent();
         };
+        // IME状態を監視
+        document.addEventListener('compositionstart', () => {
+            this.isComposing = true;
+            console.log('🈴 [DEBUG] IME composition started');
+        });
+        document.addEventListener('compositionend', () => {
+            this.isComposing = false;
+            console.log('🈴 [DEBUG] IME composition ended');
+        });
     }
     triggerCellSelectEvent() {
         // 検証エラー吹き出しを更新

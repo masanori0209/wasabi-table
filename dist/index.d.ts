@@ -205,6 +205,7 @@ export declare class NinjaTable {
     private isInitialized;
     private tooltipElement;
     private canvas;
+    private isComposing;
     private constructor();
     /**
      * NinjaTableインスタンスを作成
@@ -265,11 +266,19 @@ export declare class NinjaTable {
      */
     startEditing(row: number, col: number): void;
     /**
-     * 編集中かどうかを取得
+     * 編集状態かどうかを確認
      *
      * @returns 編集中の場合true
      */
     isEditing(): boolean;
+    /**
+     * 編集を完了
+     */
+    finishEditing(): void;
+    /**
+     * 編集をキャンセル
+     */
+    cancelEditing(): void;
     /**
      * テーブル統計情報を取得
      *

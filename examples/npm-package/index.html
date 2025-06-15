@@ -1267,7 +1267,46 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
             });
         }
 
+        // グローバル変数でIME状態を管理
+        let isComposing = false;
 
+        // グローバルハンドラー関数を設定
+        window.handleTableClick = (x, y) => {
+            table.handle_canvas_click(x, y);
+        };
+
+        window.handleTableWheel = (deltaX, deltaY) => {
+            table.handle_canvas_wheel(deltaX, deltaY);
+        };
+
+        window.handleTableKey = (key) => {
+            // IME入力中（日本語変換中）の場合はEnterとTabの処理をスキップ
+            if (isComposing && (key === 'Enter' || key === 'Tab')) {
+                console.log('🈴 [DEBUG] Skipping key during IME composition:', key);
+                return;
+            }
+            
+            table.handle_canvas_keydown(key);
+        };
+
+        // IME状態を監視するイベントリスナーを追加
+        document.addEventListener('compositionstart', () => {
+            isComposing = true;
+            console.log('🈴 [DEBUG] IME composition started');
+        });
+
+        document.addEventListener('compositionend', () => {
+            isComposing = false;
+            console.log('🈴 [DEBUG] IME composition ended');
+        });
+
+        // レンダリングをトリガーするグローバル関数
+        window.triggerRender = () => {
+            if (table) {
+                table.render();
+                updateCellReference();
+            }
+        };
 
         // 初期化実行
         initTable();
