@@ -220,6 +220,9 @@ interface ExtendedWasmNinjaTable extends WasmNinjaTable {
   set_column_headers(headers_json: string): void;
   get_column_headers(): string;
   get_cell_validation_error(row: number, col: number): string | undefined;
+  handle_editing_enter(): void;
+  handle_editing_tab(): void;
+  handle_editing_escape(): void;
 }
 
 /**
@@ -764,6 +767,22 @@ export class NinjaTable {
       this.isComposing = false;
       console.log('🈴 [DEBUG] IME composition ended');
     });
+
+    // 編集中のキーイベントハンドラー
+    (window as any).handleEditingEnter = () => {
+      this.wasmTable.handle_editing_enter();
+      this.triggerCellSelectEvent();
+    };
+
+    (window as any).handleEditingTab = () => {
+      this.wasmTable.handle_editing_tab();
+      this.triggerCellSelectEvent();
+    };
+
+    (window as any).handleEditingEscape = () => {
+      this.wasmTable.handle_editing_escape();
+      this.triggerCellSelectEvent();
+    };
   }
 
   private triggerCellSelectEvent(): void {

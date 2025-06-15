@@ -1177,4 +1177,57 @@ impl NinjaTable {
         
         Ok(())
     }
+
+    /// 編集中のEnterキーを処理
+    #[wasm_bindgen]
+    pub fn handle_editing_enter(&mut self) -> Result<(), JsValue> {
+        if let Some((row, col)) = self.editing_cell {
+            web_sys::console::log_1(&format!("⬇️ [DEBUG] Handling Enter during editing at ({}, {})", row, col).into());
+            
+            // 編集を完了
+            self.finish_editing()?;
+            
+            // 下のセルに移動
+            if row + 1 < self.config.row_count {
+                self.selected_cell = Some((row + 1, col));
+                web_sys::console::log_1(&format!("⬇️ [DEBUG] Moved to cell ({}, {})", row + 1, col).into());
+            }
+            
+            self.render()?;
+        }
+        Ok(())
+    }
+
+    /// 編集中のTabキーを処理
+    #[wasm_bindgen]
+    pub fn handle_editing_tab(&mut self) -> Result<(), JsValue> {
+        if let Some((row, col)) = self.editing_cell {
+            web_sys::console::log_1(&format!("➡️ [DEBUG] Handling Tab during editing at ({}, {})", row, col).into());
+            
+            // 編集を完了
+            self.finish_editing()?;
+            
+            // 右のセルに移動
+            if col + 1 < self.config.col_count {
+                self.selected_cell = Some((row, col + 1));
+                web_sys::console::log_1(&format!("➡️ [DEBUG] Moved to cell ({}, {})", row, col + 1).into());
+            }
+            
+            self.render()?;
+        }
+        Ok(())
+    }
+
+    /// 編集中のEscapeキーを処理
+    #[wasm_bindgen]
+    pub fn handle_editing_escape(&mut self) -> Result<(), JsValue> {
+        if self.editing_cell.is_some() {
+            web_sys::console::log_1(&"❌ [DEBUG] Handling Escape during editing".into());
+            
+            // 編集をキャンセル
+            self.cancel_editing()?;
+            self.render()?;
+        }
+        Ok(())
+    }
 } 

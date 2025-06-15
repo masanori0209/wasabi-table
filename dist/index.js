@@ -520,6 +520,19 @@ export class NinjaTable {
             this.isComposing = false;
             console.log('🈴 [DEBUG] IME composition ended');
         });
+        // 編集中のキーイベントハンドラー
+        window.handleEditingEnter = () => {
+            this.wasmTable.handle_editing_enter();
+            this.triggerCellSelectEvent();
+        };
+        window.handleEditingTab = () => {
+            this.wasmTable.handle_editing_tab();
+            this.triggerCellSelectEvent();
+        };
+        window.handleEditingEscape = () => {
+            this.wasmTable.handle_editing_escape();
+            this.triggerCellSelectEvent();
+        };
     }
     triggerCellSelectEvent() {
         // 検証エラー吹き出しを更新

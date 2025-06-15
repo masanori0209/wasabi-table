@@ -1308,6 +1308,28 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
             }
         };
 
+        // 編集中のキーイベントハンドラー
+        window.handleEditingEnter = () => {
+            if (table) {
+                table.handle_editing_enter();
+                updateCellReference();
+            }
+        };
+
+        window.handleEditingTab = () => {
+            if (table) {
+                table.handle_editing_tab();
+                updateCellReference();
+            }
+        };
+
+        window.handleEditingEscape = () => {
+            if (table) {
+                table.handle_editing_escape();
+                updateCellReference();
+            }
+        };
+
         // 初期化実行
         initTable();
     </script>
