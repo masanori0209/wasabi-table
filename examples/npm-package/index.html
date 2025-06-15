@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NinjaTable NPM Package Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .demo-section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .demo-section h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .formula-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+        }
+
+        .cell-reference {
+            font-weight: bold;
+            min-width: 60px;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            text-align: center;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .formula-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+        }
+
+        .formula-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .canvas-container {
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            background: white;
+        }
+
+        #ninjaCanvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+
+        .control-group input,
+        .control-group select {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .stats {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 1rem;
+        }
+
+        .code-section {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+            overflow-x: auto;
+        }
+
+        .code-section h3 {
+            color: #81e6d9;
+            margin-bottom: 1rem;
+        }
+
+        .code-section pre {
+            margin: 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .installation {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            margin: 1rem 0;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6c757d;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🥷 NinjaTable</h1>
+        <p>高性能なExcel風テーブルコンポーネント - NPMパッケージ使用例</p>
+    </div>
+
+    <div class="container">
+        <!-- インストール方法 -->
+        <div class="demo-section">
+            <h2>📦 インストール</h2>
+            <div class="installation">
+                npm install ninja-table
+            </div>
+            <p>TypeScript/JavaScript両方で利用可能な高性能テーブルライブラリです。</p>
+        </div>
+
+        <!-- ライブデモ -->
+        <div class="demo-section">
+            <h2>🚀 ライブデモ</h2>
+            
+            <!-- 数式バー -->
+            <div class="formula-bar">
+                <div class="cell-reference">
+                    <span id="cellReference">A1</span>
+                </div>
+                <input type="text" id="formulaInput" class="formula-input" placeholder="セルの内容を入力...">
+            </div>
+
+            <!-- キャンバス -->
+            <div class="canvas-container">
+                <canvas id="ninjaCanvas" width="1200" height="500"></canvas>
+            </div>
+
+            <!-- コントロール -->
+            <div class="controls">
+                <div class="control-group">
+                    <label>行数</label>
+                    <input type="number" id="rowCount" value="50" min="10" max="1000">
+                </div>
+                <div class="control-group">
+                    <label>列数</label>
+                    <input type="number" id="colCount" value="20" min="5" max="50">
+                </div>
+                <div class="control-group">
+                    <label>列幅</label>
+                    <input type="number" id="colWidth" value="120" min="50" max="300">
+                </div>
+                <div class="control-group">
+                    <label>行高</label>
+                    <input type="number" id="rowHeight" value="28" min="20" max="60">
+                </div>
+                <button class="btn btn-primary" onclick="updateTableConfig()">設定更新</button>
+                <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ</button>
+                <button class="btn btn-secondary" onclick="clearTable()">クリア</button>
+                <button class="btn btn-secondary" onclick="exportCSV()">CSV出力</button>
+            </div>
+
+            <!-- 統計情報 -->
+            <div id="stats" class="stats">
+                初期化中...
+            </div>
+        </div>
+
+        <!-- 使用方法 -->
+        <div class="demo-section">
+            <h2>💻 使用方法</h2>
+            
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('javascript')">JavaScript</button>
+                <button class="tab" onclick="showTab('typescript')">TypeScript</button>
+                <button class="tab" onclick="showTab('react')">React</button>
+            </div>
+
+            <div id="javascript" class="tab-content active">
+                <div class="code-section">
+                    <h3>JavaScript での使用例</h3>
+                    <pre><code>import { NinjaTable } from 'ninja-table';
+
+async function initTable() {
+  const canvas = document.getElementById('myCanvas');
+  
+  // テーブルを作成
+  const table = await NinjaTable.create(canvas, {
+    row_count: 50,
+    col_count: 20,
+    default_col_width: 120,
+    default_row_height: 28
+  });
+
+  // セルに値を設定
+  table.setCellValue(0, 0, 'Hello');
+  table.setCellValue(0, 1, 'World');
+
+  // イベントハンドラーを設定
+  table.setEventHandlers({
+    onCellSelect: (position) => {
+      console.log(`選択: ${NinjaTable.getCellReference(position.row, position.col)}`);
+    }
+  });
+
+  // レンダリング
+  table.render();
+}
+
+initTable();</code></pre>
+                </div>
+            </div>
+
+            <div id="typescript" class="tab-content">
+                <div class="code-section">
+                    <h3>TypeScript での使用例</h3>
+                    <pre><code>import { NinjaTable, TableConfig, CellPosition, EventHandlers } from 'ninja-table';
+
+class SpreadsheetApp {
+  private table: NinjaTable | null = null;
+
+  async initialize(canvas: HTMLCanvasElement): Promise&lt;void&gt; {
+    const config: Partial&lt;TableConfig&gt; = {
+      row_count: 100,
+      col_count: 26,
+      default_col_width: 120,
+      default_row_height: 28,
+      font_family: 'Arial, sans-serif',
+      font_size: 12
+    };
+
+    this.table = await NinjaTable.create(canvas, config);
+
+    const handlers: EventHandlers = {
+      onCellSelect: this.handleCellSelect.bind(this),
+      onCellChange: this.handleCellChange.bind(this)
+    };
+
+    this.table.setEventHandlers(handlers);
+    this.table.render();
+  }
+
+  private handleCellSelect(position: CellPosition): void {
+    const cellRef = NinjaTable.getCellReference(position.row, position.col);
+    console.log(`選択セル: ${cellRef}`);
+  }
+
+  private handleCellChange(position: CellPosition, oldValue: string, newValue: string): void {
+    console.log(`セル変更: ${oldValue} → ${newValue}`);
+  }
+}</code></pre>
+                </div>
+            </div>
+
+            <div id="react" class="tab-content">
+                <div class="code-section">
+                    <h3>React での使用例</h3>
+                    <pre><code>import React, { useEffect, useRef, useState } from 'react';
+import { NinjaTable, TableConfig, CellPosition } from 'ninja-table';
+
+const NinjaTableComponent: React.FC = () => {
+  const canvasRef = useRef&lt;HTMLCanvasElement&gt;(null);
+  const [table, setTable] = useState&lt;NinjaTable | null&gt;(null);
+  const [selectedCell, setSelectedCell] = useState&lt;string&gt;('A1');
+
+  useEffect(() => {
+    const initTable = async () => {
+      if (!canvasRef.current) return;
+
+      const config: Partial&lt;TableConfig&gt; = {
+        row_count: 50,
+        col_count: 20
+      };
+
+      const ninjaTable = await NinjaTable.create(canvasRef.current, config);
+      
+      ninjaTable.setEventHandlers({
+        onCellSelect: (position: CellPosition) => {
+          const cellRef = NinjaTable.getCellReference(position.row, position.col);
+          setSelectedCell(cellRef);
+        }
+      });
+
+      ninjaTable.render();
+      setTable(ninjaTable);
+    };
+
+    initTable();
+
+    return () => {
+      if (table) {
+        table.dispose();
+      }
+    };
+  }, []);
+
+  return (
+    &lt;div&gt;
+      &lt;div&gt;選択セル: {selectedCell}&lt;/div&gt;
+      &lt;canvas ref={canvasRef} width={1000} height={400} /&gt;
+    &lt;/div&gt;
+  );
+};
+
+export default NinjaTableComponent;</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- 機能紹介 -->
+        <div class="demo-section">
+            <h2>✨ 主な機能</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🚀 高性能レンダリング</h3>
+                    <p>Rust + WebAssemblyによる最適化されたパフォーマンス。大規模データもスムーズに処理。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📊 Excel風操作</h3>
+                    <p>キーボードナビゲーション、セル編集、数式バーなど、Excelライクな操作感。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎯 TypeScript対応</h3>
+                    <p>完全な型安全性とIntelliSenseサポート。JavaScript/TypeScript両方で利用可能。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🎨 カスタマイズ可能</h3>
+                    <p>豊富な設定オプションで、デザインや動作を自由にカスタマイズ。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📱 レスポンシブ</h3>
+                    <p>モダンブラウザ対応。WebAssemblyをサポートする環境で動作。</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🪶 軽量</h3>
+                    <p>最小限の依存関係で、バンドルサイズを抑制。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作方法 -->
+        <div class="demo-section">
+            <h2>🎮 操作方法</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>⌨️ キーボード操作</h3>
+                    <ul>
+                        <li><strong>矢印キー</strong>: セル移動</li>
+                        <li><strong>Enter</strong>: 編集開始 / 下のセルに移動</li>
+                        <li><strong>F2</strong>: 編集開始（既存値保持）</li>
+                        <li><strong>Tab</strong>: 右のセルに移動</li>
+                        <li><strong>Escape</strong>: 編集キャンセル</li>
+                        <li><strong>Delete/Backspace</strong>: セル内容削除</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <h3>🖱️ マウス操作</h3>
+                    <ul>
+                        <li><strong>クリック</strong>: セル選択</li>
+                        <li><strong>ホイール</strong>: スクロール</li>
+                        <li><strong>ダブルクリック</strong>: 編集開始（予定）</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { NinjaTable } from '../../dist/index.js';
+
+        let table = null;
+        let currentConfig = {
+            row_count: 50,
+            col_count: 20,
+            default_col_width: 120,
+            default_row_height: 28,
+            header_height: 30,
+            row_header_width: 50,
+            font_family: "Arial, sans-serif",
+            font_size: 12,
+            font_style: "normal",
+            font_weight: "normal",
+            background_color: "#ffffff",
+            text_color: "#000000",
+            grid_color: "#e9ecef",
+            header_background_color: "#f8f9fa",
+            selected_cell_color: "#667eea",
+            show_grid: true
+        };
+
+        // DOM要素
+        const cellReference = document.getElementById('cellReference');
+        const formulaInput = document.getElementById('formulaInput');
+        const statsElement = document.getElementById('stats');
+
+        // 数式バーのイベントリスナー
+        formulaInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (table) {
+                    const selectedCell = table.getSelectedCell();
+                    if (selectedCell) {
+                        table.setCellValue(selectedCell.row, selectedCell.col, formulaInput.value);
+                        table.render();
+                        updateStats();
+                        
+                        // 下のセルに移動
+                        if (selectedCell.row < currentConfig.row_count - 1) {
+                            table.selectCell(selectedCell.row + 1, selectedCell.col);
+                            table.render();
+                            updateCellReference();
+                        }
+                    }
+                }
+            }
+        });
+
+        // セル参照を更新
+        function updateCellReference() {
+            if (table) {
+                const selectedCell = table.getSelectedCell();
+                if (selectedCell) {
+                    const cellRef = NinjaTable.getCellReference(selectedCell.row, selectedCell.col);
+                    cellReference.textContent = cellRef;
+                    
+                    const cellValue = table.getCellValue(selectedCell.row, selectedCell.col) || '';
+                    formulaInput.value = cellValue;
+                }
+            }
+        }
+
+        // 統計情報を更新
+        function updateStats() {
+            if (table) {
+                try {
+                    const stats = table.getStats();
+                    statsElement.textContent = 
+                        `総セル数: ${stats.totalCells.toLocaleString()} | ` +
+                        `表示セル数: ${stats.visibleCells.toLocaleString()} | ` +
+                        `データセル数: ${stats.dataCells.toLocaleString()} | ` +
+                        `スクロール: (${Math.round(stats.scrollX)}, ${Math.round(stats.scrollY)})`;
+                } catch (error) {
+                    console.error('Stats error:', error);
+                    statsElement.textContent = '統計情報の取得に失敗しました';
+                }
+            }
+        }
+
+        // テーブル初期化
+        async function initTable() {
+            try {
+                const canvas = document.getElementById('ninjaCanvas');
+                if (!canvas) {
+                    throw new Error('Canvas element not found');
+                }
+
+                table = await NinjaTable.create(canvas, currentConfig);
+                
+                table.setEventHandlers({
+                    onCellSelect: (position) => {
+                        updateCellReference();
+                        updateStats();
+                    }
+                });
+                
+                table.render();
+                updateCellReference();
+                updateStats();
+                
+                console.log('✅ NinjaTable initialized successfully!');
+            } catch (error) {
+                console.error('❌ Initialization error:', error);
+                statsElement.textContent = `初期化エラー: ${error.message}`;
+            }
+        }
+
+        // グローバル関数
+        window.updateTableConfig = () => {
+            currentConfig.row_count = parseInt(document.getElementById('rowCount').value);
+            currentConfig.col_count = parseInt(document.getElementById('colCount').value);
+            currentConfig.default_col_width = parseInt(document.getElementById('colWidth').value);
+            currentConfig.default_row_height = parseInt(document.getElementById('rowHeight').value);
+            
+            initTable();
+        };
+
+        window.loadSampleData = () => {
+            if (!table) return;
+            
+            // ヘッダー行
+            const headers = ['名前', '年齢', '職業', '給与', '部署', 'メール', '入社日', '評価'];
+            headers.forEach((header, col) => {
+                table.setCellValue(0, col, header);
+            });
+
+            // サンプルデータ
+            const sampleData = [
+                ['田中太郎', '28', 'エンジニア', '¥500,000', '開発部', 'tanaka@example.com', '2020-04-01', 'A'],
+                ['佐藤花子', '32', 'デザイナー', '¥450,000', 'デザイン部', 'sato@example.com', '2019-07-15', 'B'],
+                ['鈴木一郎', '45', 'マネージャー', '¥700,000', '営業部', 'suzuki@example.com', '2015-01-10', 'A'],
+                ['高橋美咲', '26', 'マーケター', '¥400,000', 'マーケティング部', 'takahashi@example.com', '2021-09-01', 'B'],
+                ['山田健太', '35', 'エンジニア', '¥550,000', '開発部', 'yamada@example.com', '2018-03-20', 'A'],
+                ['伊藤由美', '29', 'デザイナー', '¥480,000', 'デザイン部', 'ito@example.com', '2020-11-05', 'A'],
+                ['渡辺大輔', '41', 'ディレクター', '¥650,000', '企画部', 'watanabe@example.com', '2016-08-12', 'B'],
+                ['中村麻衣', '24', 'アシスタント', '¥320,000', '総務部', 'nakamura@example.com', '2022-04-01', 'C']
+            ];
+
+            sampleData.forEach((row, rowIndex) => {
+                row.forEach((cell, colIndex) => {
+                    table.setCellValue(rowIndex + 1, colIndex, cell);
+                });
+            });
+
+            // 数式の例
+            table.setCellValue(10, 0, '平均年齢');
+            table.setCellValue(10, 1, '31.25'); // 実際の数式計算は今後実装
+
+            table.render();
+            updateStats();
+        };
+
+        window.clearTable = () => {
+            if (!table) return;
+            
+            const config = table.getConfig();
+            for (let row = 0; row < config.row_count; row++) {
+                for (let col = 0; col < config.col_count; col++) {
+                    table.setCellValue(row, col, '');
+                }
+            }
+            table.render();
+            updateStats();
+        };
+
+        window.exportCSV = () => {
+            if (!table) return;
+            
+            const config = table.getConfig();
+            const rows = [];
+            
+            for (let row = 0; row < config.row_count; row++) {
+                const cells = [];
+                let hasData = false;
+                
+                for (let col = 0; col < config.col_count; col++) {
+                    const value = table.getCellValue(row, col) || '';
+                    cells.push(`"${value.replace(/"/g, '""')}"`);
+                    if (value) hasData = true;
+                }
+                
+                if (hasData) {
+                    rows.push(cells.join(','));
+                } else if (rows.length > 0) {
+                    break; // 空行で終了
+                }
+            }
+            
+            const csvContent = rows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'ninja-table-export.csv';
+            link.click();
+        };
+
+        window.showTab = (tabName) => {
+            // タブの切り替え
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        };
+
+        // 初期化実行
+        initTable();
+    </script>
+</body>
+</html> 

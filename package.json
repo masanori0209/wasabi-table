@@ -1,0 +1,47 @@
+{
+  "name": "ninja-table",
+  "version": "0.1.0",
+  "description": "High-performance Excel-like table component built with Rust and WebAssembly",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/",
+    "pkg/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web --out-dir pkg && tsc",
+    "build:wasm": "wasm-pack build --target web --out-dir pkg",
+    "build:ts": "tsc",
+    "dev": "tsc --watch",
+    "serve": "python3 -m http.server 8501",
+    "serve:node": "npx http-server -p 8501 -c-1",
+    "prepublishOnly": "npm run build",
+    "test": "jest"
+  },
+  "keywords": [
+    "table",
+    "spreadsheet",
+    "excel",
+    "webassembly",
+    "rust",
+    "canvas",
+    "high-performance"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ninja-table.git"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "http-server": "^14.1.1",
+    "jest": "^29.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

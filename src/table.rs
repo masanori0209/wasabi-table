@@ -1,0 +1,785 @@
+use wasm_bindgen::prelude::*;
+use web_sys::{HtmlCanvasElement, CanvasRenderingContext2d};
+use wasm_bindgen::closure::Closure;
+use wasm_bindgen::JsCast;
+use std::collections::HashMap;
+use serde_json;
+use crate::types::{TableConfig, CellData, CellFormat, Cell};
+use crate::merge::MergedCell;
+use crate::error::NinjaTableError;
+use crate::render::Renderable;
+use crate::ninja_try;
+use crate::edit::Editable;
+use crate::merge::Mergeable;
+use crate::format::Formattable;
+use crate::events::EventHandler;
+
+// 高速テーブルレンダラー
+#[wasm_bindgen]
+pub struct NinjaTable {
+    #[wasm_bindgen(skip)]
+    pub canvas: HtmlCanvasElement,
+    #[wasm_bindgen(skip)]
+    pub ctx: CanvasRenderingContext2d,
+    #[wasm_bindgen(skip)]
+    pub config: TableConfig,
+    #[wasm_bindgen(skip)]
+    pub data: HashMap<String, CellData>,
+    #[wasm_bindgen(skip)]
+    pub headers: Vec<String>,
+    #[wasm_bindgen(skip)]
+    pub selected_cell: Option<(usize, usize)>,
+    #[wasm_bindgen(skip)]
+    pub editing_cell: Option<(usize, usize)>,
+    #[wasm_bindgen(skip)]
+    pub editing_input: Option<web_sys::HtmlInputElement>,
+    #[wasm_bindgen(skip)]
+    pub _click_closure: Option<Closure<dyn FnMut(web_sys::MouseEvent)>>,
+    #[wasm_bindgen(skip)]
+    pub _wheel_closure: Option<Closure<dyn FnMut(web_sys::WheelEvent)>>,
+    #[wasm_bindgen(skip)]
+    pub _keydown_closure: Option<Closure<dyn FnMut(web_sys::KeyboardEvent)>>,
+    pub canvas_width: f64,
+    pub canvas_height: f64,
+    #[wasm_bindgen(skip)]
+    pub scroll_x: f64,
+    #[wasm_bindgen(skip)]
+    pub scroll_y: f64,
+    #[wasm_bindgen(skip)]
+    pub merged_cells: HashMap<String, MergedCell>,
+    #[wasm_bindgen(skip)]
+    pub conditional_formats: HashMap<String, CellFormat>,
+    #[wasm_bindgen(skip)]
+    pub visible_rows: (usize, usize),
+    #[wasm_bindgen(skip)]
+    pub visible_cols: (usize, usize),
+    #[wasm_bindgen(skip)]
+    pub cells: Vec<Vec<Option<Cell>>>,
+}
+
+#[wasm_bindgen]
+impl NinjaTable {
+    #[wasm_bindgen(constructor)]
+    pub fn new(canvas: HtmlCanvasElement, config_json: &str) -> Result<NinjaTable, JsValue> {
+        let config: TableConfig = serde_json::from_str(config_json)
+            .map_err(|e| JsValue::from_str(&format!("Failed to parse config: {}", e)))?;
+
+        let ctx = canvas
+            .get_context("2d")?
+            .unwrap()
+            .dyn_into::<CanvasRenderingContext2d>()?;
+
+        let canvas_width = canvas.width() as f64;
+        let canvas_height = canvas.height() as f64;
+
+        // セルデータを初期化
+        let mut cells = Vec::new();
+        for _ in 0..config.row_count {
+            let mut row = Vec::new();
+            for _ in 0..config.col_count {
+                row.push(None);
+            }
+            cells.push(row);
+        }
+
+        // ヘッダーを初期化
+        let mut headers = Vec::new();
+        for i in 0..config.col_count {
+            headers.push(format!("{}", (b'A' + (i % 26) as u8) as char));
+        }
+
+        let mut table = NinjaTable {
+            canvas: canvas.clone(),
+            ctx,
+            config,
+            data: HashMap::new(),
+            headers,
+            selected_cell: Some((0, 0)), // 初期選択セル
+            editing_cell: None,
+            editing_input: None,
+            _click_closure: None,
+            _wheel_closure: None,
+            _keydown_closure: None,
+            canvas_width,
+            canvas_height,
+            scroll_x: 0.0,
+            scroll_y: 0.0,
+            merged_cells: HashMap::new(),
+            conditional_formats: HashMap::new(),
+            visible_rows: (0, 0),
+            visible_cols: (0, 0),
+            cells,
+        };
+
+        // 表示範囲を計算
+        table.calculate_visible_range();
+        
+        // Rust側でイベントリスナーを設定
+        table.setup_event_listeners()?;
+
+        Ok(table)
+    }
+    
+    // Rust側でイベントリスナーを設定（簡素化版）
+    fn setup_event_listeners(&mut self) -> Result<(), JsValue> {
+        use wasm_bindgen::closure::Closure;
+        use wasm_bindgen::JsCast;
+        
+        // キャンバスをフォーカス可能にする
+        self.canvas.set_attribute("tabindex", "0")?;
+        self.canvas.focus()?;
+        
+        // クリックイベント - 座標のみ記録
+        {
+            let click_closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
+                let target = event.target().unwrap();
+                let canvas: web_sys::HtmlCanvasElement = target.dyn_into().unwrap();
+                let rect = canvas.get_bounding_client_rect();
+                let x = event.client_x() as f64 - rect.left();
+                let y = event.client_y() as f64 - rect.top();
+                
+                web_sys::console::log_1(&format!("🖱️ [DEBUG] Click at canvas coords ({}, {})", x, y).into());
+                
+                // グローバル関数を呼び出してテーブルを更新
+                if let Some(window) = web_sys::window() {
+                    if let Some(handle_click) = window.get("handleTableClick") {
+                        let js_value: wasm_bindgen::JsValue = handle_click.into();
+                        if let Ok(function) = js_value.dyn_into::<js_sys::Function>() {
+                            let args = js_sys::Array::new();
+                            args.push(&wasm_bindgen::JsValue::from_f64(x));
+                            args.push(&wasm_bindgen::JsValue::from_f64(y));
+                            let _ = function.apply(&window, &args);
+                        }
+                    }
+                }
+            }) as Box<dyn FnMut(_)>);
+            
+            self.canvas.add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
+            self._click_closure = Some(click_closure);
+        }
+        
+        // ホイールイベント
+        {
+            let wheel_closure = Closure::wrap(Box::new(move |event: web_sys::WheelEvent| {
+                event.prevent_default();
+                
+                web_sys::console::log_1(&format!("🔄 [DEBUG] Wheel delta: ({}, {})", event.delta_x(), event.delta_y()).into());
+                
+                // グローバル関数を呼び出してスクロール
+                if let Some(window) = web_sys::window() {
+                    if let Some(handle_wheel) = window.get("handleTableWheel") {
+                        let js_value: wasm_bindgen::JsValue = handle_wheel.into();
+                        if let Ok(function) = js_value.dyn_into::<js_sys::Function>() {
+                            let args = js_sys::Array::new();
+                            args.push(&wasm_bindgen::JsValue::from_f64(event.delta_x()));
+                            args.push(&wasm_bindgen::JsValue::from_f64(event.delta_y()));
+                            let _ = function.apply(&window, &args);
+                        }
+                    }
+                }
+            }) as Box<dyn FnMut(_)>);
+            
+            self.canvas.add_event_listener_with_callback("wheel", wheel_closure.as_ref().unchecked_ref())?;
+            self._wheel_closure = Some(wheel_closure);
+        }
+        
+        // キーボードイベント
+        {
+            let keydown_closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+                // デフォルト動作を防ぐ
+                if ["Tab", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].contains(&event.key().as_str()) {
+                    event.prevent_default();
+                }
+                
+                web_sys::console::log_1(&format!("⌨️ [DEBUG] Key pressed: {}", event.key()).into());
+                
+                // グローバル関数を呼び出してキー処理
+                if let Some(window) = web_sys::window() {
+                    if let Some(handle_key) = window.get("handleTableKey") {
+                        let js_value: wasm_bindgen::JsValue = handle_key.into();
+                        if let Ok(function) = js_value.dyn_into::<js_sys::Function>() {
+                            let args = js_sys::Array::new();
+                            args.push(&wasm_bindgen::JsValue::from_str(&event.key()));
+                            let _ = function.apply(&window, &args);
+                        }
+                    }
+                }
+            }) as Box<dyn FnMut(_)>);
+            
+            self.canvas.add_event_listener_with_callback("keydown", keydown_closure.as_ref().unchecked_ref())?;
+            self._keydown_closure = Some(keydown_closure);
+        }
+        
+        Ok(())
+    }
+    
+    // クリックイベントを処理するメソッド（JavaScript側から呼び出される）
+    #[wasm_bindgen]
+    pub fn handle_canvas_click(&mut self, canvas_x: f64, canvas_y: f64) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("🖱️ [DEBUG] Processing click at canvas coords ({}, {})", canvas_x, canvas_y).into());
+
+        if let Some(cell_pos) = self.select_cell(canvas_x, canvas_y) {
+            web_sys::console::log_1(&format!("📌 [DEBUG] Selected cell: {}", cell_pos).into());
+            self.render()?;
+        } else {
+            web_sys::console::log_1(&"❌ [DEBUG] Click outside valid cell area".into());
+        }
+        Ok(())
+    }
+
+    // ホイールイベントを処理するメソッド（JavaScript側から呼び出される）
+    #[wasm_bindgen]
+    pub fn handle_canvas_wheel(&mut self, delta_x: f64, delta_y: f64) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("🔄 [DEBUG] Processing wheel delta: ({}, {})", delta_x, delta_y).into());
+
+        // スクロール量を調整（より滑らかなスクロール）
+        let scroll_factor = 0.5;
+        self.scroll(delta_x * scroll_factor, delta_y * scroll_factor);
+        self.render()?;
+        Ok(())
+    }
+
+    // キーボードイベントを処理するメソッド（JavaScript側から呼び出される）
+    #[wasm_bindgen]
+    pub fn handle_canvas_keydown(&mut self, key: &str) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("⌨️ [DEBUG] Processing key: {}", key).into());
+        
+        // 編集中の場合の処理
+        if self.editing_cell.is_some() {
+            match key {
+                "Enter" => {
+                    self.finish_editing()?;
+                    // 下のセルに移動
+                    if let Some((row, col)) = self.selected_cell {
+                        if row < self.config.row_count - 1 {
+                            self.selected_cell = Some((row + 1, col));
+                            self.render()?;
+                        }
+                    }
+                }
+                "Tab" => {
+                    self.finish_editing()?;
+                    // 右のセルに移動
+                    if let Some((row, col)) = self.selected_cell {
+                        if col < self.config.col_count - 1 {
+                            self.selected_cell = Some((row, col + 1));
+                            self.render()?;
+                        }
+                    }
+                }
+                "Escape" => {
+                    self.cancel_editing()?;
+                }
+                _ => {
+                    // 編集中は他のキーは無視（入力要素が処理）
+                }
+            }
+            return Ok(());
+        }
+        
+        // 編集中でない場合の処理
+        match key {
+            "ArrowUp" => {
+                if let Some((row, col)) = self.selected_cell {
+                    if row > 0 {
+                        self.selected_cell = Some((row - 1, col));
+                        self.render()?;
+                    }
+                }
+            }
+            "ArrowDown" => {
+                if let Some((row, col)) = self.selected_cell {
+                    if row < self.config.row_count - 1 {
+                        self.selected_cell = Some((row + 1, col));
+                        self.render()?;
+                    }
+                }
+            }
+            "ArrowLeft" => {
+                if let Some((row, col)) = self.selected_cell {
+                    if col > 0 {
+                        self.selected_cell = Some((row, col - 1));
+                        self.render()?;
+                    }
+                }
+            }
+            "ArrowRight" => {
+                if let Some((row, col)) = self.selected_cell {
+                    if col < self.config.col_count - 1 {
+                        self.selected_cell = Some((row, col + 1));
+                        self.render()?;
+                    }
+                }
+            }
+            "Enter" => {
+                if let Some((row, col)) = self.selected_cell {
+                    self.start_editing(row, col)?;
+                }
+            }
+            "F2" => {
+                if let Some((row, col)) = self.selected_cell {
+                    self.start_editing(row, col)?;
+                }
+            }
+            "Delete" | "Backspace" => {
+                // セルの内容を削除
+                if let Some((row, col)) = self.selected_cell {
+                    self.set_cell_data(row, col, "".to_string())?;
+                    self.render()?;
+                }
+            }
+            "Tab" => {
+                // 右のセルに移動
+                if let Some((row, col)) = self.selected_cell {
+                    if col < self.config.col_count - 1 {
+                        self.selected_cell = Some((row, col + 1));
+                        self.render()?;
+                    }
+                }
+            }
+            _ => {
+                // 文字キーの場合は直接編集開始
+                if self.is_printable_character(key) {
+                    if let Some((row, col)) = self.selected_cell {
+                        // セルの内容をクリアして編集開始
+                        self.set_cell_data(row, col, "".to_string())?;
+                        self.start_editing(row, col)?;
+                        // 入力された文字を設定
+                        self.set_cell_data(row, col, key.to_string())?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    
+    // 印刷可能な文字かどうかを判定
+    fn is_printable_character(&self, key: &str) -> bool {
+        if key.len() != 1 {
+            return false;
+        }
+        
+        let ch = key.chars().next().unwrap();
+        match ch {
+            // 英数字
+            'a'..='z' | 'A'..='Z' | '0'..='9' => true,
+            // 記号
+            ' ' | '!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | '-' | '.' | '/' |
+            ':' | ';' | '<' | '=' | '>' | '?' | '@' | '[' | '\\' | ']' | '^' | '_' | '`' | '{' | '|' | '}' | '~' => true,
+            _ => false,
+        }
+    }
+    
+
+
+    // 編集状態を取得
+    #[wasm_bindgen]
+    pub fn is_editing(&self) -> bool {
+        self.editing_cell.is_some()
+    }
+    
+    // 選択されたセルの位置を取得
+    #[wasm_bindgen]
+    pub fn get_selected_cell(&self) -> Option<String> {
+        self.selected_cell.map(|(row, col)| format!("{}:{}", row, col))
+    }
+
+    #[wasm_bindgen]
+    pub fn set_cell_data(&mut self, row: usize, col: usize, value: String) -> Result<(), JsValue> {
+        let key = format!("{}:{}", row, col);
+        let cell_data = CellData {
+            value,
+            row,
+            col,
+            width: self.config.default_col_width,
+            height: self.config.default_row_height,
+            background_color: None,
+            text_color: None,
+            font_style: None,
+            font_weight: None,
+            text_decoration: None,
+            format: None,
+        };
+        self.data.insert(key, cell_data);
+        Ok(())
+    }
+    
+    #[wasm_bindgen]
+    pub fn get_cell_data(&self, row: usize, col: usize) -> Option<String> {
+        let key = format!("{}:{}", row, col);
+        self.data.get(&key).map(|cell| cell.value.clone())
+    }
+
+    // ヘッダーを設定
+    #[wasm_bindgen]
+    pub fn set_header(&mut self, col: usize, value: &str) {
+        if col < self.headers.len() {
+            self.headers[col] = value.to_string();
+        }
+    }
+
+    // ヘッダーを取得
+    #[wasm_bindgen]
+    pub fn get_header(&self, col: usize) -> Option<String> {
+        self.headers.get(col).cloned()
+    }
+
+    // テーブル設定を更新
+    #[wasm_bindgen]
+    pub fn update_config(&mut self, config_json: &str) -> Result<(), JsValue> {
+        match serde_json::from_str::<TableConfig>(config_json) {
+            Ok(config) => {
+                self.config = config;
+                self.calculate_visible_range();
+                Ok(())
+            }
+            Err(e) => Err(JsValue::from_str(&format!("Failed to parse config: {}", e))),
+        }
+    }
+
+    // スクロール処理
+    #[wasm_bindgen]
+    pub fn scroll(&mut self, delta_x: f64, delta_y: f64) {
+        self.scroll_x = (self.scroll_x + delta_x).max(0.0);
+        self.scroll_y = (self.scroll_y + delta_y).max(0.0);
+        self.calculate_visible_range();
+        
+        // 編集中の場合、入力フィールドの位置を更新
+        if let (Some((row, col)), Some(ref input)) = (self.editing_cell, &self.editing_input) {
+            if let Err(e) = self.update_editing_input_position(input, row, col) {
+                web_sys::console::log_1(&format!("⚠️ [DEBUG] Failed to update input position: {:?}", e).into());
+            }
+        }
+    }
+
+    // セル選択
+    #[wasm_bindgen]
+    pub fn select_cell(&mut self, x: f64, y: f64) -> Option<String> {
+        let (row, col) = self.pixel_to_cell(x, y)?;
+        self.selected_cell = Some((row, col));
+        Some(format!("{}:{}", row, col))
+    }
+
+    // 座標からセルを計算
+    fn pixel_to_cell(&self, x: f64, y: f64) -> Option<(usize, usize)> {
+        if x < self.config.row_header_width || y < self.config.header_height {
+            return None;
+        }
+
+        let col = ((x - self.config.row_header_width + self.scroll_x) / self.config.default_col_width) as usize;
+        let row = ((y - self.config.header_height + self.scroll_y) / self.config.default_row_height) as usize;
+
+        if row < self.config.row_count && col < self.config.col_count {
+            Some((row, col))
+        } else {
+            None
+        }
+    }
+
+    // 表示範囲を計算
+    fn calculate_visible_range(&mut self) {
+        let start_col = (self.scroll_x / self.config.default_col_width) as usize;
+        let end_col = ((self.scroll_x + self.canvas_width) / self.config.default_col_width) as usize + 1;
+        let end_col = end_col.min(self.config.col_count);
+
+        let start_row = (self.scroll_y / self.config.default_row_height) as usize;
+        let end_row = ((self.scroll_y + self.canvas_height - self.config.header_height) / self.config.default_row_height) as usize + 1;
+        let end_row = end_row.min(self.config.row_count);
+
+        self.visible_rows = (start_row, end_row);
+        self.visible_cols = (start_col, end_col);
+    }
+
+    // バッチデータ設定
+    #[wasm_bindgen]
+    pub fn set_batch_data(&mut self, data_json: &str) -> Result<(), JsValue> {
+        match serde_json::from_str::<Vec<CellData>>(data_json) {
+            Ok(cells) => {
+                for cell in cells {
+                    let key = format!("{}:{}", cell.row, cell.col);
+                    self.data.insert(key, cell);
+                }
+                Ok(())
+            }
+            Err(e) => Err(JsValue::from_str(&format!("Failed to parse data: {}", e))),
+        }
+    }
+
+    // 統計情報取得
+    #[wasm_bindgen]
+    pub fn get_stats(&self) -> String {
+        let visible_cells = (self.visible_rows.1 - self.visible_rows.0) * (self.visible_cols.1 - self.visible_cols.0);
+        let total_cells = self.config.row_count * self.config.col_count;
+        
+        let stats = serde_json::json!({
+            "totalCells": total_cells,
+            "visibleCells": visible_cells,
+            "dataCells": self.data.len(),
+            "scrollX": self.scroll_x,
+            "scrollY": self.scroll_y,
+            "visibleRows": {
+                "start": self.visible_rows.0,
+                "end": self.visible_rows.1
+            },
+            "visibleCols": {
+                "start": self.visible_cols.0,
+                "end": self.visible_cols.1
+            }
+        });
+        
+        stats.to_string()
+    }
+
+    #[wasm_bindgen]
+    pub fn start_editing(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        use crate::edit::Editable;
+        Editable::start_editing(self, row, col)
+    }
+
+    // 編集中の入力フィールドの位置を更新
+    pub fn update_editing_input_position(&self, input: &web_sys::HtmlInputElement, row: usize, col: usize) -> Result<(), JsValue> {
+        // キャンバスの位置を取得
+        let canvas_rect = self.canvas.get_bounding_client_rect();
+        
+        // セルの位置を計算（スクロールとキャンバス位置を考慮）
+        let cell_x = self.get_cell_x_for_editing(col) + canvas_rect.left();
+        let cell_y = self.get_cell_y_for_editing(row) + canvas_rect.top();
+        let cell_width = self.config.default_col_width;
+        let cell_height = self.config.default_row_height;
+        
+        // スタイルを設定
+        input.set_attribute("style", &format!(
+            "position: fixed; left: {}px; top: {}px; width: {}px; height: {}px; border: 2px solid #3498db; padding: 2px; box-sizing: border-box; font-family: {}; font-size: {}px; z-index: 1000; background: white; outline: none;",
+            cell_x,
+            cell_y,
+            cell_width,
+            cell_height,
+            self.config.font_family,
+            self.config.font_size
+        ))?;
+        
+        Ok(())
+    }
+
+    fn get_cell_x_for_editing(&self, col: usize) -> f64 {
+        col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width
+    }
+
+    fn get_cell_y_for_editing(&self, row: usize) -> f64 {
+        self.config.header_height + (row as f64 * self.config.default_row_height) - self.scroll_y
+    }
+
+    // 編集を完了する
+    pub fn finish_editing(&mut self) -> Result<(), JsValue> {
+        if let Some(input) = self.editing_input.take() {
+            if let Some((row, col)) = self.editing_cell {
+                let value = input.value();
+                self.set_cell_data(row, col, value)?;
+                input.remove();
+                self.editing_cell = None;
+                self.render()?;
+                
+                web_sys::console::log_1(&format!("✅ [DEBUG] Finished editing cell {}:{}", row, col).into());
+            }
+        }
+        Ok(())
+    }
+    
+    // 編集をキャンセルする
+    pub fn cancel_editing(&mut self) -> Result<(), JsValue> {
+        if let Some(input) = self.editing_input.take() {
+            if let Some((row, col)) = self.editing_cell {
+                input.remove();
+                self.editing_cell = None;
+                self.render()?;
+                
+                web_sys::console::log_1(&format!("❌ [DEBUG] Cancelled editing cell {}:{}", row, col).into());
+            }
+        }
+        Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn merge_cells(&mut self, start_row: usize, start_col: usize, row_span: usize, col_span: usize) -> Result<(), JsValue> {
+        use crate::merge::Mergeable;
+        Mergeable::merge_cells(self, start_row, start_col, row_span, col_span)
+    }
+
+    #[wasm_bindgen]
+    pub fn unmerge_cells(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        use crate::merge::Mergeable;
+        Mergeable::unmerge_cells(self, row, col)
+    }
+
+    #[wasm_bindgen]
+    pub fn add_conditional_format(&mut self, row: usize, col: usize, format_json: &str) -> Result<(), JsValue> {
+        let format: CellFormat = serde_json::from_str(format_json)
+            .map_err(|e| NinjaTableError::DataError(format!("Invalid format JSON: {}", e)))?;
+        use crate::format::Formattable;
+        self.apply_format(row, col, format)
+    }
+
+    #[wasm_bindgen]
+    pub fn remove_conditional_format(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        use crate::format::Formattable;
+        self.clear_format(row, col)
+    }
+
+    // レンダリングメソッドの更新
+    #[wasm_bindgen]
+    pub fn render(&mut self) -> Result<(), JsValue> {
+        // キャンバスをクリア
+        self.ctx.clear_rect(0.0, 0.0, self.canvas.width() as f64, self.canvas.height() as f64);
+        
+        // 背景を描画
+        self.ctx.set_fill_style_str(&self.config.background_color);
+        self.ctx.fill_rect(0.0, 0.0, self.canvas.width() as f64, self.canvas.height() as f64);
+        
+        // ヘッダーを描画
+        self.render_header()?;
+        
+        // すべての可視セルを描画（空のセルも含む）
+        for row in self.visible_rows.0..self.visible_rows.1 {
+            for col in self.visible_cols.0..self.visible_cols.1 {
+                self.render_cell(row, col)?;
+            }
+        }
+        
+        // グリッドと選択セルを描画
+        self.render_grid()?;
+        
+        Ok(())
+    }
+
+    fn render_cell(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
+        let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+        
+        // セルの背景を描画（選択セルも通常の背景色）
+        self.ctx.set_fill_style_str(&self.config.background_color);
+        self.ctx.fill_rect(x, y, self.config.default_col_width, self.config.default_row_height);
+        
+        // セルのデータを取得
+        let key = format!("{}:{}", row, col);
+        if let Some(cell_data) = self.data.get(&key) {
+            // データがある場合はテキストを描画
+            self.ctx.set_fill_style_str(&self.config.text_color);
+            self.ctx.set_font(&format!("{} {}px {}", 
+                self.config.font_style, 
+                self.config.font_size, 
+                self.config.font_family
+            ));
+            
+            self.ctx.fill_text(&cell_data.value, x + 5.0, y + self.config.font_size + 5.0)?;
+        }
+        
+        Ok(())
+    }
+
+    fn render_header(&mut self) -> Result<(), JsValue> {
+        // ヘッダー背景を描画
+        self.ctx.set_fill_style_str(&self.config.header_background_color);
+        self.ctx.set_stroke_style_str(&self.config.grid_color);
+        
+        // 列ヘッダー背景
+        self.ctx.fill_rect(self.config.row_header_width, 0.0, self.canvas.width() as f64 - self.config.row_header_width, self.config.header_height);
+        
+        // 行ヘッダー背景
+        self.ctx.fill_rect(0.0, 0.0, self.config.row_header_width, self.canvas.height() as f64);
+        
+        // 左上角の背景
+        self.ctx.fill_rect(0.0, 0.0, self.config.row_header_width, self.config.header_height);
+
+        // テキスト描画設定
+        self.ctx.set_fill_style_str(&self.config.text_color);
+        self.ctx.set_font(&format!("bold {}px {}", self.config.font_size, self.config.font_family));
+        self.ctx.set_text_align("center");
+        self.ctx.set_text_baseline("middle");
+        
+        // 列ヘッダーテキストを描画
+        for col in self.visible_cols.0..self.visible_cols.1 {
+            let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
+            let column_name = self.get_column_name(col);
+            self.ctx.fill_text(&column_name, x + self.config.default_col_width / 2.0, self.config.header_height / 2.0)?;
+        }
+        
+        // 行番号を描画
+        for row in self.visible_rows.0..self.visible_rows.1 {
+            let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+            let row_number = (row + 1).to_string();
+            self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0)?;
+        }
+        
+        // 境界線を描画
+        self.ctx.set_stroke_style_str(&self.config.grid_color);
+        self.ctx.set_line_width(1.0);
+        
+        // 行ヘッダーと列ヘッダーの境界線
+        self.ctx.begin_path();
+        self.ctx.move_to(self.config.row_header_width, 0.0);
+        self.ctx.line_to(self.config.row_header_width, self.canvas.height() as f64);
+        self.ctx.stroke();
+
+        self.ctx.begin_path();
+        self.ctx.move_to(0.0, self.config.header_height);
+        self.ctx.line_to(self.canvas.width() as f64, self.config.header_height);
+        self.ctx.stroke();
+        
+        // テキスト設定をリセット
+        self.ctx.set_text_align("left");
+        self.ctx.set_text_baseline("alphabetic");
+        
+        Ok(())
+    }
+    
+    // 列名を生成する関数 (A, B, C, ..., Z, AA, AB, ...)
+    fn get_column_name(&self, col: usize) -> String {
+        let mut result = String::new();
+        let mut n = col;
+        
+        loop {
+            result = format!("{}{}", (b'A' + (n % 26) as u8) as char, result);
+            if n < 26 {
+                break;
+            }
+            n = n / 26 - 1;
+        }
+        
+        result
+    }
+
+    fn render_grid(&mut self) -> Result<(), JsValue> {
+        self.ctx.set_stroke_style_str(&self.config.grid_color);
+        self.ctx.set_line_width(1.0);
+        
+        // 縦線をバッチ処理で描画
+        for col in self.visible_cols.0..=self.visible_cols.1 {
+            let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
+            self.ctx.begin_path();
+            self.ctx.move_to(x, self.config.header_height);
+            self.ctx.line_to(x, self.canvas.height() as f64);
+            self.ctx.stroke();
+        }
+
+        // 横線をバッチ処理で描画
+        for row in self.visible_rows.0..=self.visible_rows.1 {
+            let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+            self.ctx.begin_path();
+            self.ctx.move_to(self.config.row_header_width, y);
+            self.ctx.line_to(self.canvas.width() as f64, y);
+            self.ctx.stroke();
+        }
+        
+        // 選択されたセルの枠を描画
+        if let Some((row, col)) = self.selected_cell {
+            let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
+            let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+            
+            self.ctx.set_stroke_style_str(&self.config.selected_cell_color);
+            self.ctx.set_line_width(2.0);
+            self.ctx.stroke_rect(x, y, self.config.default_col_width, self.config.default_row_height);
+        }
+        
+        Ok(())
+    }
+} 
