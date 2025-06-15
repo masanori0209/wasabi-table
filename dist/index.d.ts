@@ -34,6 +34,8 @@ export interface TableConfig {
     selected_cell_color: string;
     /** グリッド表示フラグ */
     show_grid: boolean;
+    /** 列ヘッダー設定 */
+    column_headers: ColumnHeader[];
 }
 /**
  * セルデータのインターface
@@ -97,6 +99,54 @@ export interface EventHandlers {
  * デフォルトのテーブル設定
  */
 export declare const DEFAULT_CONFIG: TableConfig;
+/**
+ * フィールドタイプの列挙型
+ */
+export declare enum FieldType {
+    CharField = "CharField",
+    EmailField = "EmailField",
+    TextareaField = "TextareaField",
+    IntegerField = "IntegerField",
+    DecimalField = "DecimalField",
+    DecimalWithNullField = "DecimalWithNullField",
+    DateField = "DateField",
+    TimeField = "TimeField",
+    CheckField = "CheckField",
+    BooleanField = "BooleanField",
+    ButtonField = "ButtonField",
+    MenuField = "MenuField"
+}
+/**
+ * 列ヘッダー設定のインターface
+ */
+export interface ColumnHeader {
+    /** プロパティ名（内部識別用） */
+    name: string;
+    /** 表示名（ヘッダーに表示される名前） */
+    display_name: string;
+    /** 列の幅（ピクセル） */
+    width: number;
+    /** 必須入力項目かどうか */
+    required: boolean;
+    /** 表示順序 */
+    order: number;
+    /** 表示/非表示フラグ */
+    is_visible: boolean;
+    /** フィールドタイプ */
+    field_type: FieldType | string;
+    /** 最大文字数（文字列フィールド用） */
+    max_length?: number;
+    /** 整数桁数（数値フィールド用） */
+    max_digits?: number;
+    /** 小数点桁数（小数フィールド用） */
+    decimal_places?: number;
+    /** 最小値（数値フィールド用） */
+    min_number?: number;
+    /** 最大値（数値フィールド用） */
+    max_number?: number;
+    /** 選択肢（メニューフィールド用） */
+    choices?: string[];
+}
 /**
  * NinjaTable - 高性能なExcel風テーブルコンポーネント
  *
@@ -199,6 +249,24 @@ export declare class NinjaTable {
      * @returns 現在の設定
      */
     getConfig(): TableConfig;
+    /**
+     * 列ヘッダー設定を適用
+     *
+     * @param headers - 列ヘッダー設定の配列（JSON文字列またはオブジェクト配列）
+     */
+    setColumnHeaders(headers: string | ColumnHeader[]): void;
+    /**
+     * 列ヘッダー設定を取得
+     *
+     * @returns 列ヘッダー設定のJSON文字列
+     */
+    getColumnHeaders(): string;
+    /**
+     * 列ヘッダー設定をオブジェクト配列として取得
+     *
+     * @returns 列ヘッダー設定のオブジェクト配列
+     */
+    getColumnHeadersAsArray(): ColumnHeader[];
     /**
      * リソースを解放
      */

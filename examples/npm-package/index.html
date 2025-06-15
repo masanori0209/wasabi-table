@@ -332,6 +332,7 @@
                 <button class="tab active" onclick="showTab('javascript')">JavaScript</button>
                 <button class="tab" onclick="showTab('typescript')">TypeScript</button>
                 <button class="tab" onclick="showTab('react')">React</button>
+                <button class="tab" onclick="showTab('headers')">ヘッダー設定</button>
             </div>
 
             <div id="javascript" class="tab-content active">
@@ -345,14 +346,65 @@ async function initTable() {
   // テーブルを作成
   const table = await NinjaTable.create(canvas, {
     row_count: 50,
-    col_count: 20,
+    col_count: 10,
     default_col_width: 120,
     default_row_height: 28
   });
 
+  // 列ヘッダーを設定
+  const columnHeaders = [
+    {
+      name: "id",
+      display_name: "ID",
+      width: 60,
+      required: true,
+      order: 0,
+      is_visible: true,
+      field_type: "IntegerField",
+      min_number: 1,
+      max_number: 99999
+    },
+    {
+      name: "name",
+      display_name: "名前",
+      width: 150,
+      required: true,
+      order: 1,
+      is_visible: true,
+      field_type: "CharField",
+      max_length: 50
+    },
+    {
+      name: "email",
+      display_name: "メールアドレス",
+      width: 200,
+      required: false,
+      order: 2,
+      is_visible: true,
+      field_type: "EmailField",
+      max_length: 100
+    },
+    {
+      name: "salary",
+      display_name: "給与",
+      width: 100,
+      required: false,
+      order: 3,
+      is_visible: true,
+      field_type: "DecimalField",
+      max_digits: 8,
+      decimal_places: 0
+    }
+  ];
+
+  // ヘッダー設定を適用
+  table.setColumnHeaders(JSON.stringify(columnHeaders));
+
   // セルに値を設定
-  table.setCellValue(0, 0, 'Hello');
-  table.setCellValue(0, 1, 'World');
+  table.setCellValue(0, 0, '1001');
+  table.setCellValue(0, 1, '田中太郎');
+  table.setCellValue(0, 2, 'tanaka@example.com');
+  table.setCellValue(0, 3, '500000');
 
   // イベントハンドラーを設定
   table.setEventHandlers({
@@ -372,7 +424,14 @@ initTable();</code></pre>
             <div id="typescript" class="tab-content">
                 <div class="code-section">
                     <h3>TypeScript での使用例</h3>
-                    <pre><code>import { NinjaTable, TableConfig, CellPosition, EventHandlers } from 'ninja-table';
+                    <pre><code>import { 
+  NinjaTable, 
+  TableConfig, 
+  CellPosition, 
+  EventHandlers,
+  ColumnHeader,
+  FieldType 
+} from 'ninja-table';
 
 class SpreadsheetApp {
   private table: NinjaTable | null = null;
@@ -380,7 +439,7 @@ class SpreadsheetApp {
   async initialize(canvas: HTMLCanvasElement): Promise&lt;void&gt; {
     const config: Partial&lt;TableConfig&gt; = {
       row_count: 100,
-      col_count: 26,
+      col_count: 10,
       default_col_width: 120,
       default_row_height: 28,
       font_family: 'Arial, sans-serif',
@@ -388,6 +447,64 @@ class SpreadsheetApp {
     };
 
     this.table = await NinjaTable.create(canvas, config);
+
+    // 型安全な列ヘッダー設定
+    const columnHeaders: ColumnHeader[] = [
+      {
+        name: "employee_id",
+        display_name: "社員ID",
+        width: 80,
+        required: true,
+        order: 0,
+        is_visible: true,
+        field_type: FieldType.IntegerField,
+        min_number: 1,
+        max_number: 99999
+      },
+      {
+        name: "name",
+        display_name: "氏名",
+        width: 150,
+        required: true,
+        order: 1,
+        is_visible: true,
+        field_type: FieldType.CharField,
+        max_length: 50
+      },
+      {
+        name: "department",
+        display_name: "部署",
+        width: 120,
+        required: true,
+        order: 2,
+        is_visible: true,
+        field_type: FieldType.MenuField,
+        choices: ["開発部", "営業部", "総務部", "人事部"]
+      },
+      {
+        name: "salary",
+        display_name: "月給",
+        width: 100,
+        required: false,
+        order: 3,
+        is_visible: true,
+        field_type: FieldType.DecimalField,
+        max_digits: 8,
+        decimal_places: 0
+      },
+      {
+        name: "active",
+        display_name: "在籍中",
+        width: 80,
+        required: true,
+        order: 4,
+        is_visible: true,
+        field_type: FieldType.BooleanField
+      }
+    ];
+
+    // ヘッダー設定を適用
+    this.table.setColumnHeaders(JSON.stringify(columnHeaders));
 
     const handlers: EventHandlers = {
       onCellSelect: this.handleCellSelect.bind(this),
@@ -399,12 +516,45 @@ class SpreadsheetApp {
   }
 
   private handleCellSelect(position: CellPosition): void {
-    const cellRef = NinjaTable.getCellReference(position.row, position.col);
-    console.log(`選択セル: ${cellRef}`);
+    console.log(`セル選択: ${position.row}, ${position.col}`);
   }
 
-  private handleCellChange(position: CellPosition, oldValue: string, newValue: string): void {
-    console.log(`セル変更: ${oldValue} → ${newValue}`);
+  private handleCellChange(position: CellPosition, value: string): void {
+    console.log(`セル変更: ${position.row}, ${position.col} = ${value}`);
+  }
+
+  // フィールドタイプに応じた入力検証
+  validateCellValue(colIndex: number, value: string): boolean {
+    const headers = this.getColumnHeaders();
+    const header = headers[colIndex];
+    
+    if (!header) return true;
+
+    switch (header.field_type) {
+      case FieldType.IntegerField:
+        const num = parseInt(value);
+        return !isNaN(num) && 
+               (!header.min_number || num >= header.min_number) &&
+               (!header.max_number || num <= header.max_number);
+               
+      case FieldType.EmailField:
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        
+      case FieldType.CharField:
+        return !header.max_length || value.length <= header.max_length;
+        
+      case FieldType.BooleanField:
+        return ['true', 'false', '1', '0', 'yes', 'no'].includes(value.toLowerCase());
+        
+      default:
+        return true;
+    }
+  }
+
+  private getColumnHeaders(): ColumnHeader[] {
+    if (!this.table) return [];
+    const headersJson = this.table.getColumnHeaders();
+    return JSON.parse(headersJson);
   }
 }</code></pre>
                 </div>
@@ -414,53 +564,125 @@ class SpreadsheetApp {
                 <div class="code-section">
                     <h3>React での使用例</h3>
                     <pre><code>import React, { useEffect, useRef, useState } from 'react';
-import { NinjaTable, TableConfig, CellPosition } from 'ninja-table';
+import { NinjaTable } from 'ninja-table';
 
-const NinjaTableComponent: React.FC = () => {
-  const canvasRef = useRef&lt;HTMLCanvasElement&gt;(null);
-  const [table, setTable] = useState&lt;NinjaTable | null&gt;(null);
-  const [selectedCell, setSelectedCell] = useState&lt;string&gt;('A1');
+const NinjaTableComponent = () => {
+  const canvasRef = useRef(null);
+  const [table, setTable] = useState(null);
+  const [selectedCell, setSelectedCell] = useState('A1');
 
   useEffect(() => {
     const initTable = async () => {
-      if (!canvasRef.current) return;
+      if (canvasRef.current) {
+        const tableInstance = await NinjaTable.create(canvasRef.current, {
+          row_count: 50,
+          col_count: 10,
+          default_col_width: 120,
+          default_row_height: 28
+        });
 
-      const config: Partial&lt;TableConfig&gt; = {
-        row_count: 50,
-        col_count: 20
-      };
+        tableInstance.setEventHandlers({
+          onCellSelect: (position) => {
+            const cellRef = NinjaTable.getCellReference(position.row, position.col);
+            setSelectedCell(cellRef);
+          }
+        });
 
-      const ninjaTable = await NinjaTable.create(canvasRef.current, config);
-      
-      ninjaTable.setEventHandlers({
-        onCellSelect: (position: CellPosition) => {
-          const cellRef = NinjaTable.getCellReference(position.row, position.col);
-          setSelectedCell(cellRef);
-        }
-      });
-
-      ninjaTable.render();
-      setTable(ninjaTable);
+        tableInstance.render();
+        setTable(tableInstance);
+      }
     };
 
     initTable();
-
-    return () => {
-      if (table) {
-        table.dispose();
-      }
-    };
   }, []);
 
   return (
     &lt;div&gt;
       &lt;div&gt;選択セル: {selectedCell}&lt;/div&gt;
-      &lt;canvas ref={canvasRef} width={1000} height={400} /&gt;
+      &lt;canvas ref={canvasRef} width={800} height={400} /&gt;
     &lt;/div&gt;
   );
 };
 
 export default NinjaTableComponent;</code></pre>
+                </div>
+            </div>
+
+            <div id="headers" class="tab-content">
+                <div class="code-section">
+                    <h3>列ヘッダー設定</h3>
+                    <p>NinjaTableでは、各列に詳細な設定を行うことができます。</p>
+                    
+                    <h4>📋 ColumnHeader設定項目</h4>
+                    <pre><code>{
+  name: string,              // プロパティ名（内部識別用）
+  display_name: string,      // 表示名（ヘッダーに表示される名前）
+  width: number,             // 列の幅（ピクセル）
+  required: boolean,         // 必須入力項目かどうか
+  order: number,             // 表示順序
+  is_visible: boolean,       // 表示/非表示フラグ
+  field_type: FieldType,     // フィールドタイプ
+  max_length?: number,       // 最大文字数（文字列フィールド用）
+  max_digits?: number,       // 整数桁数（数値フィールド用）
+  decimal_places?: number,   // 小数点桁数（小数フィールド用）
+  min_number?: number,       // 最小値（数値フィールド用）
+  max_number?: number,       // 最大値（数値フィールド用）
+  choices?: string[]         // 選択肢（メニューフィールド用）
+}</code></pre>
+
+                    <h4>🎯 フィールドタイプ一覧</h4>
+                    <ul style="margin: 1rem 0; padding-left: 2rem;">
+                        <li><strong>CharField</strong> - 短いテキスト入力（名前、コードなど）</li>
+                        <li><strong>EmailField</strong> - メールアドレス入力（検証付き）</li>
+                        <li><strong>TextareaField</strong> - 長いテキスト入力（備考、説明など）</li>
+                        <li><strong>IntegerField</strong> - 整数値入力（年齢、個数など）</li>
+                        <li><strong>DecimalField</strong> - 小数点数値入力（金額、税率など）</li>
+                        <li><strong>DecimalWithNullField</strong> - NULL許可の小数点数値</li>
+                        <li><strong>DateField</strong> - 日付入力（生年月日、入社日など）</li>
+                        <li><strong>TimeField</strong> - 時刻入力（勤務時間など）</li>
+                        <li><strong>BooleanField</strong> - チェックボックス（有効/無効など）</li>
+                        <li><strong>ButtonField</strong> - ボタン表示（アクション実行用）</li>
+                        <li><strong>MenuField</strong> - ドロップダウンメニュー（選択肢から選択）</li>
+                    </ul>
+
+                    <h4>💡 使用例</h4>
+                    <pre><code>const columnHeaders = [
+  {
+    name: "employee_id",
+    display_name: "社員ID",
+    width: 80,
+    required: true,
+    order: 0,
+    is_visible: true,
+    field_type: "IntegerField",
+    min_number: 1000,
+    max_number: 9999
+  },
+  {
+    name: "department",
+    display_name: "部署",
+    width: 120,
+    required: true,
+    order: 1,
+    is_visible: true,
+    field_type: "MenuField",
+    choices: ["開発部", "営業部", "総務部", "人事部"]
+  },
+  {
+    name: "salary",
+    display_name: "月給",
+    width: 100,
+    required: false,
+    order: 2,
+    is_visible: true,
+    field_type: "DecimalField",
+    max_digits: 8,
+    decimal_places: 0
+  }
+];
+
+// ヘッダー設定を適用
+table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
                 </div>
             </div>
         </div>
@@ -543,7 +765,8 @@ export default NinjaTableComponent;</code></pre>
             grid_color: "#e9ecef",
             header_background_color: "#f8f9fa",
             selected_cell_color: "#667eea",
-            show_grid: true
+            show_grid: true,
+            column_headers: []
         };
 
         // DOM要素
@@ -645,33 +868,141 @@ export default NinjaTableComponent;</code></pre>
         window.loadSampleData = () => {
             if (!table) return;
             
-            // ヘッダー行
-            const headers = ['名前', '年齢', '職業', '給与', '部署', 'メール', '入社日', '評価'];
-            headers.forEach((header, col) => {
-                table.setCellValue(0, col, header);
-            });
+            // 新しいヘッダー設定を定義
+            const columnHeaders = [
+                {
+                    name: "employee_id",
+                    display_name: "社員ID",
+                    width: 80,
+                    required: true,
+                    order: 0,
+                    is_visible: true,
+                    field_type: "IntegerField",
+                    min_number: 1,
+                    max_number: 99999
+                },
+                {
+                    name: "name",
+                    display_name: "氏名",
+                    width: 120,
+                    required: true,
+                    order: 1,
+                    is_visible: true,
+                    field_type: "CharField",
+                    max_length: 50
+                },
+                {
+                    name: "age",
+                    display_name: "年齢",
+                    width: 60,
+                    required: false,
+                    order: 2,
+                    is_visible: true,
+                    field_type: "IntegerField",
+                    min_number: 18,
+                    max_number: 70
+                },
+                {
+                    name: "position",
+                    display_name: "職種",
+                    width: 100,
+                    required: true,
+                    order: 3,
+                    is_visible: true,
+                    field_type: "MenuField",
+                    choices: ["エンジニア", "デザイナー", "マネージャー", "マーケター", "ディレクター"]
+                },
+                {
+                    name: "salary",
+                    display_name: "月給",
+                    width: 100,
+                    required: false,
+                    order: 4,
+                    is_visible: true,
+                    field_type: "DecimalField",
+                    max_digits: 8,
+                    decimal_places: 0
+                },
+                {
+                    name: "department",
+                    display_name: "部署",
+                    width: 120,
+                    required: true,
+                    order: 5,
+                    is_visible: true,
+                    field_type: "CharField",
+                    max_length: 30
+                },
+                {
+                    name: "email",
+                    display_name: "メールアドレス",
+                    width: 180,
+                    required: false,
+                    order: 6,
+                    is_visible: true,
+                    field_type: "EmailField",
+                    max_length: 100
+                },
+                {
+                    name: "hire_date",
+                    display_name: "入社日",
+                    width: 100,
+                    required: true,
+                    order: 7,
+                    is_visible: true,
+                    field_type: "DateField"
+                },
+                {
+                    name: "rating",
+                    display_name: "評価",
+                    width: 60,
+                    required: false,
+                    order: 8,
+                    is_visible: true,
+                    field_type: "MenuField",
+                    choices: ["S", "A", "B", "C", "D"]
+                },
+                {
+                    name: "active",
+                    display_name: "在籍",
+                    width: 60,
+                    required: true,
+                    order: 9,
+                    is_visible: true,
+                    field_type: "BooleanField"
+                }
+            ];
+
+            // ヘッダー設定を適用
+            try {
+                table.setColumnHeaders(JSON.stringify(columnHeaders));
+                console.log('✅ Column headers set successfully');
+            } catch (error) {
+                console.error('❌ Failed to set column headers:', error);
+            }
 
             // サンプルデータ
             const sampleData = [
-                ['田中太郎', '28', 'エンジニア', '¥500,000', '開発部', 'tanaka@example.com', '2020-04-01', 'A'],
-                ['佐藤花子', '32', 'デザイナー', '¥450,000', 'デザイン部', 'sato@example.com', '2019-07-15', 'B'],
-                ['鈴木一郎', '45', 'マネージャー', '¥700,000', '営業部', 'suzuki@example.com', '2015-01-10', 'A'],
-                ['高橋美咲', '26', 'マーケター', '¥400,000', 'マーケティング部', 'takahashi@example.com', '2021-09-01', 'B'],
-                ['山田健太', '35', 'エンジニア', '¥550,000', '開発部', 'yamada@example.com', '2018-03-20', 'A'],
-                ['伊藤由美', '29', 'デザイナー', '¥480,000', 'デザイン部', 'ito@example.com', '2020-11-05', 'A'],
-                ['渡辺大輔', '41', 'ディレクター', '¥650,000', '企画部', 'watanabe@example.com', '2016-08-12', 'B'],
-                ['中村麻衣', '24', 'アシスタント', '¥320,000', '総務部', 'nakamura@example.com', '2022-04-01', 'C']
+                ['1001', '田中太郎', '28', 'エンジニア', '500000', '開発部', 'tanaka@example.com', '2020-04-01', 'A', 'true'],
+                ['1002', '佐藤花子', '32', 'デザイナー', '450000', 'デザイン部', 'sato@example.com', '2019-07-15', 'B', 'true'],
+                ['1003', '鈴木一郎', '45', 'マネージャー', '700000', '営業部', 'suzuki@example.com', '2015-01-10', 'A', 'true'],
+                ['1004', '高橋美咲', '26', 'マーケター', '400000', 'マーケティング部', 'takahashi@example.com', '2021-09-01', 'B', 'true'],
+                ['1005', '山田健太', '35', 'エンジニア', '550000', '開発部', 'yamada@example.com', '2018-03-20', 'A', 'true'],
+                ['1006', '伊藤由美', '29', 'デザイナー', '480000', 'デザイン部', 'ito@example.com', '2020-11-05', 'A', 'true'],
+                ['1007', '渡辺大輔', '41', 'ディレクター', '650000', '企画部', 'watanabe@example.com', '2016-08-12', 'B', 'true'],
+                ['1008', '中村麻衣', '24', 'エンジニア', '320000', '総務部', 'nakamura@example.com', '2022-04-01', 'C', 'false']
             ];
 
             sampleData.forEach((row, rowIndex) => {
                 row.forEach((cell, colIndex) => {
-                    table.setCellValue(rowIndex + 1, colIndex, cell);
+                    table.setCellValue(rowIndex, colIndex, cell);
                 });
             });
 
-            // 数式の例
-            table.setCellValue(10, 0, '平均年齢');
-            table.setCellValue(10, 1, '31.25'); // 実際の数式計算は今後実装
+            // 統計行を追加
+            table.setCellValue(10, 0, '統計');
+            table.setCellValue(10, 1, '平均年齢: 31.25歳');
+            table.setCellValue(10, 4, '平均給与: ¥506,250');
 
             table.render();
             updateStats();

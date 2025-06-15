@@ -36,6 +36,8 @@ export interface TableConfig {
   selected_cell_color: string;
   /** グリッド表示フラグ */
   show_grid: boolean;
+  /** 列ヘッダー設定 */
+  column_headers: ColumnHeader[];
 }
 
 /**
@@ -119,8 +121,59 @@ export const DEFAULT_CONFIG: TableConfig = {
   grid_color: "#cccccc",
   header_background_color: "#f0f0f0",
   selected_cell_color: "#3498db",
-  show_grid: true
+  show_grid: true,
+  column_headers: []
 };
+
+/**
+ * フィールドタイプの列挙型
+ */
+export enum FieldType {
+  CharField = "CharField",
+  EmailField = "EmailField", 
+  TextareaField = "TextareaField",
+  IntegerField = "IntegerField",
+  DecimalField = "DecimalField",
+  DecimalWithNullField = "DecimalWithNullField",
+  DateField = "DateField",
+  TimeField = "TimeField",
+  CheckField = "CheckField",
+  BooleanField = "BooleanField",
+  ButtonField = "ButtonField",
+  MenuField = "MenuField"
+}
+
+/**
+ * 列ヘッダー設定のインターface
+ */
+export interface ColumnHeader {
+  /** プロパティ名（内部識別用） */
+  name: string;
+  /** 表示名（ヘッダーに表示される名前） */
+  display_name: string;
+  /** 列の幅（ピクセル） */
+  width: number;
+  /** 必須入力項目かどうか */
+  required: boolean;
+  /** 表示順序 */
+  order: number;
+  /** 表示/非表示フラグ */
+  is_visible: boolean;
+  /** フィールドタイプ */
+  field_type: FieldType | string;
+  /** 最大文字数（文字列フィールド用） */
+  max_length?: number;
+  /** 整数桁数（数値フィールド用） */
+  max_digits?: number;
+  /** 小数点桁数（小数フィールド用） */
+  decimal_places?: number;
+  /** 最小値（数値フィールド用） */
+  min_number?: number;
+  /** 最大値（数値フィールド用） */
+  max_number?: number;
+  /** 選択肢（メニューフィールド用） */
+  choices?: string[];
+}
 
 /**
  * NinjaTable - 高性能なExcel風テーブルコンポーネント
@@ -307,6 +360,37 @@ export class NinjaTable {
    */
   public getConfig(): TableConfig {
     return { ...this.config };
+  }
+
+  /**
+   * 列ヘッダー設定を適用
+   * 
+   * @param headers - 列ヘッダー設定の配列（JSON文字列またはオブジェクト配列）
+   */
+  public setColumnHeaders(headers: string | ColumnHeader[]): void {
+    this.ensureInitialized();
+    const headersJson = typeof headers === 'string' ? headers : JSON.stringify(headers);
+    this.wasmTable.set_column_headers(headersJson);
+  }
+
+  /**
+   * 列ヘッダー設定を取得
+   * 
+   * @returns 列ヘッダー設定のJSON文字列
+   */
+  public getColumnHeaders(): string {
+    this.ensureInitialized();
+    return this.wasmTable.get_column_headers();
+  }
+
+  /**
+   * 列ヘッダー設定をオブジェクト配列として取得
+   * 
+   * @returns 列ヘッダー設定のオブジェクト配列
+   */
+  public getColumnHeadersAsArray(): ColumnHeader[] {
+    const headersJson = this.getColumnHeaders();
+    return JSON.parse(headersJson);
   }
 
   /**

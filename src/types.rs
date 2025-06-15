@@ -72,6 +72,7 @@ pub struct TableConfig {
     pub font_family: String,
     pub font_style: String,
     pub font_weight: String,
+    pub column_headers: Vec<ColumnHeader>,  // 列ヘッダー設定
 }
 
 impl Default for TableConfig {
@@ -93,6 +94,62 @@ impl Default for TableConfig {
             font_family: "Arial, sans-serif".to_string(),
             font_style: "normal".to_string(),
             font_weight: "normal".to_string(),
+            column_headers: Vec::new(),
+        }
+    }
+}
+
+// フィールドタイプの定義
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FieldType {
+    CharField,
+    EmailField,
+    TextareaField,
+    IntegerField,
+    DecimalField,
+    DecimalWithNullField,
+    DateField,
+    TimeField,
+    CheckField,
+    BooleanField,
+    ButtonField,
+    MenuField,
+}
+
+// 列ヘッダー設定の型定義
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ColumnHeader {
+    pub name: String,                    // プロパティ名
+    pub display_name: String,            // 表示名
+    pub max_length: Option<usize>,       // 最大文字数
+    pub max_digits: Option<usize>,       // 整数桁数
+    pub decimal_places: Option<usize>,   // 小数点桁数
+    pub width: f64,                      // 横の長さ
+    pub required: bool,                  // 必須入力項目
+    pub order: usize,                    // 表示順
+    pub is_visible: bool,                // 表示フラグ
+    pub field_type: FieldType,           // フィールドタイプ
+    pub min_number: Option<f64>,         // 最小値（数値フィールド用）
+    pub max_number: Option<f64>,         // 最大値（数値フィールド用）
+    pub choices: Option<Vec<String>>,    // 選択肢（MenuField用）
+}
+
+impl Default for ColumnHeader {
+    fn default() -> Self {
+        ColumnHeader {
+            name: String::new(),
+            display_name: String::new(),
+            max_length: None,
+            max_digits: None,
+            decimal_places: None,
+            width: 100.0,
+            required: false,
+            order: 0,
+            is_visible: true,
+            field_type: FieldType::CharField,
+            min_number: None,
+            max_number: None,
+            choices: None,
         }
     }
 } 

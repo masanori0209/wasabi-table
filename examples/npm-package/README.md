@@ -45,6 +45,17 @@ examples/npm-package/
 - **マウスクリック**: セル選択
 - **マウスホイール**: スクロール
 
+## 🚀 主な機能
+
+- **高性能レンダリング**: WebAssembly + Canvas APIによる高速描画
+- **Excel風操作**: キーボードナビゲーション、セル編集、数式バー
+- **カスタマイズ可能**: 豊富な設定オプションとテーマサポート
+- **TypeScript対応**: 完全な型安全性とIntelliSense
+- **軽量**: 最小限の依存関係
+- **レスポンシブ**: 大量データの効率的な表示
+- **列ヘッダー設定**: 12種類のフィールドタイプと詳細な列設定
+- **入力検証**: フィールドタイプに応じた自動検証機能
+
 ## 💻 TypeScript 使用例
 
 ### `typescript-example.ts`
@@ -259,6 +270,77 @@ const batchData: CellData[] = [
 ];
 
 table.setBatchData(batchData);
+```
+
+## 📋 列ヘッダー設定
+
+NinjaTableでは、各列に詳細な設定を行うことができます。
+
+### フィールドタイプ
+
+- **CharField** - 短いテキスト入力
+- **EmailField** - メールアドレス入力（検証付き）
+- **TextareaField** - 長いテキスト入力
+- **IntegerField** - 整数値入力
+- **DecimalField** - 小数点数値入力
+- **DateField** - 日付入力
+- **TimeField** - 時刻入力
+- **BooleanField** - チェックボックス
+- **MenuField** - ドロップダウンメニュー
+- **ButtonField** - ボタン表示
+
+### 設定例
+
+```typescript
+import { NinjaTable, ColumnHeader, FieldType } from 'ninja-table';
+
+const columnHeaders: ColumnHeader[] = [
+  {
+    name: "employee_id",
+    display_name: "社員ID",
+    width: 80,
+    required: true,
+    order: 0,
+    is_visible: true,
+    field_type: FieldType.IntegerField,
+    min_number: 1000,
+    max_number: 9999
+  },
+  {
+    name: "name",
+    display_name: "氏名",
+    width: 150,
+    required: true,
+    order: 1,
+    is_visible: true,
+    field_type: FieldType.CharField,
+    max_length: 50
+  },
+  {
+    name: "department",
+    display_name: "部署",
+    width: 120,
+    required: true,
+    order: 2,
+    is_visible: true,
+    field_type: FieldType.MenuField,
+    choices: ["開発部", "営業部", "総務部", "人事部"]
+  },
+  {
+    name: "salary",
+    display_name: "月給",
+    width: 100,
+    required: false,
+    order: 3,
+    is_visible: true,
+    field_type: FieldType.DecimalField,
+    max_digits: 8,
+    decimal_places: 0
+  }
+];
+
+// ヘッダー設定を適用
+table.setColumnHeaders(columnHeaders);
 ```
 
 ## 🔧 トラブルシューティング

@@ -18,8 +18,27 @@ export const DEFAULT_CONFIG = {
     grid_color: "#cccccc",
     header_background_color: "#f0f0f0",
     selected_cell_color: "#3498db",
-    show_grid: true
+    show_grid: true,
+    column_headers: []
 };
+/**
+ * フィールドタイプの列挙型
+ */
+export var FieldType;
+(function (FieldType) {
+    FieldType["CharField"] = "CharField";
+    FieldType["EmailField"] = "EmailField";
+    FieldType["TextareaField"] = "TextareaField";
+    FieldType["IntegerField"] = "IntegerField";
+    FieldType["DecimalField"] = "DecimalField";
+    FieldType["DecimalWithNullField"] = "DecimalWithNullField";
+    FieldType["DateField"] = "DateField";
+    FieldType["TimeField"] = "TimeField";
+    FieldType["CheckField"] = "CheckField";
+    FieldType["BooleanField"] = "BooleanField";
+    FieldType["ButtonField"] = "ButtonField";
+    FieldType["MenuField"] = "MenuField";
+})(FieldType || (FieldType = {}));
 /**
  * NinjaTable - 高性能なExcel風テーブルコンポーネント
  *
@@ -181,6 +200,34 @@ export class NinjaTable {
      */
     getConfig() {
         return { ...this.config };
+    }
+    /**
+     * 列ヘッダー設定を適用
+     *
+     * @param headers - 列ヘッダー設定の配列（JSON文字列またはオブジェクト配列）
+     */
+    setColumnHeaders(headers) {
+        this.ensureInitialized();
+        const headersJson = typeof headers === 'string' ? headers : JSON.stringify(headers);
+        this.wasmTable.set_column_headers(headersJson);
+    }
+    /**
+     * 列ヘッダー設定を取得
+     *
+     * @returns 列ヘッダー設定のJSON文字列
+     */
+    getColumnHeaders() {
+        this.ensureInitialized();
+        return this.wasmTable.get_column_headers();
+    }
+    /**
+     * 列ヘッダー設定をオブジェクト配列として取得
+     *
+     * @returns 列ヘッダー設定のオブジェクト配列
+     */
+    getColumnHeadersAsArray() {
+        const headersJson = this.getColumnHeaders();
+        return JSON.parse(headersJson);
     }
     /**
      * リソースを解放

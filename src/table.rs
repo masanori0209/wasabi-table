@@ -469,20 +469,34 @@ impl NinjaTable {
         Some(format!("{}:{}", row, col))
     }
 
-    // 座標からセルを計算
+    // 座標からセルを計算（カスタム列幅対応）
     fn pixel_to_cell(&self, x: f64, y: f64) -> Option<(usize, usize)> {
         if x < self.config.row_header_width || y < self.config.header_height {
             return None;
         }
 
-        let col = ((x - self.config.row_header_width + self.scroll_x) / self.config.default_col_width) as usize;
         let row = ((y - self.config.header_height + self.scroll_y) / self.config.default_row_height) as usize;
-
-        if row < self.config.row_count && col < self.config.col_count {
-            Some((row, col))
-        } else {
-            None
+        
+        // 列の計算（カスタム幅対応）
+        let mut accumulated_width = self.config.row_header_width;
+        let target_x = x + self.scroll_x;
+        
+        for col in 0..self.config.col_count {
+            let column_width = if let Some(header) = self.get_column_header(col) {
+                header.width
+            } else {
+                self.config.default_col_width
+            };
+            
+            if target_x >= accumulated_width && target_x < accumulated_width + column_width {
+                if row < self.config.row_count {
+                    return Some((row, col));
+                }
+            }
+            accumulated_width += column_width;
         }
+
+        None
     }
 
     // 表示範囲を計算
@@ -571,7 +585,7 @@ impl NinjaTable {
     }
 
     fn get_cell_x_for_editing(&self, col: usize) -> f64 {
-        col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width
+        self.get_column_x_position(col) + self.scroll_x
     }
 
     fn get_cell_y_for_editing(&self, row: usize) -> f64 {
@@ -661,12 +675,18 @@ impl NinjaTable {
     }
 
     fn render_cell(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
-        let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
+        let x = self.get_column_x_position(col);
         let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+        
+        let column_width = if let Some(header) = self.get_column_header(col) {
+            header.width
+        } else {
+            self.config.default_col_width
+        };
         
         // セルの背景を描画（選択セルも通常の背景色）
         self.ctx.set_fill_style_str(&self.config.background_color);
-        self.ctx.fill_rect(x, y, self.config.default_col_width, self.config.default_row_height);
+        self.ctx.fill_rect(x, y, column_width, self.config.default_row_height);
         
         // セルのデータを取得
         let key = format!("{}:{}", row, col);
@@ -683,6 +703,23 @@ impl NinjaTable {
         }
         
         Ok(())
+    }
+
+    // 列のX座標を計算するヘルパーメソッド
+    fn get_column_x_position(&self, col: usize) -> f64 {
+        if col == 0 {
+            self.config.row_header_width - self.scroll_x
+        } else {
+            let mut accumulated_width = self.config.row_header_width;
+            for prev_col in 0..col {
+                if let Some(header) = self.get_column_header(prev_col) {
+                    accumulated_width += header.width;
+                } else {
+                    accumulated_width += self.config.default_col_width;
+                }
+            }
+            accumulated_width - self.scroll_x
+        }
     }
 
     fn render_header(&mut self) -> Result<(), JsValue> {
@@ -704,11 +741,40 @@ impl NinjaTable {
         
         // 列ヘッダーテキストを描画（スクロールに影響されない固定位置）
         for col in self.visible_cols.0..self.visible_cols.1 {
-            let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
+            let column_width = if let Some(header) = self.get_column_header(col) {
+                header.width
+            } else {
+                self.config.default_col_width
+            };
+            
+            let x = if col == 0 {
+                self.config.row_header_width
+            } else {
+                // 前の列までの幅を累積計算
+                let mut accumulated_width = self.config.row_header_width;
+                for prev_col in 0..col {
+                    if let Some(prev_header) = self.get_column_header(prev_col) {
+                        accumulated_width += prev_header.width;
+                    } else {
+                        accumulated_width += self.config.default_col_width;
+                    }
+                }
+                accumulated_width - self.scroll_x
+            };
+            
             // 列ヘッダーは画面内に表示される場合のみ描画
-            if x + self.config.default_col_width > self.config.row_header_width && x < self.canvas.width() as f64 {
-                let column_name = self.get_column_name(col);
-                self.ctx.fill_text(&column_name, x + self.config.default_col_width / 2.0, self.config.header_height / 2.0)?;
+            if x + column_width > self.config.row_header_width && x < self.canvas.width() as f64 {
+                let display_name = if let Some(header) = self.get_column_header(col) {
+                    if header.is_visible {
+                        header.display_name.clone()
+                    } else {
+                        continue; // 非表示の列はスキップ
+                    }
+                } else {
+                    self.get_column_name(col)
+                };
+                
+                self.ctx.fill_text(&display_name, x + column_width / 2.0, self.config.header_height / 2.0)?;
             }
         }
         
@@ -787,13 +853,25 @@ impl NinjaTable {
         self.ctx.set_stroke_style_str(&self.config.grid_color);
         self.ctx.set_line_width(1.0);
         
-        // 縦線をバッチ処理で描画
-        for col in self.visible_cols.0..=self.visible_cols.1 {
-            let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
-            self.ctx.begin_path();
-            self.ctx.move_to(x, self.config.header_height);
-            self.ctx.line_to(x, self.canvas.height() as f64);
-            self.ctx.stroke();
+        // 縦線をバッチ処理で描画（カスタム列幅対応）
+        let mut accumulated_width = self.config.row_header_width;
+        for col in 0..=self.config.col_count {
+            let x = accumulated_width - self.scroll_x;
+            if x >= self.config.row_header_width && x <= self.canvas.width() as f64 {
+                self.ctx.begin_path();
+                self.ctx.move_to(x, self.config.header_height);
+                self.ctx.line_to(x, self.canvas.height() as f64);
+                self.ctx.stroke();
+            }
+            
+            if col < self.config.col_count {
+                let column_width = if let Some(header) = self.get_column_header(col) {
+                    header.width
+                } else {
+                    self.config.default_col_width
+                };
+                accumulated_width += column_width;
+            }
         }
 
         // 横線をバッチ処理で描画
@@ -805,16 +883,47 @@ impl NinjaTable {
             self.ctx.stroke();
         }
         
-        // 選択されたセルの枠を描画
+        // 選択されたセルの枠を描画（カスタム列幅対応）
         if let Some((row, col)) = self.selected_cell {
-            let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
+            let x = self.get_column_x_position(col);
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+            
+            let column_width = if let Some(header) = self.get_column_header(col) {
+                header.width
+            } else {
+                self.config.default_col_width
+            };
             
             self.ctx.set_stroke_style_str(&self.config.selected_cell_color);
             self.ctx.set_line_width(2.0);
-            self.ctx.stroke_rect(x, y, self.config.default_col_width, self.config.default_row_height);
+            self.ctx.stroke_rect(x, y, column_width, self.config.default_row_height);
         }
         
         Ok(())
+    }
+
+    // ヘッダー設定を更新
+    #[wasm_bindgen]
+    pub fn set_column_headers(&mut self, headers_json: &str) -> Result<(), JsValue> {
+        match serde_json::from_str::<Vec<crate::types::ColumnHeader>>(headers_json) {
+            Ok(headers) => {
+                self.config.column_headers = headers;
+                // 列数を更新
+                self.config.col_count = self.config.column_headers.len().max(1);
+                Ok(())
+            }
+            Err(e) => Err(JsValue::from_str(&format!("Failed to parse headers: {}", e))),
+        }
+    }
+
+    // ヘッダー情報を取得
+    #[wasm_bindgen]
+    pub fn get_column_headers(&self) -> String {
+        serde_json::to_string(&self.config.column_headers).unwrap_or_default()
+    }
+
+    // 特定の列のヘッダー情報を取得（内部使用）
+    fn get_column_header(&self, col: usize) -> Option<crate::types::ColumnHeader> {
+        self.config.column_headers.get(col).cloned()
     }
 } 
