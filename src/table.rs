@@ -218,6 +218,15 @@ impl NinjaTable {
     pub fn handle_canvas_click(&mut self, canvas_x: f64, canvas_y: f64) -> Result<(), JsValue> {
         web_sys::console::log_1(&format!("🖱️ [DEBUG] Processing click at canvas coords ({}, {})", canvas_x, canvas_y).into());
 
+        // 左上角のクリック判定
+        if canvas_x < self.config.row_header_width && canvas_y < self.config.header_height {
+            web_sys::console::log_1(&"🔲 [DEBUG] Clicked top-left corner - Select all".into());
+            // 全選択の処理（現在は最初のセルを選択）
+            self.selected_cell = Some((0, 0));
+            self.render()?;
+            return Ok(());
+        }
+
         if let Some(cell_pos) = self.select_cell(canvas_x, canvas_y) {
             web_sys::console::log_1(&format!("📌 [DEBUG] Selected cell: {}", cell_pos).into());
             self.render()?;
@@ -635,9 +644,6 @@ impl NinjaTable {
         self.ctx.set_fill_style_str(&self.config.background_color);
         self.ctx.fill_rect(0.0, 0.0, self.canvas.width() as f64, self.canvas.height() as f64);
         
-        // ヘッダーを描画
-        self.render_header()?;
-        
         // すべての可視セルを描画（空のセルも含む）
         for row in self.visible_rows.0..self.visible_rows.1 {
             for col in self.visible_cols.0..self.visible_cols.1 {
@@ -647,6 +653,9 @@ impl NinjaTable {
         
         // グリッドと選択セルを描画
         self.render_grid()?;
+        
+        // ヘッダーを最後に描画（常に最前面に表示）
+        self.render_header()?;
         
         Ok(())
     }
@@ -677,18 +686,15 @@ impl NinjaTable {
     }
 
     fn render_header(&mut self) -> Result<(), JsValue> {
-        // ヘッダー背景を描画
+        // ヘッダー背景を描画（固定位置）
         self.ctx.set_fill_style_str(&self.config.header_background_color);
         self.ctx.set_stroke_style_str(&self.config.grid_color);
         
-        // 列ヘッダー背景
+        // 列ヘッダー背景（上部の固定領域）
         self.ctx.fill_rect(self.config.row_header_width, 0.0, self.canvas.width() as f64 - self.config.row_header_width, self.config.header_height);
         
-        // 行ヘッダー背景
-        self.ctx.fill_rect(0.0, 0.0, self.config.row_header_width, self.canvas.height() as f64);
-        
-        // 左上角の背景
-        self.ctx.fill_rect(0.0, 0.0, self.config.row_header_width, self.config.header_height);
+        // 行ヘッダー背景（左側の固定領域）
+        self.ctx.fill_rect(0.0, self.config.header_height, self.config.row_header_width, self.canvas.height() as f64 - self.config.header_height);
 
         // テキスト描画設定
         self.ctx.set_fill_style_str(&self.config.text_color);
@@ -696,18 +702,24 @@ impl NinjaTable {
         self.ctx.set_text_align("center");
         self.ctx.set_text_baseline("middle");
         
-        // 列ヘッダーテキストを描画
+        // 列ヘッダーテキストを描画（スクロールに影響されない固定位置）
         for col in self.visible_cols.0..self.visible_cols.1 {
             let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
-            let column_name = self.get_column_name(col);
-            self.ctx.fill_text(&column_name, x + self.config.default_col_width / 2.0, self.config.header_height / 2.0)?;
+            // 列ヘッダーは画面内に表示される場合のみ描画
+            if x + self.config.default_col_width > self.config.row_header_width && x < self.canvas.width() as f64 {
+                let column_name = self.get_column_name(col);
+                self.ctx.fill_text(&column_name, x + self.config.default_col_width / 2.0, self.config.header_height / 2.0)?;
+            }
         }
         
-        // 行番号を描画
+        // 行番号を描画（スクロールに影響されない固定位置）
         for row in self.visible_rows.0..self.visible_rows.1 {
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
-            let row_number = (row + 1).to_string();
-            self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0)?;
+            // 行ヘッダーは画面内に表示される場合のみ描画
+            if y + self.config.default_row_height > self.config.header_height && y < self.canvas.height() as f64 {
+                let row_number = (row + 1).to_string();
+                self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0)?;
+            }
         }
         
         // 境界線を描画
@@ -724,6 +736,29 @@ impl NinjaTable {
         self.ctx.move_to(0.0, self.config.header_height);
         self.ctx.line_to(self.canvas.width() as f64, self.config.header_height);
         self.ctx.stroke();
+        
+        // 左上角の背景を最後に描画（他の要素の上に重ねる）
+        self.ctx.set_fill_style_str(&self.config.header_background_color);
+        self.ctx.fill_rect(0.0, 0.0, self.config.row_header_width, self.config.header_height);
+        
+        // 左上角の境界線を強調
+        self.ctx.set_stroke_style_str(&self.config.grid_color);
+        self.ctx.set_line_width(2.0);
+        self.ctx.stroke_rect(0.0, 0.0, self.config.row_header_width, self.config.header_height);
+        
+        // 左上角の全選択ボタンを再描画
+        self.ctx.set_fill_style_str(&self.config.text_color);
+        self.ctx.set_font(&format!("{}px {}", self.config.font_size - 2.0, self.config.font_family));
+        self.ctx.set_text_align("center");
+        self.ctx.set_text_baseline("middle");
+        
+        let corner_size = 8.0;
+        let corner_x = self.config.row_header_width / 2.0 - corner_size / 2.0;
+        let corner_y = self.config.header_height / 2.0 - corner_size / 2.0;
+        
+        self.ctx.set_stroke_style_str(&self.config.text_color);
+        self.ctx.set_line_width(1.0);
+        self.ctx.stroke_rect(corner_x, corner_y, corner_size, corner_size);
         
         // テキスト設定をリセット
         self.ctx.set_text_align("left");
