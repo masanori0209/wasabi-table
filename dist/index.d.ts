@@ -148,6 +148,37 @@ export interface ColumnHeader {
     choices?: string[];
 }
 /**
+ * 入力検証エラーのインターface
+ */
+export interface ValidationError {
+    /** フィールド名 */
+    field_name: string;
+    /** エラーメッセージ */
+    message: string;
+    /** エラータイプ */
+    error_type: string;
+}
+/**
+ * 検証結果のインターface
+ */
+export interface ValidationResult {
+    /** 検証が成功したかどうか */
+    isValid: boolean;
+    /** エラー情報（検証失敗時のみ） */
+    error?: ValidationError;
+}
+/**
+ * セルの画面位置情報
+ */
+export interface CellScreenPosition {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    centerX: number;
+    centerY: number;
+}
+/**
  * NinjaTable - 高性能なExcel風テーブルコンポーネント
  *
  * @example
@@ -172,6 +203,8 @@ export declare class NinjaTable {
     private config;
     private eventHandlers;
     private isInitialized;
+    private tooltipElement;
+    private canvas;
     private constructor();
     /**
      * NinjaTableインスタンスを作成
@@ -186,11 +219,11 @@ export declare class NinjaTable {
      */
     setEventHandlers(handlers: EventHandlers): void;
     /**
-     * セルに値を設定
+     * セルの値を設定
      *
-     * @param row - 行インデックス
-     * @param col - 列インデックス
-     * @param value - 設定する値
+     * @param row 行番号（0から開始）
+     * @param col 列番号（0から開始）
+     * @param value 設定する値
      */
     setCellValue(row: number, col: number, value: string): void;
     /**
@@ -268,6 +301,64 @@ export declare class NinjaTable {
      */
     getColumnHeadersAsArray(): ColumnHeader[];
     /**
+     * セルの値を検証
+     *
+     * @param row 行番号（0から開始）- 現在は使用されていません
+     * @param col 列番号（0から開始）
+     * @param value 検証する値
+     * @returns 検証エラーの配列（エラーがない場合は空配列）
+     */
+    validateCellValue(_row: number, col: number, value: string): ValidationError[];
+    /**
+     * 検証付きでセルの値を設定
+     *
+     * @param row 行番号（0から開始）
+     * @param col 列番号（0から開始）
+     * @param value 設定する値
+     * @returns 検証結果
+     */
+    setCellValueWithValidation(row: number, col: number, value: string): ValidationResult;
+    /**
+     * 選択されたセルの検証エラーメッセージを取得
+     *
+     * @returns エラーメッセージ（エラーがない場合はundefined）
+     */
+    getSelectedCellValidationError(): string | undefined;
+    /**
+     * 指定されたセルの検証エラー情報を取得
+     *
+     * @param row - 行インデックス
+     * @param col - 列インデックス
+     * @returns 検証エラー情報（エラーがない場合はundefined）
+     */
+    getCellValidationError(row: number, col: number): ValidationError | undefined;
+    /**
+     * 指定されたセルの画面上の位置を取得
+     *
+     * @param row - 行インデックス
+     * @param col - 列インデックス
+     * @returns セルの画面位置情報
+     */
+    getCellScreenPosition(row: number, col: number): CellScreenPosition;
+    /**
+     * 選択されたセルの画面上の位置を取得
+     *
+     * @returns 選択セルの画面位置情報（選択されていない場合はundefined）
+     */
+    getSelectedCellScreenPosition(): CellScreenPosition | undefined;
+    /**
+     * 検証エラー吹き出しを表示
+     */
+    private showValidationTooltip;
+    /**
+     * 検証エラー吹き出しを非表示
+     */
+    private hideValidationTooltip;
+    /**
+     * 選択されたセルの検証エラーを確認して吹き出しを表示
+     */
+    private updateValidationTooltip;
+    /**
      * リソースを解放
      */
     dispose(): void;
@@ -289,5 +380,6 @@ export declare class NinjaTable {
     private setupEventHandlers;
     private triggerCellSelectEvent;
     private ensureInitialized;
+    private createTooltipElement;
 }
 //# sourceMappingURL=index.d.ts.map

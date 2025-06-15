@@ -44,6 +44,7 @@ pub struct CellData {
     pub font_weight: Option<String>,
     pub text_decoration: Option<String>,
     pub format: Option<CellFormat>,
+    pub validation_error: Option<ValidationErrorInfo>,
 }
 
 // セルの型定義
@@ -51,6 +52,7 @@ pub struct CellData {
 pub struct Cell {
     pub value: String,
     pub format: Option<CellFormat>,
+    pub validation_error: Option<ValidationErrorInfo>,
 }
 
 // テーブル設定
@@ -152,4 +154,10 @@ impl Default for ColumnHeader {
             choices: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidationErrorInfo {
+    pub message: String,
+    pub error_type: String,
 } 

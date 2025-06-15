@@ -58,12 +58,11 @@
         .formula-bar {
             display: flex;
             align-items: center;
-            margin-bottom: 1rem;
-            gap: 1rem;
-            padding: 1rem;
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
+            margin-bottom: 10px;
+            padding: 5px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
         }
 
         .cell-reference {
@@ -179,6 +178,42 @@
             color: #6c757d;
             margin-top: 1rem;
         }
+
+        .validation-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .validation-success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        .validation-test-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .validation-test-button:hover {
+            background-color: #0056b3;
+        }
+
+
 
         .code-section {
             background: #2d3748;
@@ -316,12 +351,20 @@
                 <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ</button>
                 <button class="btn btn-secondary" onclick="clearTable()">クリア</button>
                 <button class="btn btn-secondary" onclick="exportCSV()">CSV出力</button>
+                <button class="btn btn-primary" onclick="testValidation()">検証テスト</button>
             </div>
 
             <!-- 統計情報 -->
             <div id="stats" class="stats">
                 初期化中...
             </div>
+
+            <!-- 検証エラー表示 -->
+            <div id="validationError" class="validation-error"></div>
+            <div id="validationSuccess" class="validation-success"></div>
+
+            <!-- 検証テストボタン -->
+            <button class="validation-test-button" onclick="runValidationTests()">検証テスト実行</button>
         </div>
 
         <!-- 使用方法 -->
@@ -773,6 +816,40 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
         const cellReference = document.getElementById('cellReference');
         const formulaInput = document.getElementById('formulaInput');
         const statsElement = document.getElementById('stats');
+        const validationError = document.getElementById('validationError');
+        const errorMessage = document.getElementById('errorMessage');
+        const validationSuccess = document.getElementById('validationSuccess');
+        const validationTooltip = document.getElementById('validationTooltip');
+        const tooltipMessage = document.getElementById('tooltipMessage');
+
+        // 検証エラーを表示
+        function showValidationError(error) {
+            errorMessage.textContent = error.message;
+            validationError.classList.add('show');
+            validationSuccess.classList.remove('show');
+            
+            // 3秒後に自動で非表示
+            setTimeout(() => {
+                validationError.classList.remove('show');
+            }, 3000);
+        }
+
+        // 検証成功を表示
+        function showValidationSuccess() {
+            validationSuccess.classList.add('show');
+            validationError.classList.remove('show');
+            
+            // 2秒後に自動で非表示
+            setTimeout(() => {
+                validationSuccess.classList.remove('show');
+            }, 2000);
+        }
+
+        // 検証表示をクリア
+        function clearValidationDisplay() {
+            validationError.classList.remove('show');
+            validationSuccess.classList.remove('show');
+        }
 
         // 数式バーのイベントリスナー
         formulaInput.addEventListener('keydown', (e) => {
@@ -781,7 +858,30 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
                 if (table) {
                     const selectedCell = table.getSelectedCell();
                     if (selectedCell) {
-                        table.setCellValue(selectedCell.row, selectedCell.col, formulaInput.value);
+                        // 検証付きでセル値を設定（メソッドが存在する場合のみ）
+                        try {
+                            if (typeof table.setCellValueWithValidation === 'function') {
+                                const validationResult = table.setCellValueWithValidation(
+                                    selectedCell.row, 
+                                    selectedCell.col, 
+                                    formulaInput.value
+                                );
+                                
+                                // 検証結果に応じて表示を更新
+                                if (validationResult.isValid) {
+                                    showValidationSuccess();
+                                } else {
+                                    showValidationError(validationResult.error);
+                                }
+                            } else {
+                                // 検証機能がない場合は通常のセット
+                                table.setCellValue(selectedCell.row, selectedCell.col, formulaInput.value);
+                            }
+                        } catch (error) {
+                            console.warn('Validation failed, using normal cell set:', error);
+                            table.setCellValue(selectedCell.row, selectedCell.col, formulaInput.value);
+                        }
+                        
                         table.render();
                         updateStats();
                         
@@ -791,6 +891,38 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
                             table.render();
                             updateCellReference();
                         }
+                    }
+                }
+            }
+        });
+
+        // リアルタイム検証（入力中）
+        formulaInput.addEventListener('input', (e) => {
+            if (table) {
+                const selectedCell = table.getSelectedCell();
+                if (selectedCell) {
+                    try {
+                        if (typeof table.validateCellValue === 'function') {
+                            const validationResult = table.validateCellValue(selectedCell.col, formulaInput.value);
+                            
+                            if (!validationResult.isValid && formulaInput.value.trim() !== '') {
+                                // エラーがある場合は入力フィールドの色を変更
+                                formulaInput.style.borderColor = '#dc3545';
+                                formulaInput.style.backgroundColor = '#fff5f5';
+                            } else {
+                                // 正常な場合は元の色に戻す
+                                formulaInput.style.borderColor = '#dee2e6';
+                                formulaInput.style.backgroundColor = '#ffffff';
+                            }
+                        } else {
+                            // 検証機能がない場合は通常の色
+                            formulaInput.style.borderColor = '#dee2e6';
+                            formulaInput.style.backgroundColor = '#ffffff';
+                        }
+                    } catch (error) {
+                        // エラーが発生した場合は通常の色に戻す
+                        formulaInput.style.borderColor = '#dee2e6';
+                        formulaInput.style.backgroundColor = '#ffffff';
                     }
                 }
             }
@@ -806,6 +938,26 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
                     
                     const cellValue = table.getCellValue(selectedCell.row, selectedCell.col) || '';
                     formulaInput.value = cellValue;
+
+                    // 選択されたセルに検証エラーがあるかチェック（メソッドが存在する場合のみ）
+                    try {
+                        if (typeof table.getSelectedCellValidationError === 'function') {
+                            const validationErrorMessage = table.getSelectedCellValidationError();
+                            if (validationErrorMessage) {
+                                // 少し遅延させて正確な位置を取得
+                                setTimeout(() => {
+                                    showValidationTooltip(validationErrorMessage, selectedCell);
+                                }, 50);
+                            } else {
+                                hideValidationTooltip();
+                            }
+                        } else {
+                            hideValidationTooltip();
+                        }
+                    } catch (error) {
+                        console.warn('Validation error check failed:', error);
+                        hideValidationTooltip();
+                    }
                 }
             }
         }
@@ -1060,6 +1212,62 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
             document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
             document.getElementById(tabName).classList.add('active');
         };
+
+        // 検証テスト関数
+        function runValidationTests() {
+            const tests = [
+                { row: 0, col: 0, value: 'これは非常に長いテキストで最大文字数を超えています', expected: 'エラー' },
+                { row: 0, col: 1, value: 'invalid-email', expected: 'エラー' },
+                { row: 0, col: 2, value: 'これは長すぎるテキストエリアの内容です。'.repeat(10), expected: 'エラー' },
+                { row: 0, col: 3, value: '999999', expected: 'エラー' },
+                { row: 0, col: 4, value: '123.456789', expected: 'エラー' },
+                { row: 0, col: 5, value: '2024-13-01', expected: 'エラー' },
+                { row: 0, col: 6, value: '25:00', expected: 'エラー' },
+                { row: 0, col: 7, value: 'maybe', expected: 'エラー' }
+            ];
+
+            let passCount = 0;
+            let totalCount = tests.length;
+
+            tests.forEach((test, index) => {
+                setTimeout(() => {
+                    table.setCellValue(test.row, test.col, test.value);
+                    
+                    // 検証結果を確認
+                    setTimeout(() => {
+                        const validationResult = table.validateCellValue(test.row, test.col, test.value);
+                        const hasError = validationResult && validationResult.length > 0;
+                        const testPassed = (test.expected === 'エラー' && hasError) || (test.expected === '正常' && !hasError);
+                        
+                        if (testPassed) {
+                            passCount++;
+                        }
+                        
+                        console.log(`テスト ${index + 1}: ${testPassed ? '✓' : '✗'} - ${test.value} (${hasError ? 'エラー' : '正常'})`);
+                        
+                        // 最後のテストの場合、結果を表示
+                        if (index === tests.length - 1) {
+                            setTimeout(() => {
+                                const successDiv = document.getElementById('validationSuccess');
+                                const errorDiv = document.getElementById('validationError');
+                                
+                                if (passCount === totalCount) {
+                                    successDiv.textContent = `検証テスト完了: ${passCount}/${totalCount} 件成功`;
+                                    successDiv.style.display = 'block';
+                                    errorDiv.style.display = 'none';
+                                } else {
+                                    errorDiv.textContent = `検証テスト完了: ${passCount}/${totalCount} 件成功、${totalCount - passCount} 件失敗`;
+                                    errorDiv.style.display = 'block';
+                                    successDiv.style.display = 'none';
+                                }
+                            }, 500);
+                        }
+                    }, 100);
+                }, index * 200);
+            });
+        }
+
+
 
         // 初期化実行
         initTable();

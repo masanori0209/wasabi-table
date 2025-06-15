@@ -10,6 +10,7 @@ pub mod events;
 pub mod edit;
 pub mod merge;
 pub mod format;
+pub mod validation;
 
 pub use table::NinjaTable;
 pub use types::{CellData, TableConfig, CellFormat, Condition};
