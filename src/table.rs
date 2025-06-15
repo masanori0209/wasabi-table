@@ -675,6 +675,9 @@ impl NinjaTable {
             self.editing_cell = None;
             self.editing_input = None;
             
+            // キャンバスにフォーカスを戻す
+            self.canvas.focus()?;
+            
             web_sys::console::log_1(&format!("✅ [DEBUG] Finished editing cell ({}, {})", row, col).into());
         }
         
@@ -695,6 +698,10 @@ impl NinjaTable {
             // 編集状態をクリア
             self.editing_cell = None;
             self.editing_input = None;
+            
+            // キャンバスにフォーカスを戻す
+            self.canvas.focus()?;
+            
             self.render()?;
             
             web_sys::console::log_1(&format!("❌ [DEBUG] Cancelled editing cell ({}, {})", row, col).into());
@@ -1193,6 +1200,9 @@ impl NinjaTable {
                 web_sys::console::log_1(&format!("⬇️ [DEBUG] Moved to cell ({}, {})", row + 1, col).into());
             }
             
+            // キャンバスにフォーカスを確実に戻す
+            self.canvas.focus()?;
+            
             self.render()?;
         }
         Ok(())
@@ -1213,6 +1223,9 @@ impl NinjaTable {
                 web_sys::console::log_1(&format!("➡️ [DEBUG] Moved to cell ({}, {})", row, col + 1).into());
             }
             
+            // キャンバスにフォーカスを確実に戻す
+            self.canvas.focus()?;
+            
             self.render()?;
         }
         Ok(())
@@ -1224,7 +1237,7 @@ impl NinjaTable {
         if self.editing_cell.is_some() {
             web_sys::console::log_1(&"❌ [DEBUG] Handling Escape during editing".into());
             
-            // 編集をキャンセル
+            // 編集をキャンセル（cancel_editingでキャンバスフォーカスも処理される）
             self.cancel_editing()?;
             self.render()?;
         }

@@ -1313,6 +1313,13 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
             if (table) {
                 table.handle_editing_enter();
                 updateCellReference();
+                // キャンバスにフォーカスを確実に戻す
+                setTimeout(() => {
+                    const canvas = document.getElementById('ninjaCanvas');
+                    if (canvas) {
+                        canvas.focus();
+                    }
+                }, 10);
             }
         };
 
@@ -1320,6 +1327,13 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
             if (table) {
                 table.handle_editing_tab();
                 updateCellReference();
+                // キャンバスにフォーカスを確実に戻す
+                setTimeout(() => {
+                    const canvas = document.getElementById('ninjaCanvas');
+                    if (canvas) {
+                        canvas.focus();
+                    }
+                }, 10);
             }
         };
 
@@ -1327,6 +1341,13 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
             if (table) {
                 table.handle_editing_escape();
                 updateCellReference();
+                // キャンバスにフォーカスを確実に戻す
+                setTimeout(() => {
+                    const canvas = document.getElementById('ninjaCanvas');
+                    if (canvas) {
+                        canvas.focus();
+                    }
+                }, 10);
             }
         };
 
