@@ -1,9 +1,16 @@
-// React での NinjaTable 使用例
+// React での NinjaTable 使用例（統合版）
 // 実際の使用時は以下のパッケージをインストールしてください:
 // npm install ninja-table react @types/react
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-// import { NinjaTable, TableConfig, CellPosition, EventHandlers } from 'ninja-table';
+// import { 
+//   createNinjaTableWithListeners,
+//   NinjaTable, 
+//   NinjaTableListeners,
+//   TableConfig, 
+//   CellPosition, 
+//   EventHandlers 
+// } from 'ninja-table';
 
 // 型定義（実際のパッケージから import されます）
 interface TableConfig {

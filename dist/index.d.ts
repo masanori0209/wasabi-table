@@ -167,6 +167,22 @@ export interface ValidationResult {
     /** エラー情報（検証失敗時のみ） */
     error?: ValidationError;
 }
+export { NinjaTableListeners } from './listeners';
+export type { ListenerOptions, UIElements, EventCallbacks } from './listeners';
+export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut } from './utils';
+/**
+ * NinjaTableとリスナーを簡単に初期化する関数
+ */
+export declare function createNinjaTableWithListeners(canvas: HTMLCanvasElement, config: Partial<TableConfig> | undefined, uiConfig: {
+    cellReferenceSelector: string;
+    formulaInputSelector: string;
+    statsElementSelector?: string;
+    validationErrorSelector?: string;
+    validationSuccessSelector?: string;
+}, listenerOptions?: any, callbacks?: any): Promise<{
+    table: NinjaTable;
+    listeners: any;
+}>;
 /**
  * セルの画面位置情報
  */
@@ -391,4 +407,3 @@ export declare class NinjaTable {
     private ensureInitialized;
     private createTooltipElement;
 }
-//# sourceMappingURL=index.d.ts.map

@@ -1,4 +1,4 @@
-# NinjaTable 使用例
+# NinjaTable 使用例（統合版）
 
 ## インストール
 
@@ -8,20 +8,30 @@ npm install ninja-table
 
 ## JavaScript での使用例
 
-```javascript
-import { NinjaTable } from 'ninja-table';
+### 統合された初期化（推奨）
 
-// 基本的な使用方法
+```javascript
+import { createNinjaTableWithListeners } from 'ninja-table';
+
+// 基本的な使用方法（統合版）
 async function initTable() {
   const canvas = document.getElementById('myCanvas');
   
-  // テーブルを作成
-  const table = await NinjaTable.create(canvas, {
-    row_count: 50,
-    col_count: 10,
-    default_col_width: 120,
-    default_row_height: 30
-  });
+  // テーブルとリスナーを同時に作成
+  const { table, listeners } = await createNinjaTableWithListeners(
+    canvas,
+    {
+      row_count: 50,
+      col_count: 10,
+      default_col_width: 120,
+      default_row_height: 30
+    },
+    {
+      cellReferenceSelector: '#cellReference',
+      formulaInputSelector: '#formulaInput',
+      statsElementSelector: '#stats'
+    }
+  );
 
   // セルに値を設定
   table.setCellValue(0, 0, 'Hello');
@@ -61,13 +71,21 @@ async function initTable() {
 initTable().catch(console.error);
 ```
 
-## TypeScript での使用例
+## TypeScript での使用例（統合版）
 
 ```typescript
-import { NinjaTable, TableConfig, CellPosition, EventHandlers } from 'ninja-table';
+import { 
+  createNinjaTableWithListeners,
+  NinjaTable, 
+  NinjaTableListeners,
+  TableConfig, 
+  CellPosition, 
+  EventHandlers 
+} from 'ninja-table';
 
 class SpreadsheetApp {
   private table: NinjaTable | null = null;
+  private listeners: NinjaTableListeners | null = null;
   private canvas: HTMLCanvasElement;
 
   constructor(canvasId: string) {
@@ -88,7 +106,23 @@ class SpreadsheetApp {
       font_size: 12
     };
 
-    this.table = await NinjaTable.create(this.canvas, config);
+    // 統合された初期化
+    const { table, listeners } = await createNinjaTableWithListeners(
+      this.canvas,
+      config,
+      {
+        cellReferenceSelector: '#cellReference',
+        formulaInputSelector: '#formulaInput',
+        statsElementSelector: '#stats'
+      },
+      {
+        enableValidation: true,
+        enableIMESupport: true
+      }
+    );
+
+    this.table = table;
+    this.listeners = listeners;
 
     const eventHandlers: EventHandlers = {
       onCellSelect: this.handleCellSelect.bind(this),

@@ -1,234 +1,164 @@
-# 🥷 NinjaTable
+# 🥷 NinjaTable Monorepo
 
-高性能なExcel風テーブルコンポーネント - Rust + WebAssembly + Canvas で構築
+高性能なExcel風テーブルコンポーネントとイベントリスナーのモノレポです。
 
-[![npm version](https://badge.fury.io/js/ninja-table.svg)](https://badge.fury.io/js/ninja-table)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## 📦 パッケージ
 
-## ✨ 特徴
+このモノレポには以下のパッケージが含まれています：
 
-- 🚀 **超高速レンダリング**: Rust + WebAssembly による最適化されたパフォーマンス
-- 📊 **Excel風操作**: キーボードナビゲーション、セル編集、数式バー
-- 🎯 **TypeScript完全対応**: 型安全性とIntelliSenseサポート
-- 🎨 **Canvas描画**: 滑らかなスクロールと高品質な描画
-- 🔧 **カスタマイズ可能**: 豊富な設定オプション
-- 📱 **レスポンシブ**: モダンブラウザ対応
-- 🪶 **軽量**: 最小限の依存関係
+### [`ninja-table`](./packages/core) - コアライブラリ
+- Rust + WebAssemblyで構築された高性能テーブルコンポーネント
+- Canvas ベースのレンダリング
+- 大量データの高速処理
 
-## 📦 インストール
-
-```bash
-npm install ninja-table
-```
+### [`ninja-table-listeners`](./packages/listeners) - イベントリスナー
+- フォーミュラバー機能
+- リアルタイム検証
+- IME（日本語入力）対応
+- キーボードショートカット
 
 ## 🚀 クイックスタート
 
-### JavaScript
-
-```javascript
-import { NinjaTable } from 'ninja-table';
-
-async function init() {
-  const canvas = document.getElementById('myCanvas');
-  const table = await NinjaTable.create(canvas, {
-    row_count: 50,
-    col_count: 10
-  });
-
-  // セルに値を設定
-  table.setCellValue(0, 0, 'Hello World');
-  table.render();
-}
-
-init();
-```
-
-### TypeScript
-
-```typescript
-import { NinjaTable, TableConfig, CellPosition } from 'ninja-table';
-
-const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
-
-const config: Partial<TableConfig> = {
-  row_count: 100,
-  col_count: 26,
-  default_col_width: 120,
-  default_row_height: 30
-};
-
-const table = await NinjaTable.create(canvas, config);
-
-table.setEventHandlers({
-  onCellSelect: (position: CellPosition) => {
-    console.log(`Selected: ${NinjaTable.getCellReference(position.row, position.col)}`);
-  }
-});
-
-table.render();
-```
-
-## 📖 API リファレンス
-
-### NinjaTable クラス
-
-#### 静的メソッド
-
-- `NinjaTable.create(canvas, config?)` - テーブルインスタンスを作成
-- `NinjaTable.getColumnName(col)` - 列名を生成 (A, B, C, ...)
-- `NinjaTable.getCellReference(row, col)` - セル参照を生成 (A1, B2, ...)
-
-#### インスタンスメソッド
-
-- `setCellValue(row, col, value)` - セルに値を設定
-- `getCellValue(row, col)` - セルの値を取得
-- `setBatchData(data)` - 複数セルを一括設定
-- `render()` - テーブルをレンダリング
-- `selectCell(row, col)` - セルを選択
-- `getSelectedCell()` - 選択中のセルを取得
-- `startEditing(row, col)` - セル編集を開始
-- `isEditing()` - 編集中かどうかを確認
-- `getStats()` - 統計情報を取得
-- `getConfig()` - 設定を取得
-- `setEventHandlers(handlers)` - イベントハンドラーを設定
-- `dispose()` - リソースを解放
-
-### インターフェース
-
-#### TableConfig
-
-```typescript
-interface TableConfig {
-  row_count: number;           // 行数
-  col_count: number;           // 列数
-  default_col_width: number;   // デフォルト列幅
-  default_row_height: number;  // デフォルト行高
-  header_height: number;       // ヘッダー高
-  font_family: string;         // フォントファミリー
-  font_size: number;           // フォントサイズ
-  font_style: string;          // フォントスタイル
-  background_color: string;    // 背景色
-  text_color: string;          // テキスト色
-  grid_color: string;          // グリッド色
-  header_background_color: string; // ヘッダー背景色
-  selected_cell_color: string; // 選択セル色
-  show_grid: boolean;          // グリッド表示
-}
-```
-
-#### EventHandlers
-
-```typescript
-interface EventHandlers {
-  onCellSelect?: (position: CellPosition) => void;
-  onEditStart?: (position: CellPosition, value: string) => void;
-  onEditEnd?: (position: CellPosition, value: string) => void;
-  onCellChange?: (position: CellPosition, oldValue: string, newValue: string) => void;
-}
-```
-
-## 🎮 操作方法
-
-### キーボード操作
-
-- `矢印キー` - セル移動
-- `Enter` - 編集開始 / 下のセルに移動
-- `F2` - 編集開始（既存値保持）
-- `Tab` - 右のセルに移動
-- `Escape` - 編集キャンセル
-- `Delete/Backspace` - セル内容削除
-- `文字キー` - 直接編集開始
-
-### マウス操作
-
-- `クリック` - セル選択
-- `ホイール` - スクロール
-- `ダブルクリック` - 編集開始（予定）
-
-## 🎨 カスタマイズ例
-
-```typescript
-const customConfig: Partial<TableConfig> = {
-  row_count: 200,
-  col_count: 50,
-  default_col_width: 150,
-  default_row_height: 35,
-  font_family: 'Monaco, monospace',
-  font_size: 14,
-  background_color: '#fafafa',
-  text_color: '#333333',
-  grid_color: '#e0e0e0',
-  header_background_color: '#f0f0f0',
-  selected_cell_color: '#007acc'
-};
-
-const table = await NinjaTable.create(canvas, customConfig);
-```
-
-## 📊 パフォーマンス
-
-- **大規模データ**: 100万セル以上をスムーズに処理
-- **仮想化**: 表示領域のみをレンダリング
-- **メモリ効率**: 必要最小限のメモリ使用
-- **60fps**: 滑らかなスクロールとアニメーション
-
-## 🌐 ブラウザ対応
-
-| ブラウザ | バージョン |
-|---------|-----------|
-| Chrome  | 80+       |
-| Firefox | 79+       |
-| Safari  | 14+       |
-| Edge    | 80+       |
-
-WebAssemblyをサポートするモダンブラウザで動作します。
-
-## 🔧 開発
+### インストール
 
 ```bash
-# リポジトリをクローン
-git clone https://github.com/yourusername/ninja-table.git
-cd ninja-table
+# モノレポ全体の依存関係をインストール
+npm run install:all
 
-# 依存関係をインストール
+# または個別にインストール
 npm install
-
-# WebAssemblyをビルド
-npm run build:wasm
-
-# TypeScriptをビルド
-npm run build:ts
-
-# 全体をビルド
-npm run build
-
-# 開発モード
-npm run dev
+npm install -w packages/core
+npm install -w packages/listeners
 ```
 
-## 🤝 コントリビューション
+### ビルド
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```bash
+# 全パッケージをビルド
+npm run build
+
+# 個別にビルド
+npm run build:core
+npm run build:listeners
+```
+
+### 開発
+
+```bash
+# 全パッケージを開発モードで起動
+npm run dev
+
+# 個別に開発モード
+npm run dev:core
+npm run dev:listeners
+```
+
+## 📖 使用方法
+
+### 基本的な使用例
+
+```typescript
+import { NinjaTable } from 'ninja-table';
+import { createNinjaTableListeners } from 'ninja-table-listeners';
+
+// テーブルを作成
+const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
+const table = await NinjaTable.create(canvas, {
+  row_count: 50,
+  col_count: 10
+});
+
+// リスナーを追加
+const listeners = createNinjaTableListeners(table, {
+  cellReferenceSelector: '#cellReference',
+  formulaInputSelector: '#formulaInput'
+});
+```
+
+### HTML構造
+
+```html
+<div class="formula-bar">
+  <div id="cellReference">A1</div>
+  <input type="text" id="formulaInput" placeholder="セルの内容を入力...">
+</div>
+<canvas id="myCanvas" width="1200" height="500"></canvas>
+```
+
+## 🛠️ 開発
+
+### 利用可能なスクリプト
+
+```bash
+# ビルド
+npm run build              # 全パッケージ
+npm run build:core         # コアのみ
+npm run build:listeners    # リスナーのみ
+
+# 開発
+npm run dev                # 全パッケージ（ウォッチモード）
+npm run dev:core           # コアのみ
+npm run dev:listeners      # リスナーのみ
+
+# テスト
+npm run test               # 全パッケージ
+
+# リント
+npm run lint               # 全パッケージ
+
+# クリーンアップ
+npm run clean              # 全パッケージ
+
+# サーバー起動
+npm run serve              # Python HTTP サーバー
+npm run serve:node         # Node.js HTTP サーバー
+```
+
+### モノレポ構造
+
+```
+ninja-table/
+├── packages/
+│   ├── core/                    # ninja-table コアパッケージ
+│   │   ├── src/                 # Rust ソースコード
+│   │   ├── src-ts/              # TypeScript ソースコード
+│   │   ├── pkg/                 # WebAssembly 出力
+│   │   ├── dist/                # TypeScript ビルド出力
+│   │   ├── Cargo.toml           # Rust 設定
+│   │   ├── package.json         # npm パッケージ設定
+│   │   └── README.md            # コア固有のドキュメント
+│   └── listeners/               # ninja-table-listeners パッケージ
+│       ├── src/                 # TypeScript ソースコード
+│       ├── dist/                # ビルド出力
+│       ├── package.json         # npm パッケージ設定
+│       └── README.md            # リスナー固有のドキュメント
+├── examples/                    # 使用例
+├── package.json                 # ワークスペース設定
+└── README.md                    # このファイル
+```
+
+## 🔧 技術スタック
+
+- **Rust**: 高性能なコア処理
+- **WebAssembly**: ブラウザでのRust実行
+- **TypeScript**: 型安全なJavaScript
+- **Canvas API**: 高速レンダリング
+- **npm Workspaces**: モノレポ管理
 
 ## 📄 ライセンス
 
-MIT License - 詳細は [LICENSE](LICENSE) ファイルを参照してください。
+MIT
 
-## 🙏 謝辞
+## 🤝 貢献
 
-- [wasm-pack](https://github.com/rustwasm/wasm-pack) - WebAssemblyビルドツール
-- [web-sys](https://github.com/rustwasm/wasm-bindgen/tree/master/crates/web-sys) - Web API バインディング
+プルリクエストやイシューの報告を歓迎します！
+
+1. このリポジトリをフォーク
+2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
 
 ## 📞 サポート
 
-- 🐛 バグ報告: [Issues](https://github.com/yourusername/ninja-table/issues)
-- 💡 機能要望: [Discussions](https://github.com/yourusername/ninja-table/discussions)
-- 📧 メール: your.email@example.com
-
----
-
-Made with ❤️ and 🦀 Rust
+問題が発生した場合は、[GitHub Issues](https://github.com/yourusername/ninja-table/issues) でお知らせください。

@@ -309,7 +309,7 @@
             <div class="installation">
                 npm install ninja-table
             </div>
-            <p>TypeScript/JavaScript両方で利用可能な高性能テーブルライブラリです。</p>
+            <p>TypeScript/JavaScript両方で利用可能な高性能テーブルライブラリです。リスナー機能も統合されています。</p>
         </div>
 
         <!-- ライブデモ -->
@@ -380,19 +380,29 @@
 
             <div id="javascript" class="tab-content active">
                 <div class="code-section">
-                    <h3>JavaScript での使用例</h3>
-                    <pre><code>import { NinjaTable } from 'ninja-table';
+                    <h3>JavaScript での使用例（統合版）</h3>
+                    <pre><code>import { createNinjaTableWithListeners } from 'ninja-table';
 
 async function initTable() {
   const canvas = document.getElementById('myCanvas');
   
-  // テーブルを作成
-  const table = await NinjaTable.create(canvas, {
-    row_count: 50,
-    col_count: 10,
-    default_col_width: 120,
-    default_row_height: 28
-  });
+  // テーブルとリスナーを同時に作成
+  const { table, listeners } = await createNinjaTableWithListeners(
+    canvas,
+    {
+      row_count: 50,
+      col_count: 10,
+      default_col_width: 120,
+      default_row_height: 28
+    },
+    {
+      cellReferenceSelector: '#cellReference',
+      formulaInputSelector: '#formulaInput',
+      statsElementSelector: '#stats',
+      validationErrorSelector: '#validationError',
+      validationSuccessSelector: '#validationSuccess'
+    }
+  );
 
   // 列ヘッダーを設定
   const columnHeaders = [
@@ -466,9 +476,11 @@ initTable();</code></pre>
 
             <div id="typescript" class="tab-content">
                 <div class="code-section">
-                    <h3>TypeScript での使用例</h3>
+                    <h3>TypeScript での使用例（統合版）</h3>
                     <pre><code>import { 
+  createNinjaTableWithListeners,
   NinjaTable, 
+  NinjaTableListeners,
   TableConfig, 
   CellPosition, 
   EventHandlers,
@@ -478,6 +490,7 @@ initTable();</code></pre>
 
 class SpreadsheetApp {
   private table: NinjaTable | null = null;
+  private listeners: NinjaTableListeners | null = null;
 
   async initialize(canvas: HTMLCanvasElement): Promise&lt;void&gt; {
     const config: Partial&lt;TableConfig&gt; = {
@@ -489,7 +502,23 @@ class SpreadsheetApp {
       font_size: 12
     };
 
-    this.table = await NinjaTable.create(canvas, config);
+    // 統合された初期化
+    const { table, listeners } = await createNinjaTableWithListeners(
+      canvas,
+      config,
+      {
+        cellReferenceSelector: '#cellReference',
+        formulaInputSelector: '#formulaInput',
+        statsElementSelector: '#stats'
+      },
+      {
+        enableValidation: true,
+        enableIMESupport: true
+      }
+    );
+
+    this.table = table;
+    this.listeners = listeners;
 
     // 型安全な列ヘッダー設定
     const columnHeaders: ColumnHeader[] = [
@@ -605,43 +634,65 @@ class SpreadsheetApp {
 
             <div id="react" class="tab-content">
                 <div class="code-section">
-                    <h3>React での使用例</h3>
+                    <h3>React での使用例（統合版）</h3>
                     <pre><code>import React, { useEffect, useRef, useState } from 'react';
-import { NinjaTable } from 'ninja-table';
+import { createNinjaTableWithListeners, NinjaTable, NinjaTableListeners } from 'ninja-table';
 
 const NinjaTableComponent = () => {
-  const canvasRef = useRef(null);
-  const [table, setTable] = useState(null);
+  const canvasRef = useRef&lt;HTMLCanvasElement&gt;(null);
+  const [table, setTable] = useState&lt;NinjaTable | null&gt;(null);
+  const [listeners, setListeners] = useState&lt;NinjaTableListeners | null&gt;(null);
   const [selectedCell, setSelectedCell] = useState('A1');
 
   useEffect(() => {
     const initTable = async () => {
       if (canvasRef.current) {
-        const tableInstance = await NinjaTable.create(canvasRef.current, {
-          row_count: 50,
-          col_count: 10,
-          default_col_width: 120,
-          default_row_height: 28
-        });
-
-        tableInstance.setEventHandlers({
-          onCellSelect: (position) => {
-            const cellRef = NinjaTable.getCellReference(position.row, position.col);
-            setSelectedCell(cellRef);
-          }
-        });
+        // 統合された初期化
+        const { table: tableInstance, listeners: listenersInstance } = 
+          await createNinjaTableWithListeners(
+            canvasRef.current,
+            {
+              row_count: 50,
+              col_count: 10,
+              default_col_width: 120,
+              default_row_height: 28
+            },
+            {
+              cellReferenceSelector: '#cellReference',
+              formulaInputSelector: '#formulaInput'
+            },
+            {
+              enableValidation: true
+            },
+            {
+              onCellReferenceUpdate: (reference) => {
+                setSelectedCell(reference);
+              }
+            }
+          );
 
         tableInstance.render();
         setTable(tableInstance);
+        setListeners(listenersInstance);
       }
     };
 
     initTable();
+
+    // クリーンアップ
+    return () => {
+      if (listeners) {
+        listeners.destroy();
+      }
+    };
   }, []);
 
   return (
     &lt;div&gt;
-      &lt;div&gt;選択セル: {selectedCell}&lt;/div&gt;
+      &lt;div className="formula-bar"&gt;
+        &lt;div id="cellReference"&gt;{selectedCell}&lt;/div&gt;
+        &lt;input type="text" id="formulaInput" placeholder="セルの内容を入力..." /&gt;
+      &lt;/div&gt;
       &lt;canvas ref={canvasRef} width={800} height={400} /&gt;
     &lt;/div&gt;
   );

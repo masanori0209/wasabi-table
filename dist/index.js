@@ -39,6 +39,21 @@ export var FieldType;
     FieldType["ButtonField"] = "ButtonField";
     FieldType["MenuField"] = "MenuField";
 })(FieldType || (FieldType = {}));
+// リスナー機能をエクスポート
+export { NinjaTableListeners } from './listeners.js';
+export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut } from './utils.js';
+/**
+ * NinjaTableとリスナーを簡単に初期化する関数
+ */
+export async function createNinjaTableWithListeners(canvas, config = {}, uiConfig, listenerOptions, callbacks) {
+    // 遅延インポートで循環インポートを回避
+    const { createUIElements } = await import('./utils.js');
+    const { NinjaTableListeners } = await import('./listeners.js');
+    const table = await NinjaTable.create(canvas, config);
+    const uiElements = createUIElements(uiConfig);
+    const listeners = new NinjaTableListeners(table, uiElements, listenerOptions, callbacks);
+    return { table, listeners };
+}
 /**
  * NinjaTable - 高性能なExcel風テーブルコンポーネント
  *
@@ -550,6 +565,7 @@ export class NinjaTable {
         }
     }
     createTooltipElement() {
+        var _a;
         this.tooltipElement = document.createElement('div');
         this.tooltipElement.className = 'ninja-table-tooltip';
         this.tooltipElement.style.position = 'fixed';
@@ -559,7 +575,6 @@ export class NinjaTable {
         this.tooltipElement.style.color = '#fff';
         this.tooltipElement.style.borderRadius = '4px';
         this.tooltipElement.style.pointerEvents = 'none';
-        this.canvas.parentNode?.appendChild(this.tooltipElement);
+        (_a = this.canvas.parentNode) === null || _a === void 0 ? void 0 : _a.appendChild(this.tooltipElement);
     }
 }
-//# sourceMappingURL=index.js.map

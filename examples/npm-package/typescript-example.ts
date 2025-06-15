@@ -1,13 +1,21 @@
-// このファイルは TypeScript での使用例を示すサンプルコードです
+// このファイルは TypeScript での使用例を示すサンプルコードです（統合版）
 // 実際の使用時は 'ninja-table' パッケージをインストールしてください: npm install ninja-table
 
-// import { NinjaTable, TableConfig, CellPosition, EventHandlers, CellData } from 'ninja-table';
+// import { 
+//   createNinjaTableWithListeners,
+//   NinjaTable, 
+//   NinjaTableListeners,
+//   TableConfig, 
+//   CellPosition, 
+//   EventHandlers, 
+//   CellData 
+// } from 'ninja-table';
 
 /**
- * TypeScript での NinjaTable 使用例
+ * TypeScript での NinjaTable 使用例（統合版）
  * 
  * このファイルは、TypeScriptプロジェクトでNinjaTableを使用する方法を示しています。
- * 完全な型安全性とIntelliSenseサポートが提供されます。
+ * リスナー機能が統合され、完全な型安全性とIntelliSenseサポートが提供されます。
  */
 
 // 型定義（実際のパッケージから import されます）

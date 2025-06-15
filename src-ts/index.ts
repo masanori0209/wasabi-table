@@ -197,6 +197,45 @@ export interface ValidationResult {
   error?: ValidationError;
 }
 
+// リスナー機能をエクスポート
+export { NinjaTableListeners } from './listeners';
+export type { ListenerOptions, UIElements, EventCallbacks } from './listeners';
+export { 
+  createUIElements, 
+  exportTableToCSV, 
+  clearTable, 
+  loadSampleData, 
+  debounce, 
+  parseCellReference, 
+  isKeyboardShortcut 
+} from './utils';
+
+/**
+ * NinjaTableとリスナーを簡単に初期化する関数
+ */
+export async function createNinjaTableWithListeners(
+  canvas: HTMLCanvasElement,
+  config: Partial<TableConfig> = {},
+  uiConfig: {
+    cellReferenceSelector: string;
+    formulaInputSelector: string;
+    statsElementSelector?: string;
+    validationErrorSelector?: string;
+    validationSuccessSelector?: string;
+  },
+  listenerOptions?: any,
+  callbacks?: any
+): Promise<{ table: NinjaTable; listeners: any }> {
+  // 遅延インポートで循環インポートを回避
+  const { createUIElements } = await import('./utils');
+  const { NinjaTableListeners } = await import('./listeners');
+  
+  const table = await NinjaTable.create(canvas, config);
+  const uiElements = createUIElements(uiConfig);
+  const listeners = new NinjaTableListeners(table, uiElements, listenerOptions, callbacks);
+  return { table, listeners };
+}
+
 /**
  * セルの画面位置情報
  */
