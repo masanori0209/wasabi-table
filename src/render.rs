@@ -44,9 +44,12 @@ impl Renderable for crate::table::NinjaTable {
         // ヘッダー描画
         ninja_try!(self.render_header());
 
-        // 可視セル描画
-        for row in self.visible_rows.0..self.visible_rows.1 {
-            for col in self.visible_cols.0..self.visible_cols.1 {
+        // 可視セル描画（テーブル範囲内のみ）
+        let max_row = self.visible_rows.1.min(self.config.row_count);
+        let max_col = self.visible_cols.1.min(self.config.col_count);
+        
+        for row in self.visible_rows.0..max_row {
+            for col in self.visible_cols.0..max_col {
                 ninja_try!(self.render_cell(row, col));
             }
         }
@@ -80,8 +83,9 @@ impl Renderable for crate::table::NinjaTable {
         self.ctx.set_fill_style_str(&self.config.text_color);
         self.ctx.set_text_align("center");
         
-        // 列ヘッダーテキストを描画
-        for col in self.visible_cols.0..self.visible_cols.1 {
+        // 列ヘッダーテキストを描画（テーブル範囲内のみ）
+        let max_col = self.visible_cols.1.min(self.config.col_count);
+        for col in self.visible_cols.0..max_col {
             let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
             let header_text = if col < self.headers.len() && !self.headers[col].is_empty() {
                 self.headers[col].clone()
@@ -91,8 +95,9 @@ impl Renderable for crate::table::NinjaTable {
             ninja_try!(self.ctx.fill_text(&header_text, x + self.config.default_col_width / 2.0, self.config.header_height / 2.0));
         }
         
-        // 行番号を描画
-        for row in self.visible_rows.0..self.visible_rows.1 {
+        // 行番号を描画（テーブル範囲内のみ）
+        let max_row = self.visible_rows.1.min(self.config.row_count);
+        for row in self.visible_rows.0..max_row {
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
             let row_number = (row + 1).to_string();
             ninja_try!(self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0));
@@ -103,6 +108,11 @@ impl Renderable for crate::table::NinjaTable {
     }
 
     fn render_cell(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        // 行・列が範囲外の場合は描画しない
+        if row >= self.config.row_count || col >= self.config.col_count {
+            return Ok(());
+        }
+        
         if let Some(cell) = self.data.get(&format!("{}:{}", row, col)) {
             if let Some(bg_color) = &cell.background_color {
                 self.ctx.set_fill_style_str(bg_color);
@@ -130,8 +140,9 @@ impl Renderable for crate::table::NinjaTable {
         self.ctx.set_stroke_style_str(&self.config.grid_color);
         self.ctx.set_line_width(1.0);
 
-        // 縦線をバッチ処理で描画
-        for col in self.visible_cols.0..=self.visible_cols.1 {
+        // 縦線をバッチ処理で描画（テーブル範囲内のみ）
+        let max_col = self.visible_cols.1.min(self.config.col_count);
+        for col in self.visible_cols.0..=max_col {
             let x = col as f64 * self.config.default_col_width - self.scroll_x + self.config.row_header_width;
             self.ctx.begin_path();
             self.ctx.move_to(x, self.config.header_height);
@@ -139,8 +150,9 @@ impl Renderable for crate::table::NinjaTable {
             self.ctx.stroke();
         }
 
-        // 横線をバッチ処理で描画
-        for row in self.visible_rows.0..=self.visible_rows.1 {
+        // 横線をバッチ処理で描画（テーブル範囲内のみ）
+        let max_row = self.visible_rows.1.min(self.config.row_count);
+        for row in self.visible_rows.0..=max_row {
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
             self.ctx.begin_path();
             self.ctx.move_to(self.config.row_header_width, y);

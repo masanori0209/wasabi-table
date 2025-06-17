@@ -508,8 +508,14 @@ impl NinjaTable {
     // スクロール処理
     #[wasm_bindgen]
     pub fn scroll(&mut self, delta_x: f64, delta_y: f64) {
-        self.scroll_x = (self.scroll_x + delta_x).max(0.0);
-        self.scroll_y = (self.scroll_y + delta_y).max(0.0);
+        // スクロール上限を計算
+        let max_scroll_x = self.calculate_max_scroll_x();
+        let max_scroll_y = self.calculate_max_scroll_y();
+        
+        // スクロール位置を更新（0以上、最大値以下に制限）
+        self.scroll_x = (self.scroll_x + delta_x).max(0.0).min(max_scroll_x);
+        self.scroll_y = (self.scroll_y + delta_y).max(0.0).min(max_scroll_y);
+        
         self.calculate_visible_range();
         
         // 編集中の場合、入力フィールドの位置を更新
@@ -518,6 +524,37 @@ impl NinjaTable {
                 web_sys::console::log_1(&format!("⚠️ [DEBUG] Failed to update input position: {:?}", e).into());
             }
         }
+    }
+
+    // 水平スクロールの最大値を計算
+    fn calculate_max_scroll_x(&self) -> f64 {
+        // 全列の幅を計算
+        let mut total_width = 0.0;
+        for col in 0..self.config.col_count {
+            if let Some(header) = self.get_column_header(col) {
+                total_width += header.width;
+            } else {
+                total_width += self.config.default_col_width;
+            }
+        }
+        
+        // キャンバス幅から行ヘッダー幅を引いた表示領域幅
+        let visible_area_width = self.canvas_width - self.config.row_header_width;
+        
+        // 最大スクロール値 = 総コンテンツ幅 - 表示領域幅（ただし0未満にならないように）
+        (total_width - visible_area_width).max(0.0)
+    }
+
+    // 垂直スクロールの最大値を計算
+    fn calculate_max_scroll_y(&self) -> f64 {
+        // 全行の高さを計算
+        let total_height = self.config.row_count as f64 * self.config.default_row_height;
+        
+        // キャンバス高さからヘッダー高さを引いた表示領域高さ
+        let visible_area_height = self.canvas_height - self.config.header_height;
+        
+        // 最大スクロール値 = 総コンテンツ高さ - 表示領域高さ（ただし0未満にならないように）
+        (total_height - visible_area_height).max(0.0)
     }
 
     // セル選択
@@ -747,8 +784,12 @@ impl NinjaTable {
         self.ctx.fill_rect(0.0, 0.0, self.canvas.width() as f64, self.canvas.height() as f64);
         
         // すべての可視セルを描画（空のセルも含む）
-        for row in self.visible_rows.0..self.visible_rows.1 {
-            for col in self.visible_cols.0..self.visible_cols.1 {
+        // テーブルの範囲内でのみ描画
+        let max_row = self.visible_rows.1.min(self.config.row_count);
+        let max_col = self.visible_cols.1.min(self.config.col_count);
+        
+        for row in self.visible_rows.0..max_row {
+            for col in self.visible_cols.0..max_col {
                 self.render_cell(row, col)?;
             }
         }
@@ -763,10 +804,23 @@ impl NinjaTable {
     }
 
     fn render_cell(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        // 行・列が範囲外の場合は描画しない
+        if row >= self.config.row_count || col >= self.config.col_count {
+            return Ok(());
+        }
+        
         let x = self.get_column_x_position(col);
         let y = (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64 - self.scroll_y;
         let width = self.get_column_width(col);
         let height = self.config.default_row_height as f64;
+
+        // セルが画面外にある場合は描画しない
+        if x + width < self.config.row_header_width || 
+           x > self.canvas_width || 
+           y + height < self.config.header_height || 
+           y > self.canvas_height {
+            return Ok(());
+        }
 
         // セルの背景を描画
         self.ctx.set_fill_style_str(&self.config.background_color);
@@ -876,7 +930,8 @@ impl NinjaTable {
         self.ctx.set_text_baseline("middle");
         
         // 列ヘッダーテキストを描画（スクロールに影響されない固定位置）
-        for col in self.visible_cols.0..self.visible_cols.1 {
+        let max_col = self.visible_cols.1.min(self.config.col_count);
+        for col in self.visible_cols.0..max_col {
             let column_width = if let Some(header) = self.get_column_header(col) {
                 header.width
             } else {
@@ -915,7 +970,8 @@ impl NinjaTable {
         }
         
         // 行番号を描画（スクロールに影響されない固定位置）
-        for row in self.visible_rows.0..self.visible_rows.1 {
+        let max_row = self.visible_rows.1.min(self.config.row_count);
+        for row in self.visible_rows.0..max_row {
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
             // 行ヘッダーは画面内に表示される場合のみ描画
             if y + self.config.default_row_height > self.config.header_height && y < self.canvas.height() as f64 {
@@ -1010,13 +1066,16 @@ impl NinjaTable {
             }
         }
 
-        // 横線をバッチ処理で描画
-        for row in self.visible_rows.0..=self.visible_rows.1 {
+        // 横線をバッチ処理で描画（テーブル範囲内のみ）
+        let max_row = self.visible_rows.1.min(self.config.row_count);
+        for row in self.visible_rows.0..=max_row {
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
-            self.ctx.begin_path();
-            self.ctx.move_to(self.config.row_header_width, y);
-            self.ctx.line_to(self.canvas.width() as f64, y);
-            self.ctx.stroke();
+            if y >= self.config.header_height && y <= self.canvas.height() as f64 {
+                self.ctx.begin_path();
+                self.ctx.move_to(self.config.row_header_width, y);
+                self.ctx.line_to(self.canvas.width() as f64, y);
+                self.ctx.stroke();
+            }
         }
         
         // 選択されたセルの枠を描画（カスタム列幅対応）
