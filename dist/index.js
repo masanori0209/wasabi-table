@@ -1164,6 +1164,10 @@ export class NinjaTable {
                 case 'arrowdown':
                 case 'arrowleft':
                 case 'arrowright':
+                    // Shift+Ctrl+Arrow の場合は、矢印キー処理部分で処理するためここでは処理しない
+                    if (event.shiftKey) {
+                        return false;
+                    }
                     // Ctrl+Arrow / Cmd+Arrow でExcel風の端まで移動
                     event.preventDefault();
                     this.handleCtrlArrowNavigation(event.key);
