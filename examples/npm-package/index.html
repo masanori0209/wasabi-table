@@ -199,19 +199,7 @@
             display: none;
         }
 
-        .validation-test-button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 5px;
-        }
 
-        .validation-test-button:hover {
-            background-color: #0056b3;
-        }
 
 
 
@@ -351,7 +339,7 @@
                 <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ</button>
                 <button class="btn btn-secondary" onclick="clearTable()">クリア</button>
                 <button class="btn btn-secondary" onclick="exportCSV()">CSV出力</button>
-                <button class="btn btn-primary" onclick="testValidation()">検証テスト</button>
+
             </div>
 
             <!-- 統計情報 -->
@@ -363,421 +351,25 @@
             <div id="validationError" class="validation-error"></div>
             <div id="validationSuccess" class="validation-success"></div>
 
-            <!-- 検証テストボタン -->
-            <button class="validation-test-button" onclick="runValidationTests()">検証テスト実行</button>
+
         </div>
 
         <!-- 使用方法 -->
         <div class="demo-section">
             <h2>💻 使用方法</h2>
-            
             <div class="tabs">
                 <button class="tab active" onclick="showTab('javascript')">JavaScript</button>
                 <button class="tab" onclick="showTab('typescript')">TypeScript</button>
                 <button class="tab" onclick="showTab('react')">React</button>
                 <button class="tab" onclick="showTab('headers')">ヘッダー設定</button>
             </div>
-
             <div id="javascript" class="tab-content active">
-                <div class="code-section">
-                    <h3>JavaScript での使用例（統合版）</h3>
-                    <pre><code>import { createNinjaTableWithListeners } from 'ninja-table';
-
-async function initTable() {
-  const canvas = document.getElementById('myCanvas');
-  
-  // テーブルとリスナーを同時に作成
-  const { table, listeners } = await createNinjaTableWithListeners(
-    canvas,
-    {
-      row_count: 50,
-      col_count: 10,
-      default_col_width: 120,
-      default_row_height: 28
-    },
-    {
-      cellReferenceSelector: '#cellReference',
-      formulaInputSelector: '#formulaInput',
-      statsElementSelector: '#stats',
-      validationErrorSelector: '#validationError',
-      validationSuccessSelector: '#validationSuccess'
-    }
-  );
-
-  // 列ヘッダーを設定
-  const columnHeaders = [
-    {
-      name: "id",
-      display_name: "ID",
-      width: 60,
-      required: true,
-      order: 0,
-      is_visible: true,
-      field_type: "IntegerField",
-      min_number: 1,
-      max_number: 99999
-    },
-    {
-      name: "name",
-      display_name: "名前",
-      width: 150,
-      required: true,
-      order: 1,
-      is_visible: true,
-      field_type: "CharField",
-      max_length: 50
-    },
-    {
-      name: "email",
-      display_name: "メールアドレス",
-      width: 200,
-      required: false,
-      order: 2,
-      is_visible: true,
-      field_type: "EmailField",
-      max_length: 100
-    },
-    {
-      name: "salary",
-      display_name: "給与",
-      width: 100,
-      required: false,
-      order: 3,
-      is_visible: true,
-      field_type: "DecimalField",
-      max_digits: 8,
-      decimal_places: 0
-    }
-  ];
-
-  // ヘッダー設定を適用
-  table.setColumnHeaders(JSON.stringify(columnHeaders));
-
-  // セルに値を設定
-  table.setCellValue(0, 0, '1001');
-  table.setCellValue(0, 1, '田中太郎');
-  table.setCellValue(0, 2, 'tanaka@example.com');
-  table.setCellValue(0, 3, '500000');
-
-  // イベントハンドラーを設定
-  table.setEventHandlers({
-    onCellSelect: (position) => {
-      console.log(`選択: ${NinjaTable.getCellReference(position.row, position.col)}`);
-    }
-  });
-
-  // レンダリング
-  table.render();
-}
-
-initTable();</code></pre>
-                </div>
             </div>
-
             <div id="typescript" class="tab-content">
-                <div class="code-section">
-                    <h3>TypeScript での使用例（統合版）</h3>
-                    <pre><code>import { 
-  createNinjaTableWithListeners,
-  NinjaTable, 
-  NinjaTableListeners,
-  TableConfig, 
-  CellPosition, 
-  EventHandlers,
-  ColumnHeader,
-  FieldType 
-} from 'ninja-table';
-
-class SpreadsheetApp {
-  private table: NinjaTable | null = null;
-  private listeners: NinjaTableListeners | null = null;
-
-  async initialize(canvas: HTMLCanvasElement): Promise&lt;void&gt; {
-    const config: Partial&lt;TableConfig&gt; = {
-      row_count: 100,
-      col_count: 10,
-      default_col_width: 120,
-      default_row_height: 28,
-      font_family: 'Arial, sans-serif',
-      font_size: 12
-    };
-
-    // 統合された初期化
-    const { table, listeners } = await createNinjaTableWithListeners(
-      canvas,
-      config,
-      {
-        cellReferenceSelector: '#cellReference',
-        formulaInputSelector: '#formulaInput',
-        statsElementSelector: '#stats'
-      },
-      {
-        enableValidation: true,
-        enableIMESupport: true
-      }
-    );
-
-    this.table = table;
-    this.listeners = listeners;
-
-    // 型安全な列ヘッダー設定
-    const columnHeaders: ColumnHeader[] = [
-      {
-        name: "employee_id",
-        display_name: "社員ID",
-        width: 80,
-        required: true,
-        order: 0,
-        is_visible: true,
-        field_type: FieldType.IntegerField,
-        min_number: 1,
-        max_number: 99999
-      },
-      {
-        name: "name",
-        display_name: "氏名",
-        width: 150,
-        required: true,
-        order: 1,
-        is_visible: true,
-        field_type: FieldType.CharField,
-        max_length: 50
-      },
-      {
-        name: "department",
-        display_name: "部署",
-        width: 120,
-        required: true,
-        order: 2,
-        is_visible: true,
-        field_type: FieldType.MenuField,
-        choices: ["開発部", "営業部", "総務部", "人事部"]
-      },
-      {
-        name: "salary",
-        display_name: "月給",
-        width: 100,
-        required: false,
-        order: 3,
-        is_visible: true,
-        field_type: FieldType.DecimalField,
-        max_digits: 8,
-        decimal_places: 0
-      },
-      {
-        name: "active",
-        display_name: "在籍中",
-        width: 80,
-        required: true,
-        order: 4,
-        is_visible: true,
-        field_type: FieldType.BooleanField
-      }
-    ];
-
-    // ヘッダー設定を適用
-    this.table.setColumnHeaders(JSON.stringify(columnHeaders));
-
-    const handlers: EventHandlers = {
-      onCellSelect: this.handleCellSelect.bind(this),
-      onCellChange: this.handleCellChange.bind(this)
-    };
-
-    this.table.setEventHandlers(handlers);
-    this.table.render();
-  }
-
-  private handleCellSelect(position: CellPosition): void {
-    console.log(`セル選択: ${position.row}, ${position.col}`);
-  }
-
-  private handleCellChange(position: CellPosition, value: string): void {
-    console.log(`セル変更: ${position.row}, ${position.col} = ${value}`);
-  }
-
-  // フィールドタイプに応じた入力検証
-  validateCellValue(colIndex: number, value: string): boolean {
-    const headers = this.getColumnHeaders();
-    const header = headers[colIndex];
-    
-    if (!header) return true;
-
-    switch (header.field_type) {
-      case FieldType.IntegerField:
-        const num = parseInt(value);
-        return !isNaN(num) && 
-               (!header.min_number || num >= header.min_number) &&
-               (!header.max_number || num <= header.max_number);
-               
-      case FieldType.EmailField:
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-        
-      case FieldType.CharField:
-        return !header.max_length || value.length <= header.max_length;
-        
-      case FieldType.BooleanField:
-        return ['true', 'false', '1', '0', 'yes', 'no'].includes(value.toLowerCase());
-        
-      default:
-        return true;
-    }
-  }
-
-  private getColumnHeaders(): ColumnHeader[] {
-    if (!this.table) return [];
-    const headersJson = this.table.getColumnHeaders();
-    return JSON.parse(headersJson);
-  }
-}</code></pre>
-                </div>
             </div>
-
             <div id="react" class="tab-content">
-                <div class="code-section">
-                    <h3>React での使用例（統合版）</h3>
-                    <pre><code>import React, { useEffect, useRef, useState } from 'react';
-import { createNinjaTableWithListeners, NinjaTable, NinjaTableListeners } from 'ninja-table';
-
-const NinjaTableComponent = () => {
-  const canvasRef = useRef&lt;HTMLCanvasElement&gt;(null);
-  const [table, setTable] = useState&lt;NinjaTable | null&gt;(null);
-  const [listeners, setListeners] = useState&lt;NinjaTableListeners | null&gt;(null);
-  const [selectedCell, setSelectedCell] = useState('A1');
-
-  useEffect(() => {
-    const initTable = async () => {
-      if (canvasRef.current) {
-        // 統合された初期化
-        const { table: tableInstance, listeners: listenersInstance } = 
-          await createNinjaTableWithListeners(
-            canvasRef.current,
-            {
-              row_count: 50,
-              col_count: 10,
-              default_col_width: 120,
-              default_row_height: 28
-            },
-            {
-              cellReferenceSelector: '#cellReference',
-              formulaInputSelector: '#formulaInput'
-            },
-            {
-              enableValidation: true
-            },
-            {
-              onCellReferenceUpdate: (reference) => {
-                setSelectedCell(reference);
-              }
-            }
-          );
-
-        tableInstance.render();
-        setTable(tableInstance);
-        setListeners(listenersInstance);
-      }
-    };
-
-    initTable();
-
-    // クリーンアップ
-    return () => {
-      if (listeners) {
-        listeners.destroy();
-      }
-    };
-  }, []);
-
-  return (
-    &lt;div&gt;
-      &lt;div className="formula-bar"&gt;
-        &lt;div id="cellReference"&gt;{selectedCell}&lt;/div&gt;
-        &lt;input type="text" id="formulaInput" placeholder="セルの内容を入力..." /&gt;
-      &lt;/div&gt;
-      &lt;canvas ref={canvasRef} width={800} height={400} /&gt;
-    &lt;/div&gt;
-  );
-};
-
-export default NinjaTableComponent;</code></pre>
-                </div>
             </div>
-
             <div id="headers" class="tab-content">
-                <div class="code-section">
-                    <h3>列ヘッダー設定</h3>
-                    <p>NinjaTableでは、各列に詳細な設定を行うことができます。</p>
-                    
-                    <h4>📋 ColumnHeader設定項目</h4>
-                    <pre><code>{
-  name: string,              // プロパティ名（内部識別用）
-  display_name: string,      // 表示名（ヘッダーに表示される名前）
-  width: number,             // 列の幅（ピクセル）
-  required: boolean,         // 必須入力項目かどうか
-  order: number,             // 表示順序
-  is_visible: boolean,       // 表示/非表示フラグ
-  field_type: FieldType,     // フィールドタイプ
-  max_length?: number,       // 最大文字数（文字列フィールド用）
-  max_digits?: number,       // 整数桁数（数値フィールド用）
-  decimal_places?: number,   // 小数点桁数（小数フィールド用）
-  min_number?: number,       // 最小値（数値フィールド用）
-  max_number?: number,       // 最大値（数値フィールド用）
-  choices?: string[]         // 選択肢（メニューフィールド用）
-}</code></pre>
-
-                    <h4>🎯 フィールドタイプ一覧</h4>
-                    <ul style="margin: 1rem 0; padding-left: 2rem;">
-                        <li><strong>CharField</strong> - 短いテキスト入力（名前、コードなど）</li>
-                        <li><strong>EmailField</strong> - メールアドレス入力（検証付き）</li>
-                        <li><strong>TextareaField</strong> - 長いテキスト入力（備考、説明など）</li>
-                        <li><strong>IntegerField</strong> - 整数値入力（年齢、個数など）</li>
-                        <li><strong>DecimalField</strong> - 小数点数値入力（金額、税率など）</li>
-                        <li><strong>DecimalWithNullField</strong> - NULL許可の小数点数値</li>
-                        <li><strong>DateField</strong> - 日付入力（生年月日、入社日など）</li>
-                        <li><strong>TimeField</strong> - 時刻入力（勤務時間など）</li>
-                        <li><strong>BooleanField</strong> - チェックボックス（有効/無効など）</li>
-                        <li><strong>ButtonField</strong> - ボタン表示（アクション実行用）</li>
-                        <li><strong>MenuField</strong> - ドロップダウンメニュー（選択肢から選択）</li>
-                    </ul>
-
-                    <h4>💡 使用例</h4>
-                    <pre><code>const columnHeaders = [
-  {
-    name: "employee_id",
-    display_name: "社員ID",
-    width: 80,
-    required: true,
-    order: 0,
-    is_visible: true,
-    field_type: "IntegerField",
-    min_number: 1000,
-    max_number: 9999
-  },
-  {
-    name: "department",
-    display_name: "部署",
-    width: 120,
-    required: true,
-    order: 1,
-    is_visible: true,
-    field_type: "MenuField",
-    choices: ["開発部", "営業部", "総務部", "人事部"]
-  },
-  {
-    name: "salary",
-    display_name: "月給",
-    width: 100,
-    required: false,
-    order: 2,
-    is_visible: true,
-    field_type: "DecimalField",
-    max_digits: 8,
-    decimal_places: 0
-  }
-];
-
-// ヘッダー設定を適用
-table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
-                </div>
             </div>
         </div>
 
@@ -839,6 +431,7 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
         </div>
     </div>
 
+    <script src="./code-loader.js"></script>
     <script type="module">
         import { NinjaTable } from '../../dist/index.js';
 
@@ -868,38 +461,35 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
         const formulaInput = document.getElementById('formulaInput');
         const statsElement = document.getElementById('stats');
         const validationError = document.getElementById('validationError');
-        const errorMessage = document.getElementById('errorMessage');
         const validationSuccess = document.getElementById('validationSuccess');
-        const validationTooltip = document.getElementById('validationTooltip');
-        const tooltipMessage = document.getElementById('tooltipMessage');
 
         // 検証エラーを表示
         function showValidationError(error) {
-            errorMessage.textContent = error.message;
-            validationError.classList.add('show');
-            validationSuccess.classList.remove('show');
+            validationError.textContent = error.message;
+            validationError.style.display = 'block';
+            validationSuccess.style.display = 'none';
             
             // 3秒後に自動で非表示
             setTimeout(() => {
-                validationError.classList.remove('show');
+                validationError.style.display = 'none';
             }, 3000);
         }
 
         // 検証成功を表示
         function showValidationSuccess() {
-            validationSuccess.classList.add('show');
-            validationError.classList.remove('show');
+            validationSuccess.style.display = 'block';
+            validationError.style.display = 'none';
             
             // 2秒後に自動で非表示
             setTimeout(() => {
-                validationSuccess.classList.remove('show');
+                validationSuccess.style.display = 'none';
             }, 2000);
         }
 
         // 検証表示をクリア
         function clearValidationDisplay() {
-            validationError.classList.remove('show');
-            validationSuccess.classList.remove('show');
+            validationError.style.display = 'none';
+            validationSuccess.style.display = 'none';
         }
 
         // 数式バーのイベントリスナー
@@ -917,7 +507,6 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
                                     selectedCell.col, 
                                     formulaInput.value
                                 );
-                                
                                 // 検証結果に応じて表示を更新
                                 if (validationResult.isValid) {
                                     showValidationSuccess();
@@ -995,19 +584,17 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
                         if (typeof table.getSelectedCellValidationError === 'function') {
                             const validationErrorMessage = table.getSelectedCellValidationError();
                             if (validationErrorMessage) {
-                                // 少し遅延させて正確な位置を取得
-                                setTimeout(() => {
-                                    showValidationTooltip(validationErrorMessage, selectedCell);
-                                }, 50);
+                                // 検証エラーがある場合は表示
+                                showValidationError({ message: validationErrorMessage });
                             } else {
-                                hideValidationTooltip();
+                                clearValidationDisplay();
                             }
                         } else {
-                            hideValidationTooltip();
+                            clearValidationDisplay();
                         }
                     } catch (error) {
                         console.warn('Validation error check failed:', error);
-                        hideValidationTooltip();
+                        clearValidationDisplay();
                     }
                 }
             }
@@ -1264,146 +851,27 @@ table.setColumnHeaders(JSON.stringify(columnHeaders));</code></pre>
             document.getElementById(tabName).classList.add('active');
         };
 
-        // 検証テスト関数
-        function runValidationTests() {
-            const tests = [
-                { row: 0, col: 0, value: 'これは非常に長いテキストで最大文字数を超えています', expected: 'エラー' },
-                { row: 0, col: 1, value: 'invalid-email', expected: 'エラー' },
-                { row: 0, col: 2, value: 'これは長すぎるテキストエリアの内容です。'.repeat(10), expected: 'エラー' },
-                { row: 0, col: 3, value: '999999', expected: 'エラー' },
-                { row: 0, col: 4, value: '123.456789', expected: 'エラー' },
-                { row: 0, col: 5, value: '2024-13-01', expected: 'エラー' },
-                { row: 0, col: 6, value: '25:00', expected: 'エラー' },
-                { row: 0, col: 7, value: 'maybe', expected: 'エラー' }
-            ];
 
-            let passCount = 0;
-            let totalCount = tests.length;
 
-            tests.forEach((test, index) => {
-                setTimeout(() => {
-                    table.setCellValue(test.row, test.col, test.value);
-                    
-                    // 検証結果を確認
-                    setTimeout(() => {
-                        const validationResult = table.validateCellValue(test.row, test.col, test.value);
-                        const hasError = validationResult && validationResult.length > 0;
-                        const testPassed = (test.expected === 'エラー' && hasError) || (test.expected === '正常' && !hasError);
-                        
-                        if (testPassed) {
-                            passCount++;
-                        }
-                        
-                        console.log(`テスト ${index + 1}: ${testPassed ? '✓' : '✗'} - ${test.value} (${hasError ? 'エラー' : '正常'})`);
-                        
-                        // 最後のテストの場合、結果を表示
-                        if (index === tests.length - 1) {
-                            setTimeout(() => {
-                                const successDiv = document.getElementById('validationSuccess');
-                                const errorDiv = document.getElementById('validationError');
-                                
-                                if (passCount === totalCount) {
-                                    successDiv.textContent = `検証テスト完了: ${passCount}/${totalCount} 件成功`;
-                                    successDiv.style.display = 'block';
-                                    errorDiv.style.display = 'none';
-                                } else {
-                                    errorDiv.textContent = `検証テスト完了: ${passCount}/${totalCount} 件成功、${totalCount - passCount} 件失敗`;
-                                    errorDiv.style.display = 'block';
-                                    successDiv.style.display = 'none';
-                                }
-                            }, 500);
-                        }
-                    }, 100);
-                }, index * 200);
-            });
+
+
+        // コード例を初期化
+        async function initCodeExamples() {
+            try {
+                const loader = new CodeExampleLoader();
+                await loader.initializeAllExamples();
+            } catch (error) {
+                console.error('コード例の初期化に失敗しました:', error);
+            }
         }
 
-        // グローバル変数でIME状態を管理
-        let isComposing = false;
-
-        // グローバルハンドラー関数を設定
-        window.handleTableClick = (x, y) => {
-            table.handle_canvas_click(x, y);
-        };
-
-        window.handleTableWheel = (deltaX, deltaY) => {
-            table.handle_canvas_wheel(deltaX, deltaY);
-        };
-
-        window.handleTableKey = (key) => {
-            // IME入力中（日本語変換中）の場合はEnterとTabの処理をスキップ
-            if (isComposing && (key === 'Enter' || key === 'Tab')) {
-                console.log('🈴 [DEBUG] Skipping key during IME composition:', key);
-                return;
-            }
-            
-            table.handle_canvas_keydown(key);
-        };
-
-        // IME状態を監視するイベントリスナーを追加
-        document.addEventListener('compositionstart', () => {
-            isComposing = true;
-            console.log('🈴 [DEBUG] IME composition started');
+        // ページロード時に実行
+        document.addEventListener('DOMContentLoaded', () => {
+            initCodeExamples();
         });
-
-        document.addEventListener('compositionend', () => {
-            isComposing = false;
-            console.log('🈴 [DEBUG] IME composition ended');
-        });
-
-        // レンダリングをトリガーするグローバル関数
-        window.triggerRender = () => {
-            if (table) {
-                table.render();
-                updateCellReference();
-            }
-        };
-
-        // 編集中のキーイベントハンドラー
-        window.handleEditingEnter = () => {
-            if (table) {
-                table.handle_editing_enter();
-                updateCellReference();
-                // キャンバスにフォーカスを確実に戻す
-                setTimeout(() => {
-                    const canvas = document.getElementById('ninjaCanvas');
-                    if (canvas) {
-                        canvas.focus();
-                    }
-                }, 10);
-            }
-        };
-
-        window.handleEditingTab = () => {
-            if (table) {
-                table.handle_editing_tab();
-                updateCellReference();
-                // キャンバスにフォーカスを確実に戻す
-                setTimeout(() => {
-                    const canvas = document.getElementById('ninjaCanvas');
-                    if (canvas) {
-                        canvas.focus();
-                    }
-                }, 10);
-            }
-        };
-
-        window.handleEditingEscape = () => {
-            if (table) {
-                table.handle_editing_escape();
-                updateCellReference();
-                // キャンバスにフォーカスを確実に戻す
-                setTimeout(() => {
-                    const canvas = document.getElementById('ninjaCanvas');
-                    if (canvas) {
-                        canvas.focus();
-                    }
-                }, 10);
-            }
-        };
 
         // 初期化実行
         initTable();
     </script>
 </body>
-</html> 
+</html>
