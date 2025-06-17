@@ -95,6 +95,7 @@ export class NinjaTable {
         this.setupEventHandlers();
         this.createTooltipElement();
         this.setupScrollbars();
+        this.setupGlobalTabCapture(); // グローバルTabキーキャプチャを設定
         // 初期フォーカスを設定
         setTimeout(() => {
             this.canvas.focus();
@@ -640,6 +641,13 @@ export class NinjaTable {
             // 編集中の場合は通常のキーイベントを無視（編集フィールドが処理する）
             if (this.isEditing()) {
                 console.log('📝 [DEBUG] Editing in progress, ignoring document keydown for key:', event.key);
+                // 編集中のTabキーは特別に処理（ブラウザのデフォルト動作を完全に阻止）
+                if (event.key === 'Tab') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    event.stopImmediatePropagation();
+                    console.log('🚫 [DEBUG] Tab key completely blocked during editing');
+                }
                 return;
             }
             // フォーカス状態の詳細デバッグ
@@ -686,9 +694,21 @@ export class NinjaTable {
                     return;
                 }
             }
+            // Tabキーで右のセルに移動（編集中でない場合）
+            if (event.key === 'Tab' && !this.isEditing()) {
+                const selectedCell = this.getSelectedCell();
+                if (selectedCell) {
+                    const newCol = Math.min(this.config.col_count - 1, selectedCell.col + 1);
+                    console.log('➡️ [DEBUG] Tab navigation from', selectedCell, 'to', { row: selectedCell.row, col: newCol });
+                    this.selectCell(selectedCell.row, newCol);
+                    this.render();
+                    event.preventDefault();
+                    return;
+                }
+            }
             // 矢印キー以外のキーは従来のハンドラーに委譲（矢印キーは完全にTypeScriptで処理）
             // ただし、Rustのkeydownリスナーを無効化したため、直接Rustのメソッドを呼び出す
-            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(event.key)) {
+            if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Tab'].includes(event.key)) {
                 console.log('🔄 [DEBUG] Delegating key to Rust handler:', event.key);
                 try {
                     this.wasmTable.handle_canvas_keydown(event.key);
@@ -728,13 +748,21 @@ export class NinjaTable {
         window.handleEditingTab = () => {
             console.log('➡️ [DEBUG] Handling editing Tab');
             try {
+                // まずキャンバスにフォーカスを設定（編集完了前に確実にフォーカスを移動）
+                this.canvas.focus();
+                console.log('🎯 [DEBUG] Canvas focused before tab processing');
                 this.wasmTable.handle_editing_tab();
-                // レンダリングはRust側で実行されるため削除
-                // キャンバスにフォーカスを確実に戻す
+                // 追加の安全措置としてもう一度フォーカスを設定
                 setTimeout(() => {
                     this.canvas.focus();
-                    console.log('🎯 [DEBUG] Focus returned to canvas after Tab');
-                }, 10);
+                    console.log('🎯 [DEBUG] Focus returned to canvas after Tab (delayed)');
+                    // さらに確実にするため、activeElementを確認
+                    if (document.activeElement !== this.canvas) {
+                        console.log('⚠️ [DEBUG] Canvas not focused, forcing focus');
+                        this.canvas.focus();
+                        this.canvas.click(); // 強制的にキャンバスをアクティブにする
+                    }
+                }, 5);
                 this.triggerCellSelectEvent();
             }
             catch (error) {
@@ -1413,5 +1441,19 @@ export class NinjaTable {
         this.selectCell(newRow, newCol);
         this.render();
         console.log('🎯 [DEBUG] Arrow key movement completed');
+    }
+    /**
+     * グローバルTabキーキャプチャを設定
+     */
+    setupGlobalTabCapture() {
+        // 編集中のTabキーを確実に阻止するためのキャプチャリスナー
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Tab' && this.isEditing()) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                console.log('🚫 [DEBUG] Global Tab key capture - editing mode');
+            }
+        }, true); // キャプチャフェーズで実行
     }
 }

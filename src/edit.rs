@@ -112,6 +112,12 @@ impl crate::table::NinjaTable {
         // 入力タイプを設定
         input.set_type("text");
         
+        // Tabキーによるフォーカス移動を無効化
+        input.set_attribute("tabindex", "-1")?;
+        
+        // 追加のイベント阻止設定
+        input.set_attribute("data-ninja-editing", "true")?;
+        
         Ok(input)
     }
 
@@ -128,6 +134,7 @@ impl crate::table::NinjaTable {
                 "Enter" => {
                     event.prevent_default();
                     event.stop_propagation(); // イベント伝播を停止
+                    event.stop_immediate_propagation(); // 即座にイベント伝播を停止
                     // グローバル関数を呼び出してEnter処理
                     if let Some(window) = web_sys::window() {
                         if let Some(handle_enter) = window.get("handleEditingEnter") {
@@ -141,6 +148,8 @@ impl crate::table::NinjaTable {
                 "Tab" => {
                     event.prevent_default();
                     event.stop_propagation(); // イベント伝播を停止
+                    event.stop_immediate_propagation(); // 即座にイベント伝播を停止
+                    web_sys::console::log_1(&"🚫 [DEBUG] Tab event fully prevented in input field".into());
                     // グローバル関数を呼び出してTab処理
                     if let Some(window) = web_sys::window() {
                         if let Some(handle_tab) = window.get("handleEditingTab") {
@@ -154,6 +163,7 @@ impl crate::table::NinjaTable {
                 "Escape" => {
                     event.prevent_default();
                     event.stop_propagation(); // イベント伝播を停止
+                    event.stop_immediate_propagation(); // 即座にイベント伝播を停止
                     // グローバル関数を呼び出してEscape処理
                     if let Some(window) = web_sys::window() {
                         if let Some(handle_escape) = window.get("handleEditingEscape") {
@@ -173,11 +183,25 @@ impl crate::table::NinjaTable {
         
         input.add_event_listener_with_callback("keydown", keydown_closure.as_ref().unchecked_ref())?;
         
+        // keyupイベントでもTabキーを阻止（追加の安全措置）
+        let keyup_closure = Closure::wrap(Box::new(move |event: KeyboardEvent| {
+            let key = event.key();
+            if key == "Tab" {
+                event.prevent_default();
+                event.stop_propagation();
+                event.stop_immediate_propagation();
+                web_sys::console::log_1(&"🚫 [DEBUG] Tab keyup event also prevented".into());
+            }
+        }) as Box<dyn FnMut(_)>);
+        
+        input.add_event_listener_with_callback("keyup", keyup_closure.as_ref().unchecked_ref())?;
+        
         // blurイベントリスナーを削除（自動編集完了を無効化）
         // ESCキーでフォーカスが外れた時に意図しない編集完了を防ぐため
         
         // クロージャーをリークして永続化（メモリリークを避けるため、編集終了時に適切にクリーンアップする必要がある）
         keydown_closure.forget();
+        keyup_closure.forget();
         
         Ok(())
     }

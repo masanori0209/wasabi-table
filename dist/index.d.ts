@@ -511,4 +511,8 @@ export declare class NinjaTable {
      * 通常の矢印キーによるセル移動を処理
      */
     private handleArrowKey;
+    /**
+     * グローバルTabキーキャプチャを設定
+     */
+    private setupGlobalTabCapture;
 }
