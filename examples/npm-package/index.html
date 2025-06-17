@@ -169,6 +169,15 @@
             background: #218838;
         }
 
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
         .stats {
             background: #f8f9fa;
             padding: 1rem;
@@ -198,10 +207,6 @@
             margin: 10px 0;
             display: none;
         }
-
-
-
-
 
         .code-section {
             background: #2d3748;
@@ -302,7 +307,7 @@
 
         <!-- ライブデモ -->
         <div class="demo-section">
-            <h2>🚀 ライブデモ</h2>
+            <h2>📊 NinjaTable デモ</h2>
             
             <!-- 数式バー -->
             <div class="formula-bar">
@@ -311,13 +316,12 @@
                 </div>
                 <input type="text" id="formulaInput" class="formula-input" placeholder="セルの内容を入力...">
             </div>
-
-            <!-- キャンバス -->
-            <div class="canvas-container">
-                <canvas id="ninjaCanvas" width="1200" height="500"></canvas>
+            
+            <div class="table-container">
+                <canvas id="myCanvas" width="800" height="400"></canvas>
             </div>
 
-            <!-- コントロール -->
+            <!-- 操作パネル -->
             <div class="controls">
                 <div class="control-group">
                     <label>行数</label>
@@ -339,6 +343,7 @@
                 <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ</button>
                 <button class="btn btn-secondary" onclick="clearTable()">クリア</button>
                 <button class="btn btn-secondary" onclick="exportCSV()">CSV出力</button>
+                <button class="btn btn-info" onclick="testHorizontalScroll()">横スクロールテスト</button>
 
             </div>
 
@@ -350,7 +355,6 @@
             <!-- 検証エラー表示 -->
             <div id="validationError" class="validation-error"></div>
             <div id="validationSuccess" class="validation-success"></div>
-
 
         </div>
 
@@ -620,7 +624,7 @@
         // テーブル初期化
         async function initTable() {
             try {
-                const canvas = document.getElementById('ninjaCanvas');
+                const canvas = document.getElementById('myCanvas');
                 if (!canvas) {
                     throw new Error('Canvas element not found');
                 }
@@ -842,6 +846,26 @@
             link.click();
         };
 
+        // 横スクロールテスト関数
+        window.testHorizontalScroll = () => {
+            if (!table) return;
+            
+            // 多くの列にデータを設定してスクロールテスト
+            for (let row = 0; row < 10; row++) {
+                for (let col = 0; col < 30; col++) {
+                    const cellValue = `R${row + 1}C${col + 1}`;
+                    table.setCellValue(row, col, cellValue);
+                }
+            }
+            
+            table.render();
+            updateStats();
+            
+            console.log('✅ 横スクロールテスト用データを設定しました');
+            console.log('🔄 マウスホイールで横スクロールをテストしてください');
+            console.log('📊 スクロールバーが表示されているか確認してください');
+        };
+
         window.showTab = (tabName) => {
             // タブの切り替え
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
@@ -850,10 +874,6 @@
             document.querySelector(`[onclick="showTab('${tabName}')"]`).classList.add('active');
             document.getElementById(tabName).classList.add('active');
         };
-
-
-
-
 
         // コード例を初期化
         async function initCodeExamples() {

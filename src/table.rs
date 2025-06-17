@@ -541,8 +541,10 @@ impl NinjaTable {
         // キャンバス幅から行ヘッダー幅を引いた表示領域幅
         let visible_area_width = self.canvas_width - self.config.row_header_width;
         
-        // 最大スクロール値 = 総コンテンツ幅 - 表示領域幅（ただし0未満にならないように）
-        (total_width - visible_area_width).max(0.0)
+        // 最大スクロール値 = 総コンテンツ幅 - 表示領域幅 + 余白（ただし0未満にならないように）
+        // 余白を追加して最後のセルが完全に表示されるようにする
+        let margin = 50.0; // 50px の余白に増加
+        (total_width - visible_area_width + margin).max(0.0)
     }
 
     // 垂直スクロールの最大値を計算
@@ -597,16 +599,72 @@ impl NinjaTable {
 
     // 表示範囲を計算
     fn calculate_visible_range(&mut self) {
-        let start_col = (self.scroll_x / self.config.default_col_width) as usize;
-        let end_col = ((self.scroll_x + self.canvas_width) / self.config.default_col_width) as usize + 1;
-        let end_col = end_col.min(self.config.col_count);
+        // 列の表示範囲を計算（カスタム幅対応）
+        let mut start_col = 0;
+        let mut accumulated_width = 0.0;
+        
+        // 開始列を見つける
+        for col in 0..self.config.col_count {
+            let column_width = if let Some(header) = self.get_column_header(col) {
+                header.width
+            } else {
+                self.config.default_col_width
+            };
+            
+            if accumulated_width + column_width > self.scroll_x {
+                start_col = col;
+                break;
+            }
+            accumulated_width += column_width;
+        }
+        
+        // 終了列を見つける
+        let mut end_col = start_col;
+        let visible_area_width = self.canvas_width - self.config.row_header_width;
+        let mut current_width = 0.0;
+        
+        // 開始列の位置を取得
+        let start_x = self.get_start_x_for_column(start_col);
+        
+        for col in start_col..self.config.col_count {
+            let column_width = if let Some(header) = self.get_column_header(col) {
+                header.width
+            } else {
+                self.config.default_col_width
+            };
+            
+            current_width += column_width;
+            
+            // 表示領域を超えた場合
+            if current_width > visible_area_width + self.scroll_x - start_x {
+                end_col = col + 1;
+                break;
+            }
+            end_col = col + 1;
+        }
+        
+        end_col = end_col.min(self.config.col_count);
 
+        // 行の表示範囲を計算
         let start_row = (self.scroll_y / self.config.default_row_height) as usize;
         let end_row = ((self.scroll_y + self.canvas_height - self.config.header_height) / self.config.default_row_height) as usize + 1;
         let end_row = end_row.min(self.config.row_count);
 
         self.visible_rows = (start_row, end_row);
         self.visible_cols = (start_col, end_col);
+    }
+    
+    // 指定した列の開始X座標を取得（スクロール考慮なし）
+    fn get_start_x_for_column(&self, col: usize) -> f64 {
+        let mut accumulated_width = 0.0;
+        for prev_col in 0..col {
+            if let Some(header) = self.get_column_header(prev_col) {
+                accumulated_width += header.width;
+            } else {
+                accumulated_width += self.config.default_col_width;
+            }
+        }
+        accumulated_width
     }
 
     // バッチデータ設定
@@ -661,9 +719,9 @@ impl NinjaTable {
         let canvas_rect = self.canvas.get_bounding_client_rect();
         
         // セルの位置を計算（スクロールとキャンバス位置を考慮）
-        let cell_x = self.get_cell_x_for_editing(col) + canvas_rect.left();
+        let cell_x = self.get_column_x_position(col) + canvas_rect.left();
         let cell_y = self.get_cell_y_for_editing(row) + canvas_rect.top();
-        let cell_width = self.config.default_col_width;
+        let cell_width = self.get_column_width(col);
         let cell_height = self.config.default_row_height;
         
         // スタイルを設定
@@ -680,8 +738,20 @@ impl NinjaTable {
         Ok(())
     }
 
-    fn get_cell_x_for_editing(&self, col: usize) -> f64 {
-        self.get_column_x_position(col) + self.scroll_x
+    fn get_column_x_position(&self, col: usize) -> f64 {
+        let mut accumulated_width = self.config.row_header_width;
+        
+        // 指定した列までの幅を累積計算
+        for prev_col in 0..col {
+            if let Some(header) = self.get_column_header(prev_col) {
+                accumulated_width += header.width;
+            } else {
+                accumulated_width += self.config.default_col_width;
+            }
+        }
+        
+        // スクロール位置を考慮して最終位置を計算
+        accumulated_width - self.scroll_x
     }
 
     fn get_cell_y_for_editing(&self, row: usize) -> f64 {
@@ -895,23 +965,6 @@ impl NinjaTable {
         Ok(())
     }
 
-    // 列のX座標を計算するヘルパーメソッド
-    fn get_column_x_position(&self, col: usize) -> f64 {
-        if col == 0 {
-            self.config.row_header_width - self.scroll_x
-        } else {
-            let mut accumulated_width = self.config.row_header_width;
-            for prev_col in 0..col {
-                if let Some(header) = self.get_column_header(prev_col) {
-                    accumulated_width += header.width;
-                } else {
-                    accumulated_width += self.config.default_col_width;
-                }
-            }
-            accumulated_width - self.scroll_x
-        }
-    }
-
     fn render_header(&mut self) -> Result<(), JsValue> {
         // ヘッダー背景を描画（固定位置）
         self.ctx.set_fill_style_str(&self.config.header_background_color);
@@ -1105,6 +1158,8 @@ impl NinjaTable {
                 self.config.column_headers = headers;
                 // 列数を更新
                 self.config.col_count = self.config.column_headers.len().max(1);
+                // 表示範囲を再計算（重要：これを追加）
+                self.calculate_visible_range();
                 Ok(())
             }
             Err(e) => Err(JsValue::from_str(&format!("Failed to parse headers: {}", e))),

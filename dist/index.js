@@ -80,11 +80,18 @@ export class NinjaTable {
         this.isInitialized = false;
         this.tooltipElement = null;
         this.isComposing = false; // IME入力状態を管理
+        // スクロールバー関連の要素
+        this.scrollContainer = null;
+        this.horizontalScrollbar = null;
+        this.verticalScrollbar = null;
+        this.horizontalThumb = null;
+        this.verticalThumb = null;
         this.wasmTable = wasmTable;
         this.config = config;
         this.canvas = canvas;
         this.setupEventHandlers();
         this.createTooltipElement();
+        this.setupScrollbars();
     }
     /**
      * NinjaTableインスタンスを作成
@@ -162,6 +169,8 @@ export class NinjaTable {
     render() {
         this.ensureInitialized();
         this.wasmTable.render();
+        // レンダリング後にスクロールバーを更新
+        this.updateScrollbars();
     }
     /**
      * セルを選択
@@ -512,6 +521,8 @@ export class NinjaTable {
             this.wasmTable.handle_canvas_wheel(deltaX, deltaY);
             // スクロール時は吹き出しを一時的に非表示
             this.hideValidationTooltip();
+            // スクロールバーの表示を更新
+            this.updateScrollbars();
             // スクロール完了後に再表示
             setTimeout(() => {
                 this.updateValidationTooltip();
@@ -576,5 +587,256 @@ export class NinjaTable {
         this.tooltipElement.style.borderRadius = '4px';
         this.tooltipElement.style.pointerEvents = 'none';
         (_a = this.canvas.parentNode) === null || _a === void 0 ? void 0 : _a.appendChild(this.tooltipElement);
+    }
+    /**
+     * スクロールバーのHTML構造を作成
+     */
+    setupScrollbars() {
+        // 既存のキャンバスの親要素を取得
+        const parent = this.canvas.parentElement;
+        if (!parent)
+            return;
+        // スクロールコンテナを作成
+        this.scrollContainer = document.createElement('div');
+        this.scrollContainer.style.cssText = `
+      position: relative;
+      width: ${this.canvas.width}px;
+      height: ${this.canvas.height}px;
+      overflow: hidden;
+    `;
+        // キャンバスをコンテナに移動
+        parent.insertBefore(this.scrollContainer, this.canvas);
+        this.scrollContainer.appendChild(this.canvas);
+        // 水平スクロールバーを作成
+        this.horizontalScrollbar = document.createElement('div');
+        this.horizontalScrollbar.style.cssText = `
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 17px;
+      height: 17px;
+      background-color: #f0f0f0;
+      border-top: 1px solid #ccc;
+      overflow: hidden;
+    `;
+        this.horizontalThumb = document.createElement('div');
+        this.horizontalThumb.style.cssText = `
+      position: absolute;
+      top: 2px;
+      left: 0;
+      height: 13px;
+      background-color: #c0c0c0;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    `;
+        this.horizontalThumb.addEventListener('mouseenter', () => {
+            this.horizontalThumb.style.backgroundColor = '#a0a0a0';
+        });
+        this.horizontalThumb.addEventListener('mouseleave', () => {
+            this.horizontalThumb.style.backgroundColor = '#c0c0c0';
+        });
+        this.horizontalScrollbar.appendChild(this.horizontalThumb);
+        // 垂直スクロールバーを作成
+        this.verticalScrollbar = document.createElement('div');
+        this.verticalScrollbar.style.cssText = `
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 17px;
+      width: 17px;
+      background-color: #f0f0f0;
+      border-left: 1px solid #ccc;
+      overflow: hidden;
+    `;
+        this.verticalThumb = document.createElement('div');
+        this.verticalThumb.style.cssText = `
+      position: absolute;
+      left: 2px;
+      top: 0;
+      width: 13px;
+      background-color: #c0c0c0;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    `;
+        this.verticalThumb.addEventListener('mouseenter', () => {
+            this.verticalThumb.style.backgroundColor = '#a0a0a0';
+        });
+        this.verticalThumb.addEventListener('mouseleave', () => {
+            this.verticalThumb.style.backgroundColor = '#c0c0c0';
+        });
+        this.verticalScrollbar.appendChild(this.verticalThumb);
+        // コンテナにスクロールバーを追加
+        this.scrollContainer.appendChild(this.horizontalScrollbar);
+        this.scrollContainer.appendChild(this.verticalScrollbar);
+        // スクロールバーのイベントリスナーを設定
+        this.setupScrollbarEvents();
+    }
+    /**
+     * スクロールバーのイベントリスナーを設定
+     */
+    setupScrollbarEvents() {
+        if (!this.horizontalScrollbar || !this.verticalScrollbar ||
+            !this.horizontalThumb || !this.verticalThumb)
+            return;
+        // 水平スクロールバーのクリックイベント
+        this.horizontalScrollbar.addEventListener('click', (e) => {
+            if (e.target === this.horizontalThumb)
+                return;
+            const rect = this.horizontalScrollbar.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const scrollbarWidth = rect.width;
+            const scrollRatio = clickX / scrollbarWidth;
+            // 最大スクロール値を取得してスクロール位置を計算
+            const stats = this.getStats();
+            const maxScrollX = this.calculateMaxScrollX();
+            const targetScrollX = maxScrollX * scrollRatio;
+            this.scrollTo(targetScrollX, stats.scrollY);
+        });
+        // 垂直スクロールバーのクリックイベント
+        this.verticalScrollbar.addEventListener('click', (e) => {
+            if (e.target === this.verticalThumb)
+                return;
+            const rect = this.verticalScrollbar.getBoundingClientRect();
+            const clickY = e.clientY - rect.top;
+            const scrollbarHeight = rect.height;
+            const scrollRatio = clickY / scrollbarHeight;
+            // 最大スクロール値を取得してスクロール位置を計算
+            const stats = this.getStats();
+            const maxScrollY = this.calculateMaxScrollY();
+            const targetScrollY = maxScrollY * scrollRatio;
+            this.scrollTo(stats.scrollX, targetScrollY);
+        });
+        // 水平スクロールサムのドラッグ
+        this.setupThumbDrag(this.horizontalThumb, 'horizontal');
+        // 垂直スクロールサムのドラッグ
+        this.setupThumbDrag(this.verticalThumb, 'vertical');
+    }
+    /**
+     * スクロールサムのドラッグ機能を設定
+     */
+    setupThumbDrag(thumb, direction) {
+        let isDragging = false;
+        let startPos = 0;
+        let startScroll = 0;
+        thumb.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startPos = direction === 'horizontal' ? e.clientX : e.clientY;
+            const stats = this.getStats();
+            startScroll = direction === 'horizontal' ? stats.scrollX : stats.scrollY;
+            e.preventDefault();
+            document.body.style.userSelect = 'none';
+        });
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging)
+                return;
+            const currentPos = direction === 'horizontal' ? e.clientX : e.clientY;
+            const delta = currentPos - startPos;
+            if (direction === 'horizontal') {
+                const scrollbarWidth = this.horizontalScrollbar.offsetWidth;
+                const maxScrollX = this.calculateMaxScrollX();
+                const scrollRatio = delta / scrollbarWidth;
+                const newScrollX = Math.max(0, Math.min(maxScrollX, startScroll + maxScrollX * scrollRatio));
+                const stats = this.getStats();
+                this.scrollTo(newScrollX, stats.scrollY);
+            }
+            else {
+                const scrollbarHeight = this.verticalScrollbar.offsetHeight;
+                const maxScrollY = this.calculateMaxScrollY();
+                const scrollRatio = delta / scrollbarHeight;
+                const newScrollY = Math.max(0, Math.min(maxScrollY, startScroll + maxScrollY * scrollRatio));
+                const stats = this.getStats();
+                this.scrollTo(stats.scrollX, newScrollY);
+            }
+        });
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.userSelect = '';
+            }
+        });
+    }
+    /**
+     * 指定位置にスクロール
+     */
+    scrollTo(x, y) {
+        if (!this.wasmTable)
+            return;
+        const stats = this.getStats();
+        const deltaX = x - stats.scrollX;
+        const deltaY = y - stats.scrollY;
+        this.wasmTable.handle_canvas_wheel(deltaX, deltaY);
+        this.updateScrollbars();
+    }
+    /**
+     * スクロールバーの表示を更新
+     */
+    updateScrollbars() {
+        if (!this.horizontalScrollbar || !this.verticalScrollbar ||
+            !this.horizontalThumb || !this.verticalThumb)
+            return;
+        const stats = this.getStats();
+        const maxScrollX = this.calculateMaxScrollX();
+        const maxScrollY = this.calculateMaxScrollY();
+        // 水平スクロールバーの更新
+        const scrollbarWidth = this.horizontalScrollbar.offsetWidth;
+        const contentWidth = maxScrollX + this.canvas.width;
+        const thumbWidth = Math.max(20, (this.canvas.width / contentWidth) * scrollbarWidth);
+        const thumbLeft = maxScrollX > 0 ? (stats.scrollX / maxScrollX) * (scrollbarWidth - thumbWidth) : 0;
+        this.horizontalThumb.style.width = `${thumbWidth}px`;
+        this.horizontalThumb.style.left = `${thumbLeft}px`;
+        this.horizontalScrollbar.style.display = maxScrollX > 0 ? 'block' : 'none';
+        // 垂直スクロールバーの更新
+        const scrollbarHeight = this.verticalScrollbar.offsetHeight;
+        const contentHeight = maxScrollY + this.canvas.height;
+        const thumbHeight = Math.max(20, (this.canvas.height / contentHeight) * scrollbarHeight);
+        const thumbTop = maxScrollY > 0 ? (stats.scrollY / maxScrollY) * (scrollbarHeight - thumbHeight) : 0;
+        this.verticalThumb.style.height = `${thumbHeight}px`;
+        this.verticalThumb.style.top = `${thumbTop}px`;
+        this.verticalScrollbar.style.display = maxScrollY > 0 ? 'block' : 'none';
+    }
+    /**
+     * 最大水平スクロール値を計算
+     */
+    calculateMaxScrollX() {
+        if (!this.wasmTable)
+            return 0;
+        const config = this.getConfig();
+        let totalWidth = 0;
+        // カスタム列ヘッダーがある場合はその幅を使用
+        try {
+            const headers = this.getColumnHeadersAsArray();
+            if (headers.length > 0) {
+                for (const header of headers) {
+                    totalWidth += header.width;
+                }
+            }
+            else {
+                // デフォルト幅を使用
+                for (let col = 0; col < config.col_count; col++) {
+                    totalWidth += config.default_col_width;
+                }
+            }
+        }
+        catch (_a) {
+            // エラーの場合はデフォルト幅を使用
+            for (let col = 0; col < config.col_count; col++) {
+                totalWidth += config.default_col_width;
+            }
+        }
+        const visibleWidth = this.canvas.width - (config.row_header_width || 50);
+        return Math.max(0, totalWidth - visibleWidth + 50);
+    }
+    /**
+     * 最大垂直スクロール値を計算
+     */
+    calculateMaxScrollY() {
+        if (!this.wasmTable)
+            return 0;
+        const config = this.getConfig();
+        const totalHeight = config.row_count * config.default_row_height;
+        const visibleHeight = this.canvas.height - (config.header_height || 30);
+        return Math.max(0, totalHeight - visibleHeight);
     }
 }

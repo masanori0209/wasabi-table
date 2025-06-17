@@ -222,6 +222,11 @@ export declare class NinjaTable {
     private tooltipElement;
     private canvas;
     private isComposing;
+    private scrollContainer;
+    private horizontalScrollbar;
+    private verticalScrollbar;
+    private horizontalThumb;
+    private verticalThumb;
     private constructor();
     /**
      * NinjaTableインスタンスを作成
@@ -406,4 +411,32 @@ export declare class NinjaTable {
     private triggerCellSelectEvent;
     private ensureInitialized;
     private createTooltipElement;
+    /**
+     * スクロールバーのHTML構造を作成
+     */
+    private setupScrollbars;
+    /**
+     * スクロールバーのイベントリスナーを設定
+     */
+    private setupScrollbarEvents;
+    /**
+     * スクロールサムのドラッグ機能を設定
+     */
+    private setupThumbDrag;
+    /**
+     * 指定位置にスクロール
+     */
+    private scrollTo;
+    /**
+     * スクロールバーの表示を更新
+     */
+    private updateScrollbars;
+    /**
+     * 最大水平スクロール値を計算
+     */
+    private calculateMaxScrollX;
+    /**
+     * 最大垂直スクロール値を計算
+     */
+    private calculateMaxScrollY;
 }
