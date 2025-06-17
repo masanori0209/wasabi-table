@@ -24,6 +24,14 @@ pub struct NinjaTable {
     #[wasm_bindgen(skip)]
     pub selected_cell: Option<(usize, usize)>,
     #[wasm_bindgen(skip)]
+    pub selected_range: Option<crate::types::CellRange>,
+    #[wasm_bindgen(skip)]
+    pub is_selecting: bool,
+    #[wasm_bindgen(skip)]
+    pub selection_start: Option<(usize, usize)>,
+    #[wasm_bindgen(skip)]
+    pub clipboard_data: Vec<Vec<String>>,
+    #[wasm_bindgen(skip)]
     pub editing_cell: Option<(usize, usize)>,
     #[wasm_bindgen(skip)]
     pub editing_input: Option<web_sys::HtmlInputElement>,
@@ -31,8 +39,6 @@ pub struct NinjaTable {
     pub _click_closure: Option<Closure<dyn FnMut(web_sys::MouseEvent)>>,
     #[wasm_bindgen(skip)]
     pub _wheel_closure: Option<Closure<dyn FnMut(web_sys::WheelEvent)>>,
-    #[wasm_bindgen(skip)]
-    pub _keydown_closure: Option<Closure<dyn FnMut(web_sys::KeyboardEvent)>>,
     pub canvas_width: f64,
     pub canvas_height: f64,
     #[wasm_bindgen(skip)]
@@ -89,11 +95,14 @@ impl NinjaTable {
             data: HashMap::new(),
             headers,
             selected_cell: Some((0, 0)), // 初期選択セル
+            selected_range: None,
+            is_selecting: false,
+            selection_start: None,
+            clipboard_data: Vec::new(),
             editing_cell: None,
             editing_input: None,
             _click_closure: None,
             _wheel_closure: None,
-            _keydown_closure: None,
             canvas_width,
             canvas_height,
             scroll_x: 0.0,
@@ -177,32 +186,7 @@ impl NinjaTable {
             self._wheel_closure = Some(wheel_closure);
         }
         
-        // キーボードイベント
-        {
-            let keydown_closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
-                // デフォルト動作を防ぐ
-                if ["Tab", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].contains(&event.key().as_str()) {
-                    event.prevent_default();
-                }
-                
-                web_sys::console::log_1(&format!("⌨️ [DEBUG] Key pressed: {}", event.key()).into());
-                
-                // グローバル関数を呼び出してキー処理
-                if let Some(window) = web_sys::window() {
-                    if let Some(handle_key) = window.get("handleTableKey") {
-                        let js_value: wasm_bindgen::JsValue = handle_key.into();
-                        if let Ok(function) = js_value.dyn_into::<js_sys::Function>() {
-                            let args = js_sys::Array::new();
-                            args.push(&wasm_bindgen::JsValue::from_str(&event.key()));
-                            let _ = function.apply(&window, &args);
-                        }
-                    }
-                }
-            }) as Box<dyn FnMut(_)>);
-            
-            self.canvas.add_event_listener_with_callback("keydown", keydown_closure.as_ref().unchecked_ref())?;
-            self._keydown_closure = Some(keydown_closure);
-        }
+        // キーボードイベント処理はTypeScript側で統一的に処理するため、Rust側では登録しない
         
         Ok(())
     }
@@ -212,7 +196,15 @@ impl NinjaTable {
     pub fn handle_canvas_click(&mut self, canvas_x: f64, canvas_y: f64) -> Result<(), JsValue> {
         web_sys::console::log_1(&format!("🖱️ [DEBUG] Canvas click at ({}, {})", canvas_x, canvas_y).into());
         
-        if let Some((row, col)) = self.pixel_to_cell(canvas_x, canvas_y) {
+        if let Some(cell_pos) = self.pixel_to_cell(canvas_x, canvas_y) {
+            let parts: Vec<&str> = cell_pos.split(':').collect();
+            if parts.len() != 2 {
+                return Ok(());
+            }
+            let (row, col) = match (parts[0].parse::<usize>(), parts[1].parse::<usize>()) {
+                (Ok(r), Ok(c)) => (r, c),
+                _ => return Ok(()),
+            };
             web_sys::console::log_1(&format!("🎯 [DEBUG] Clicked cell ({}, {})", row, col).into());
             
             // 編集中の場合の処理
@@ -562,16 +554,37 @@ impl NinjaTable {
         (total_height - visible_area_height + margin).max(0.0)
     }
 
-    // セル選択
+    // セル選択（座標指定）
     #[wasm_bindgen]
     pub fn select_cell(&mut self, x: f64, y: f64) -> Option<String> {
-        let (row, col) = self.pixel_to_cell(x, y)?;
+        let (row, col) = self.pixel_to_cell_internal(x, y)?;
         self.selected_cell = Some((row, col));
         Some(format!("{}:{}", row, col))
     }
 
+    // セル選択（行・列直接指定）
+    #[wasm_bindgen]
+    pub fn select_cell_by_position(&mut self, row: usize, col: usize) -> Option<String> {
+        if row < self.config.row_count && col < self.config.col_count {
+            self.selected_cell = Some((row, col));
+            Some(format!("{}:{}", row, col))
+        } else {
+            None
+        }
+    }
+
     // 座標からセルを計算（カスタム列幅対応）
-    fn pixel_to_cell(&self, x: f64, y: f64) -> Option<(usize, usize)> {
+    #[wasm_bindgen]
+    pub fn pixel_to_cell(&self, x: f64, y: f64) -> Option<String> {
+        if let Some((row, col)) = self.pixel_to_cell_internal(x, y) {
+            Some(format!("{}:{}", row, col))
+        } else {
+            None
+        }
+    }
+
+    // 座標からセルを計算（内部使用）
+    fn pixel_to_cell_internal(&self, x: f64, y: f64) -> Option<(usize, usize)> {
         if x < self.config.row_header_width || y < self.config.header_height {
             return None;
         }
@@ -1158,8 +1171,54 @@ impl NinjaTable {
             }
         }
         
-        // 選択されたセルの枠を描画（カスタム列幅対応）
-        if let Some((row, col)) = self.selected_cell {
+        // 範囲選択の描画
+        if let Some(range) = self.selected_range {
+            self.ctx.set_fill_style_str("rgba(52, 152, 219, 0.2)"); // 半透明の青
+            
+            // 全ての選択されたセルの背景を塗りつぶし
+            for row in range.start_row..=range.end_row {
+                for col in range.start_col..=range.end_col {
+                    let x = self.get_column_x_position(col);
+                    let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+                    
+                    let column_width = if let Some(header) = self.get_column_header(col) {
+                        header.width
+                    } else {
+                        self.config.default_col_width
+                    };
+                    
+                    // セルが画面内にある場合のみ描画
+                    if x + column_width > self.config.row_header_width && 
+                       x < self.canvas_width && 
+                       y + self.config.default_row_height > self.config.header_height && 
+                       y < self.canvas_height {
+                        // 背景を塗りつぶし
+                        self.ctx.fill_rect(x, y, column_width, self.config.default_row_height);
+                    }
+                }
+            }
+            
+            // 範囲全体の境界線を描画
+            self.ctx.set_stroke_style_str(&self.config.selected_cell_color);
+            self.ctx.set_line_width(2.0);
+            
+            let start_x = self.get_column_x_position(range.start_col);
+            let start_y = range.start_row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+            let end_x = self.get_column_x_position(range.end_col) + if let Some(header) = self.get_column_header(range.end_col) {
+                header.width
+            } else {
+                self.config.default_col_width
+            };
+            let end_y = (range.end_row + 1) as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+            
+            let range_width = end_x - start_x;
+            let range_height = end_y - start_y;
+            
+            // 範囲全体の境界線を描画
+            self.ctx.stroke_rect(start_x, start_y, range_width, range_height);
+            
+        } else if let Some((row, col)) = self.selected_cell {
+            // 単一セル選択の枠を描画（カスタム列幅対応）
             let x = self.get_column_x_position(col);
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
             
@@ -1381,6 +1440,171 @@ impl NinjaTable {
             // 編集をキャンセル（cancel_editingでキャンバスフォーカスも処理される）
             self.cancel_editing()?;
             self.render()?;
+        }
+        Ok(())
+    }
+
+    // 範囲選択開始
+    #[wasm_bindgen]
+    pub fn start_range_selection(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        self.is_selecting = true;
+        self.selection_start = Some((row, col));
+        self.selected_range = Some(crate::types::CellRange::new(row, col, row, col));
+        // 範囲選択中もselected_cellを保持（現在のアクティブセル）
+        self.selected_cell = Some((row, col));
+        Ok(())
+    }
+
+    // 範囲選択更新
+    #[wasm_bindgen]
+    pub fn update_range_selection(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        if let Some((start_row, start_col)) = self.selection_start {
+            self.selected_range = Some(crate::types::CellRange::new(start_row, start_col, row, col));
+            // 現在のアクティブセル位置を更新
+            self.selected_cell = Some((row, col));
+        }
+        Ok(())
+    }
+
+    // 範囲選択終了
+    #[wasm_bindgen]
+    pub fn end_range_selection(&mut self) -> Result<(), JsValue> {
+        self.is_selecting = false;
+        Ok(())
+    }
+
+    // 範囲選択をクリア
+    #[wasm_bindgen]
+    pub fn clear_selection(&mut self) -> Result<(), JsValue> {
+        self.selected_range = None;
+        self.is_selecting = false;
+        self.selection_start = None;
+        // 単一セル選択は保持する（clear_selectionは範囲選択のみをクリア）
+        Ok(())
+    }
+
+    // 選択された範囲をコピー
+    #[wasm_bindgen]
+    pub fn copy_selection(&mut self) -> Result<String, JsValue> {
+        let mut copied_data = Vec::new();
+        
+        if let Some(range) = self.selected_range {
+            for row in range.start_row..=range.end_row {
+                let mut row_data = Vec::new();
+                for col in range.start_col..=range.end_col {
+                    let value = self.get_cell_data(row, col).unwrap_or_default();
+                    row_data.push(value);
+                }
+                copied_data.push(row_data);
+            }
+        } else if let Some((row, col)) = self.selected_cell {
+            // 単一セルの場合
+            let value = self.get_cell_data(row, col).unwrap_or_default();
+            copied_data.push(vec![value]);
+        }
+
+        self.clipboard_data = copied_data.clone();
+        
+        // TSV形式で返す（タブ区切り）
+        let tsv = copied_data.iter()
+            .map(|row| row.join("\t"))
+            .collect::<Vec<_>>()
+            .join("\n");
+            
+        Ok(tsv)
+    }
+
+    // クリップボードからペースト
+    #[wasm_bindgen]
+    pub fn paste_from_clipboard(&mut self, tsv_data: &str) -> Result<(), JsValue> {
+        let rows: Vec<&str> = tsv_data.split('\n').collect();
+        let mut paste_data = Vec::new();
+        
+        for row_str in rows {
+            if !row_str.trim().is_empty() {
+                let cols: Vec<String> = row_str.split('\t').map(|s| s.to_string()).collect();
+                paste_data.push(cols);
+            }
+        }
+
+        if paste_data.is_empty() {
+            return Ok(());
+        }
+
+        // ペースト開始位置を決定
+        let (start_row, start_col) = if let Some(range) = self.selected_range {
+            (range.start_row, range.start_col)
+        } else if let Some((row, col)) = self.selected_cell {
+            (row, col)
+        } else {
+            (0, 0)
+        };
+
+        // データをペースト
+        for (row_offset, row_data) in paste_data.iter().enumerate() {
+            for (col_offset, value) in row_data.iter().enumerate() {
+                let target_row = start_row + row_offset;
+                let target_col = start_col + col_offset;
+                
+                if target_row < self.config.row_count && target_col < self.config.col_count {
+                    self.set_cell_data(target_row, target_col, value.clone())?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    // 選択された範囲の情報を取得
+    #[wasm_bindgen]
+    pub fn get_selection_info(&self) -> String {
+        if let Some(range) = self.selected_range {
+            let cell_count = (range.end_row - range.start_row + 1) * (range.end_col - range.start_col + 1);
+            serde_json::json!({
+                "type": "range",
+                "hasSelection": true,
+                "isRange": true,
+                "start_row": range.start_row,
+                "start_col": range.start_col,
+                "end_row": range.end_row,
+                "end_col": range.end_col,
+                "cell_count": cell_count
+            }).to_string()
+        } else if let Some((row, col)) = self.selected_cell {
+            serde_json::json!({
+                "type": "single",
+                "hasSelection": true,
+                "isRange": false,
+                "row": row,
+                "col": col,
+                "cell_count": 1
+            }).to_string()
+        } else {
+            serde_json::json!({
+                "type": "none",
+                "hasSelection": false,
+                "isRange": false,
+                "cell_count": 0
+            }).to_string()
+        }
+    }
+
+    // マウスドラッグによる範囲選択処理
+    #[wasm_bindgen]
+    pub fn handle_mouse_drag(&mut self, canvas_x: f64, canvas_y: f64, is_dragging: bool) -> Result<(), JsValue> {
+        if let Some(cell_pos) = self.pixel_to_cell(canvas_x, canvas_y) {
+            let parts: Vec<&str> = cell_pos.split(':').collect();
+            if parts.len() == 2 {
+                if let (Ok(row), Ok(col)) = (parts[0].parse::<usize>(), parts[1].parse::<usize>()) {
+                    if is_dragging && self.selection_start.is_some() {
+                        // ドラッグ中の場合、範囲を更新
+                        self.update_range_selection(row, col)?;
+                    } else if !is_dragging {
+                        // ドラッグ開始の場合
+                        self.start_range_selection(row, col)?;
+                    }
+                }
+            }
         }
         Ok(())
     }

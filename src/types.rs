@@ -160,4 +160,39 @@ impl Default for ColumnHeader {
 pub struct ValidationErrorInfo {
     pub message: String,
     pub error_type: String,
+}
+
+// 範囲選択の型定義
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct CellRange {
+    pub start_row: usize,
+    pub start_col: usize,
+    pub end_row: usize,
+    pub end_col: usize,
+}
+
+impl CellRange {
+    pub fn new(start_row: usize, start_col: usize, end_row: usize, end_col: usize) -> Self {
+        CellRange {
+            start_row: start_row.min(end_row),
+            start_col: start_col.min(end_col),
+            end_row: start_row.max(end_row),
+            end_col: start_col.max(end_col),
+        }
+    }
+
+    pub fn contains(&self, row: usize, col: usize) -> bool {
+        row >= self.start_row && row <= self.end_row && 
+        col >= self.start_col && col <= self.end_col
+    }
+
+    pub fn get_cells(&self) -> Vec<(usize, usize)> {
+        let mut cells = Vec::new();
+        for row in self.start_row..=self.end_row {
+            for col in self.start_col..=self.end_col {
+                cells.push((row, col));
+            }
+        }
+        cells
+    }
 } 

@@ -262,6 +262,15 @@ interface ExtendedWasmNinjaTable extends WasmNinjaTable {
   handle_editing_enter(): void;
   handle_editing_tab(): void;
   handle_editing_escape(): void;
+  start_range_selection(row: number, col: number): void;
+  update_range_selection(row: number, col: number): void;
+  end_range_selection(): void;
+  clear_selection(): void;
+  copy_selection(): string;
+  paste_from_clipboard(tsvData: string): void;
+  get_selection_info(): string;
+  handle_mouse_drag(canvasX: number, canvasY: number, isDragging: boolean): void;
+  pixel_to_cell(x: number, y: number): string | undefined;
 }
 
 /**
@@ -308,9 +317,19 @@ export class NinjaTable {
     this.wasmTable = wasmTable;
     this.config = config;
     this.canvas = canvas;
+    
+    // キャンバスをフォーカス可能にする
+    this.canvas.tabIndex = 0;
+    this.canvas.style.outline = 'none'; // フォーカス時のアウトラインを非表示
+    
     this.setupEventHandlers();
     this.createTooltipElement();
     this.setupScrollbars();
+    
+    // 初期フォーカスを設定
+    setTimeout(() => {
+      this.canvas.focus();
+    }, 100);
   }
 
   /**
@@ -413,9 +432,21 @@ export class NinjaTable {
    */
   public selectCell(row: number, col: number): void {
     this.ensureInitialized();
-    const x = col * this.config.default_col_width;
-    const y = row * this.config.default_row_height + this.config.header_height;
-    this.wasmTable.select_cell(x, y);
+    console.log('🎯 [DEBUG] selectCell called with row:', row, 'col:', col);
+    
+    // Rustの内部状態を直接更新する方法を使用
+    // まず、簡単な座標計算でselect_cellを呼び出す
+    const x = this.config.row_header_width + (col * this.config.default_col_width) + (this.config.default_col_width / 2);
+    const y = this.config.header_height + (row * this.config.default_row_height) + (this.config.default_row_height / 2);
+    
+    console.log('🎯 [DEBUG] Calculated position x:', x, 'y:', y);
+    
+    const result = this.wasmTable.select_cell(x, y);
+    console.log('🎯 [DEBUG] selectCell result:', result);
+    
+    // 結果を検証
+    const selectedAfter = this.getSelectedCell();
+    console.log('🎯 [DEBUG] Selected cell after operation:', selectedAfter);
   }
 
   /**
@@ -778,6 +809,9 @@ export class NinjaTable {
   }
 
   private setupEventHandlers(): void {
+    let isDragging = false;
+    let dragStartCell: { row: number; col: number } | null = null;
+    
     // グローバルハンドラー関数を設定
     (window as any).handleTableClick = (x: number, y: number) => {
       this.wasmTable.handle_canvas_click(x, y);
@@ -798,16 +832,170 @@ export class NinjaTable {
       }, 150);
     };
 
-    (window as any).handleTableKey = (key: string) => {
-      // IME入力中（日本語変換中）の場合はEnterとTabの処理をスキップ
-      if (this.isComposing && (key === 'Enter' || key === 'Tab')) {
-        console.log('🈴 [DEBUG] Skipping key during IME composition:', key);
+    // handleTableKey関数は不要（Rustのkeydownリスナーを無効化したため）
+    // 矢印キー以外のキーは直接handle_canvas_keydownを呼び出す
+
+    // 基本的なマウスクリック
+    this.canvas.addEventListener('click', (event) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      
+      // キャンバスにフォーカスを設定
+      console.log('🖱️ [DEBUG] Canvas clicked, setting focus');
+      this.canvas.focus();
+      console.log('🖱️ [DEBUG] Focus set, activeElement:', document.activeElement?.tagName);
+      
+      if (event.shiftKey) {
+        // Shift+クリックで範囲選択
+        const cellPos = this.wasmTable.pixel_to_cell(x, y);
+        if (cellPos) {
+          const [row, col] = cellPos.split(':').map(Number);
+          this.updateRangeSelection(row, col);
+          this.render();
+        }
+      } else {
+        const result = this.wasmTable.select_cell(x, y);
+        if (result) {
+          this.clearSelection(); // 通常のクリックでは範囲選択をクリア
+          this.triggerCellSelectEvent();
+        }
+      }
+    });
+
+    // ダブルクリックで編集開始
+    this.canvas.addEventListener('dblclick', (event) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      
+      const cellPos = this.wasmTable.pixel_to_cell(x, y);
+      if (cellPos) {
+        const [row, col] = cellPos.split(':').map(Number);
+        this.startEditing(row, col);
+      }
+    });
+
+    // マウスドラッグによる範囲選択
+    this.canvas.addEventListener('mousedown', (event) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      
+      const cellPos = this.wasmTable.pixel_to_cell(x, y);
+      if (cellPos) {
+        const [row, col] = cellPos.split(':').map(Number);
+        
+        if (event.shiftKey) {
+          // Shift+ドラッグで範囲選択を拡張
+          this.updateRangeSelection(row, col);
+        } else {
+          // 通常のドラッグで新しい範囲選択を開始
+          this.startRangeSelection(row, col);
+          dragStartCell = { row, col };
+        }
+        
+        isDragging = true;
+        event.preventDefault();
+      }
+    });
+
+    this.canvas.addEventListener('mousemove', (event) => {
+      if (isDragging) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        const cellPos = this.wasmTable.pixel_to_cell(x, y);
+        if (cellPos) {
+          const [row, col] = cellPos.split(':').map(Number);
+          this.updateRangeSelection(row, col);
+          this.render();
+        }
+      }
+    });
+
+    this.canvas.addEventListener('mouseup', () => {
+      if (isDragging) {
+        this.endRangeSelection();
+        isDragging = false;
+        dragStartCell = null;
+      }
+    });
+
+    // マウスがキャンバスから離れた場合
+    this.canvas.addEventListener('mouseleave', () => {
+      if (isDragging) {
+        this.endRangeSelection();
+        isDragging = false;
+        dragStartCell = null;
+      }
+    });
+
+    // 統一されたキーボードイベント処理
+    document.addEventListener('keydown', (event) => {
+      // フォーカス状態の詳細デバッグ
+      console.log('🔍 [DEBUG] Focus check - activeElement:', document.activeElement?.tagName, 'canvas:', this.canvas.tagName);
+      console.log('🔍 [DEBUG] Focus match:', this.canvas === document.activeElement);
+      
+      // キャンバスがフォーカスされていない場合は無視
+      if (this.canvas !== document.activeElement) {
+        console.log('❌ [DEBUG] Canvas not focused, ignoring keydown');
         return;
       }
-      
-      this.wasmTable.handle_canvas_keydown(key);
-      this.triggerCellSelectEvent();
-    };
+
+      if (this.isComposing) {
+        console.log('🈴 [DEBUG] Ignoring keydown during IME composition');
+        return;
+      }
+
+      console.log('🔑 [DEBUG] Key pressed:', event.key, 'Shift:', event.shiftKey);
+
+      // キーボードショートカット（Ctrl/Cmd + キー）
+      if (this.handleKeyboardShortcut(event)) {
+        event.preventDefault();
+        return;
+      }
+
+      // 矢印キーの処理
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        if (event.shiftKey) {
+          // Shift+矢印キーによる範囲選択
+          console.log('🔀 [DEBUG] Handling Shift+Arrow:', event.key);
+          this.handleShiftArrowKey(event.key);
+        } else {
+          // 通常の矢印キーによるセル移動
+          console.log('➡️ [DEBUG] Handling Arrow:', event.key);
+          this.clearSelection(); // 範囲選択をクリア
+          this.handleArrowKey(event.key);
+        }
+        event.preventDefault();
+        return;
+      }
+
+      // Enterキーで編集開始
+      if (event.key === 'Enter' && !this.isEditing()) {
+        const selectedCell = this.getSelectedCell();
+        if (selectedCell) {
+          console.log('📝 [DEBUG] Starting edit with Enter');
+          this.startEditing(selectedCell.row, selectedCell.col);
+          event.preventDefault();
+          return;
+        }
+      }
+
+      // 矢印キー以外のキーは従来のハンドラーに委譲（矢印キーは完全にTypeScriptで処理）
+      // ただし、Rustのkeydownリスナーを無効化したため、直接Rustのメソッドを呼び出す
+      if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(event.key)) {
+        console.log('🔄 [DEBUG] Delegating key to Rust handler:', event.key);
+        try {
+          this.wasmTable.handle_canvas_keydown(event.key);
+          this.triggerCellSelectEvent();
+        } catch (error) {
+          console.warn('Failed to handle key in Rust:', error);
+        }
+      }
+    });
 
     // IME状態を監視
     document.addEventListener('compositionstart', () => {
@@ -1158,5 +1346,215 @@ export class NinjaTable {
     const margin = 10; // 余白
     
     return Math.max(0, totalHeight - visibleHeight + margin);
+  }
+
+  /**
+   * 範囲選択を開始
+   */
+  public startRangeSelection(row: number, col: number): void {
+    this.ensureInitialized();
+    this.wasmTable.start_range_selection(row, col);
+  }
+
+  /**
+   * 範囲選択を更新
+   */
+  public updateRangeSelection(row: number, col: number): void {
+    this.ensureInitialized();
+    this.wasmTable.update_range_selection(row, col);
+  }
+
+  /**
+   * 範囲選択を終了
+   */
+  public endRangeSelection(): void {
+    this.ensureInitialized();
+    this.wasmTable.end_range_selection();
+  }
+
+  /**
+   * 選択をクリア
+   */
+  public clearSelection(): void {
+    this.ensureInitialized();
+    this.wasmTable.clear_selection();
+  }
+
+  /**
+   * 選択範囲をコピー
+   */
+  public copySelection(): string {
+    this.ensureInitialized();
+    return this.wasmTable.copy_selection();
+  }
+
+  /**
+   * クリップボードからペースト
+   */
+  public pasteFromClipboard(tsvData: string): void {
+    this.ensureInitialized();
+    this.wasmTable.paste_from_clipboard(tsvData);
+  }
+
+  /**
+   * 選択情報を取得
+   */
+  public getSelectionInfo(): any {
+    this.ensureInitialized();
+    const info = this.wasmTable.get_selection_info();
+    return JSON.parse(info);
+  }
+
+  /**
+   * マウスドラッグを処理
+   */
+  public handleMouseDrag(canvasX: number, canvasY: number, isDragging: boolean): void {
+    this.ensureInitialized();
+    this.wasmTable.handle_mouse_drag(canvasX, canvasY, isDragging);
+  }
+
+  /**
+   * キーボードショートカットを処理
+   */
+  public handleKeyboardShortcut(event: KeyboardEvent): boolean {
+    if (!this.wasmTable) return false;
+
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const cmdKey = isMac ? event.metaKey : event.ctrlKey;
+
+    if (cmdKey) {
+      switch (event.key.toLowerCase()) {
+        case 'c':
+          // Ctrl+C / Cmd+C でコピー
+          event.preventDefault();
+          const copiedData = this.copySelection();
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(copiedData);
+          }
+          return true;
+
+        case 'v':
+          // Ctrl+V / Cmd+V でペースト
+          event.preventDefault();
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then(text => {
+              this.pasteFromClipboard(text);
+              this.render();
+            });
+          }
+          return true;
+
+        case 'a':
+          // Ctrl+A / Cmd+A で全選択
+          event.preventDefault();
+          const config = this.getConfig();
+          this.startRangeSelection(0, 0);
+          this.updateRangeSelection(config.row_count - 1, config.col_count - 1);
+          this.endRangeSelection();
+          this.render();
+          return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Shift+矢印キーによる範囲選択を処理
+   */
+  private handleShiftArrowKey(key: string): void {
+    console.log('🔀 [DEBUG] handleShiftArrowKey called with:', key);
+    
+    const selectedCell = this.getSelectedCell();
+    console.log('🔀 [DEBUG] Current selected cell for range:', selectedCell);
+    
+    if (!selectedCell) {
+      console.log('❌ [DEBUG] No selected cell for range selection, starting from (0,0)');
+      this.selectCell(0, 0);
+      this.startRangeSelection(0, 0);
+      return;
+    }
+
+    // 範囲選択が始まっていない場合は開始
+    const selectionInfo = this.getSelectionInfo();
+    console.log('🔀 [DEBUG] Current selection info:', selectionInfo);
+    
+    if (!selectionInfo || !selectionInfo.isRange) {
+      console.log('🔀 [DEBUG] Starting new range selection from current cell');
+      this.startRangeSelection(selectedCell.row, selectedCell.col);
+    }
+
+    // 現在の選択セル位置から移動
+    let newRow = selectedCell.row;
+    let newCol = selectedCell.col;
+
+    switch (key) {
+      case 'ArrowUp':
+        newRow = Math.max(0, selectedCell.row - 1);
+        break;
+      case 'ArrowDown':
+        newRow = Math.min(this.config.row_count - 1, selectedCell.row + 1);
+        break;
+      case 'ArrowLeft':
+        newCol = Math.max(0, selectedCell.col - 1);
+        break;
+      case 'ArrowRight':
+        newCol = Math.min(this.config.col_count - 1, selectedCell.col + 1);
+        break;
+    }
+
+    console.log('🔀 [DEBUG] Range selection extending from', selectedCell, 'to', { row: newRow, col: newCol });
+
+    // 範囲選択を更新（終端位置を移動）
+    this.updateRangeSelection(newRow, newCol);
+    this.render();
+    
+    // 更新後の選択情報を確認
+    const updatedSelection = this.getSelectionInfo();
+    console.log('🔀 [DEBUG] Updated selection info:', updatedSelection);
+  }
+
+  /**
+   * 通常の矢印キーによるセル移動を処理
+   */
+  private handleArrowKey(key: string): void {
+    console.log('🎯 [DEBUG] handleArrowKey called with:', key);
+    
+    const selectedCell = this.getSelectedCell();
+    console.log('🎯 [DEBUG] Current selected cell:', selectedCell);
+    
+    if (!selectedCell) {
+      console.log('❌ [DEBUG] No selected cell found, defaulting to (0,0)');
+      // 選択セルがない場合は(0,0)を選択してから移動
+      this.selectCell(0, 0);
+      this.render();
+      return;
+    }
+
+    let newRow = selectedCell.row;
+    let newCol = selectedCell.col;
+
+    switch (key) {
+      case 'ArrowUp':
+        newRow = Math.max(0, selectedCell.row - 1);
+        break;
+      case 'ArrowDown':
+        newRow = Math.min(this.config.row_count - 1, selectedCell.row + 1);
+        break;
+      case 'ArrowLeft':
+        newCol = Math.max(0, selectedCell.col - 1);
+        break;
+      case 'ArrowRight':
+        newCol = Math.min(this.config.col_count - 1, selectedCell.col + 1);
+        break;
+    }
+
+    console.log('🎯 [DEBUG] Moving from', selectedCell, 'to', { row: newRow, col: newCol });
+
+    // 新しいセルを選択
+    this.selectCell(newRow, newCol);
+    this.render();
+    
+    console.log('🎯 [DEBUG] Arrow key movement completed');
   }
 } 

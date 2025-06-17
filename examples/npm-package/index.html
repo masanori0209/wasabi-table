@@ -344,6 +344,10 @@
                 <button class="btn btn-secondary" onclick="clearTable()">クリア</button>
                 <button class="btn btn-secondary" onclick="exportCSV()">CSV出力</button>
                 <button class="btn btn-info" onclick="testHorizontalScroll()">横スクロールテスト</button>
+                <button class="btn btn-info" onclick="testRangeSelection()">範囲選択テスト</button>
+                <button class="btn btn-info" onclick="testCopy()">コピーテスト</button>
+                <button class="btn btn-info" onclick="testPaste()">ペーストテスト</button>
+                <button class="btn btn-info" onclick="testSelectAll()">全選択テスト</button>
 
             </div>
 
@@ -421,12 +425,16 @@
                         <li><strong>Tab</strong>: 右のセルに移動</li>
                         <li><strong>Escape</strong>: 編集キャンセル</li>
                         <li><strong>Delete/Backspace</strong>: セル内容削除</li>
+                        <li><strong>Ctrl+C / Cmd+C</strong>: コピー</li>
+                        <li><strong>Ctrl+V / Cmd+V</strong>: ペースト</li>
+                        <li><strong>Ctrl+A / Cmd+A</strong>: 全選択</li>
                     </ul>
                 </div>
                 <div class="feature-card">
                     <h3>🖱️ マウス操作</h3>
                     <ul>
                         <li><strong>クリック</strong>: セル選択</li>
+                        <li><strong>Shift+クリック&ドラッグ</strong>: 範囲選択</li>
                         <li><strong>ホイール</strong>: スクロール</li>
                         <li><strong>ダブルクリック</strong>: 編集開始（予定）</li>
                     </ul>
@@ -864,6 +872,71 @@
             console.log('✅ 横スクロールテスト用データを設定しました');
             console.log('🔄 マウスホイールで横スクロールをテストしてください');
             console.log('📊 スクロールバーが表示されているか確認してください');
+        };
+
+        // 範囲選択テスト関数
+        window.testRangeSelection = () => {
+            if (!table) return;
+            
+            // 範囲選択をテスト（A1:C3）
+            table.startRangeSelection(0, 0);
+            table.updateRangeSelection(2, 2);
+            table.endRangeSelection();
+            table.render();
+            
+            const selectionInfo = table.getSelectionInfo();
+            console.log('✅ 範囲選択テスト完了:', selectionInfo);
+            console.log('📋 Ctrl+C でコピー、Ctrl+V でペーストができます');
+            console.log('🔄 Shift+クリック&ドラッグでも範囲選択できます');
+        };
+
+        // コピーテスト関数
+        window.testCopy = () => {
+            if (!table) return;
+            
+            try {
+                const copiedData = table.copySelection();
+                console.log('📋 コピーされたデータ:', copiedData);
+                
+                // クリップボードにもコピー
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(copiedData).then(() => {
+                        console.log('✅ クリップボードにコピーしました');
+                    });
+                }
+            } catch (error) {
+                console.error('❌ コピーに失敗しました:', error);
+            }
+        };
+
+        // ペーストテスト関数
+        window.testPaste = () => {
+            if (!table) return;
+            
+            // テストデータをペースト
+            const testData = "テスト1\tテスト2\tテスト3\nデータA\tデータB\tデータC";
+            
+            try {
+                table.pasteFromClipboard(testData);
+                table.render();
+                console.log('✅ ペーストテスト完了');
+            } catch (error) {
+                console.error('❌ ペーストに失敗しました:', error);
+            }
+        };
+
+        // 全選択テスト関数
+        window.testSelectAll = () => {
+            if (!table) return;
+            
+            const config = table.getConfig();
+            table.startRangeSelection(0, 0);
+            table.updateRangeSelection(config.row_count - 1, config.col_count - 1);
+            table.endRangeSelection();
+            table.render();
+            
+            console.log('✅ 全選択テスト完了');
+            console.log('📋 Ctrl+A でも全選択できます');
         };
 
         window.showTab = (tabName) => {

@@ -439,4 +439,48 @@ export declare class NinjaTable {
      * 最大垂直スクロール値を計算
      */
     private calculateMaxScrollY;
+    /**
+     * 範囲選択を開始
+     */
+    startRangeSelection(row: number, col: number): void;
+    /**
+     * 範囲選択を更新
+     */
+    updateRangeSelection(row: number, col: number): void;
+    /**
+     * 範囲選択を終了
+     */
+    endRangeSelection(): void;
+    /**
+     * 選択をクリア
+     */
+    clearSelection(): void;
+    /**
+     * 選択範囲をコピー
+     */
+    copySelection(): string;
+    /**
+     * クリップボードからペースト
+     */
+    pasteFromClipboard(tsvData: string): void;
+    /**
+     * 選択情報を取得
+     */
+    getSelectionInfo(): any;
+    /**
+     * マウスドラッグを処理
+     */
+    handleMouseDrag(canvasX: number, canvasY: number, isDragging: boolean): void;
+    /**
+     * キーボードショートカットを処理
+     */
+    handleKeyboardShortcut(event: KeyboardEvent): boolean;
+    /**
+     * Shift+矢印キーによる範囲選択を処理
+     */
+    private handleShiftArrowKey;
+    /**
+     * 通常の矢印キーによるセル移動を処理
+     */
+    private handleArrowKey;
 }
