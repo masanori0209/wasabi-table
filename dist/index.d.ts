@@ -476,6 +476,34 @@ export declare class NinjaTable {
      */
     handleKeyboardShortcut(event: KeyboardEvent): boolean;
     /**
+     * コピー処理
+     */
+    private handleCopy;
+    /**
+     * ペースト処理
+     */
+    private handlePaste;
+    /**
+     * カット処理（コピー + 削除）
+     */
+    private handleCut;
+    /**
+     * 全選択処理
+     */
+    private handleSelectAll;
+    /**
+     * フォールバック: 古いブラウザでのコピー
+     */
+    private fallbackCopyToClipboard;
+    /**
+     * フォールバック: 古いブラウザでのペースト（制限あり）
+     */
+    private fallbackReadFromClipboard;
+    /**
+     * コピー成功の視覚的フィードバック
+     */
+    private showCopyFeedback;
+    /**
      * Shift+矢印キーによる範囲選択を処理
      */
     private handleShiftArrowKey;

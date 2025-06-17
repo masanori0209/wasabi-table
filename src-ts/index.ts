@@ -1471,36 +1471,244 @@ export class NinjaTable {
         case 'c':
           // Ctrl+C / Cmd+C でコピー
           event.preventDefault();
-          const copiedData = this.copySelection();
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(copiedData);
-          }
+          this.handleCopy();
           return true;
 
         case 'v':
           // Ctrl+V / Cmd+V でペースト
           event.preventDefault();
-          if (navigator.clipboard && navigator.clipboard.readText) {
-            navigator.clipboard.readText().then(text => {
-              this.pasteFromClipboard(text);
-              this.render();
-            });
-          }
+          this.handlePaste();
+          return true;
+
+        case 'x':
+          // Ctrl+X / Cmd+X でカット
+          event.preventDefault();
+          this.handleCut();
           return true;
 
         case 'a':
           // Ctrl+A / Cmd+A で全選択
           event.preventDefault();
-          const config = this.getConfig();
-          this.startRangeSelection(0, 0);
-          this.updateRangeSelection(config.row_count - 1, config.col_count - 1);
-          this.endRangeSelection();
-          this.render();
+          this.handleSelectAll();
           return true;
       }
     }
 
     return false;
+  }
+
+  /**
+   * コピー処理
+   */
+  private async handleCopy(): Promise<void> {
+    try {
+      const copiedData = this.copySelection();
+      console.log('📋 [DEBUG] Copied data:', copiedData);
+      
+      if (copiedData) {
+        // モダンブラウザのClipboard APIを使用
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(copiedData);
+          console.log('✅ [DEBUG] Data copied to clipboard using Clipboard API');
+        } else {
+          // フォールバック: 古いブラウザ対応
+          this.fallbackCopyToClipboard(copiedData);
+        }
+        
+        // コピー成功の視覚的フィードバック（オプション）
+        this.showCopyFeedback();
+      }
+    } catch (error) {
+      console.error('❌ [DEBUG] Copy failed:', error);
+      // エラー時はフォールバックを試行
+      try {
+        const copiedData = this.copySelection();
+        if (copiedData) {
+          this.fallbackCopyToClipboard(copiedData);
+        }
+      } catch (fallbackError) {
+        console.error('❌ [DEBUG] Fallback copy also failed:', fallbackError);
+      }
+    }
+  }
+
+  /**
+   * ペースト処理
+   */
+  private async handlePaste(): Promise<void> {
+    try {
+      let pasteData = '';
+      
+      // モダンブラウザのClipboard APIを使用
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        pasteData = await navigator.clipboard.readText();
+        console.log('📋 [DEBUG] Pasted data from Clipboard API:', pasteData);
+      } else {
+        // フォールバック: 古いブラウザ対応
+        pasteData = this.fallbackReadFromClipboard();
+        console.log('📋 [DEBUG] Pasted data from fallback:', pasteData);
+      }
+      
+      if (pasteData) {
+        // 選択範囲の開始位置を取得
+        const selectedCell = this.getSelectedCell();
+        const selectionInfo = this.getSelectionInfo();
+        
+        console.log('📋 [DEBUG] Paste target - Selected cell:', selectedCell, 'Selection info:', selectionInfo);
+        
+        // データをペースト
+        this.pasteFromClipboard(pasteData);
+        
+        // レンダリングを更新
+        this.render();
+        
+        // ペーストイベントを通知
+        if (this.eventHandlers.onCellChange && selectedCell) {
+          // 簡単な通知（実際には複数セルが変更される可能性がある）
+          this.eventHandlers.onCellChange(selectedCell, '', pasteData);
+        }
+        
+        console.log('✅ [DEBUG] Paste completed successfully');
+      }
+    } catch (error) {
+      console.error('❌ [DEBUG] Paste failed:', error);
+    }
+  }
+
+  /**
+   * カット処理（コピー + 削除）
+   */
+  private async handleCut(): Promise<void> {
+    try {
+      // まずコピー
+      await this.handleCopy();
+      
+      // 選択範囲のデータを削除
+      const selectionInfo = this.getSelectionInfo();
+      if (selectionInfo && selectionInfo.hasSelection) {
+        if (selectionInfo.isRange) {
+          // 範囲選択の場合
+          for (let row = selectionInfo.start_row; row <= selectionInfo.end_row; row++) {
+            for (let col = selectionInfo.start_col; col <= selectionInfo.end_col; col++) {
+              this.setCellValue(row, col, '');
+            }
+          }
+        } else {
+          // 単一セル選択の場合
+          this.setCellValue(selectionInfo.row, selectionInfo.col, '');
+        }
+        
+        this.render();
+        console.log('✅ [DEBUG] Cut completed successfully');
+      }
+    } catch (error) {
+      console.error('❌ [DEBUG] Cut failed:', error);
+    }
+  }
+
+  /**
+   * 全選択処理
+   */
+  private handleSelectAll(): void {
+    try {
+      const config = this.getConfig();
+      this.startRangeSelection(0, 0);
+      this.updateRangeSelection(config.row_count - 1, config.col_count - 1);
+      this.endRangeSelection();
+      this.render();
+      console.log('✅ [DEBUG] Select all completed');
+    } catch (error) {
+      console.error('❌ [DEBUG] Select all failed:', error);
+    }
+  }
+
+  /**
+   * フォールバック: 古いブラウザでのコピー
+   */
+  private fallbackCopyToClipboard(text: string): void {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        console.log('✅ [DEBUG] Fallback copy successful');
+      } else {
+        console.error('❌ [DEBUG] Fallback copy failed');
+      }
+    } catch (err) {
+      console.error('❌ [DEBUG] Fallback copy error:', err);
+    } finally {
+      document.body.removeChild(textArea);
+    }
+  }
+
+  /**
+   * フォールバック: 古いブラウザでのペースト（制限あり）
+   */
+  private fallbackReadFromClipboard(): string {
+    // 古いブラウザでは自動的にクリップボードから読み取ることはできない
+    // ユーザーに手動でペーストを促すか、他の方法を検討する必要がある
+    console.warn('⚠️ [DEBUG] Clipboard read not supported in this browser');
+    return '';
+  }
+
+  /**
+   * コピー成功の視覚的フィードバック
+   */
+  private showCopyFeedback(): void {
+    // 簡単な視覚的フィードバック（オプション）
+    const selectedCell = this.getSelectedCell();
+    if (selectedCell) {
+      const cellPosition = this.getCellScreenPosition(selectedCell.row, selectedCell.col);
+      
+      // 一時的な「コピー済み」メッセージを表示
+      const feedback = document.createElement('div');
+      feedback.textContent = 'コピーしました';
+      feedback.style.cssText = `
+        position: fixed;
+        left: ${cellPosition.x}px;
+        top: ${cellPosition.y - 30}px;
+        background: #28a745;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 10000;
+        pointer-events: none;
+        animation: fadeInOut 1.5s ease-in-out;
+      `;
+      
+      // CSS アニメーションを追加
+      if (!document.getElementById('copy-feedback-style')) {
+        const style = document.createElement('style');
+        style.id = 'copy-feedback-style';
+        style.textContent = `
+          @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(10px); }
+            20% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      document.body.appendChild(feedback);
+      
+      // 1.5秒後に削除
+      setTimeout(() => {
+        if (feedback.parentNode) {
+          feedback.parentNode.removeChild(feedback);
+        }
+      }, 1500);
+    }
   }
 
   /**

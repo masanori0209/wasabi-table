@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NinjaTable - 編集テスト</title>
+    <title>NinjaTable - コピー&ペーストテスト</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -33,30 +33,88 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
         }
+        .test-section {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #ffeaa7;
+        }
+        .shortcut-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .shortcut-item {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .key {
+            background: #6c757d;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🥷 NinjaTable - 編集機能テスト</h1>
+        <h1>🥷 NinjaTable - コピー&ペーストテスト</h1>
         
         <div class="instructions">
-            <h3>テスト手順:</h3>
+            <h3>📋 コピー&ペースト機能テスト:</h3>
+            <div class="shortcut-list">
+                <div class="shortcut-item">
+                    <strong><span class="key">Ctrl+C</span> / <span class="key">Cmd+C</span></strong><br>
+                    選択範囲をコピー
+                </div>
+                <div class="shortcut-item">
+                    <strong><span class="key">Ctrl+V</span> / <span class="key">Cmd+V</span></strong><br>
+                    クリップボードからペースト
+                </div>
+                <div class="shortcut-item">
+                    <strong><span class="key">Ctrl+X</span> / <span class="key">Cmd+X</span></strong><br>
+                    選択範囲をカット
+                </div>
+                <div class="shortcut-item">
+                    <strong><span class="key">Ctrl+A</span> / <span class="key">Cmd+A</span></strong><br>
+                    全選択
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h4>🎯 テスト手順:</h4>
             <ol>
-                <li>セルをクリックして選択</li>
-                <li>ダブルクリックまたは文字入力で編集開始</li>
-                <li><strong>Enterキー</strong>で編集完了・下のセルに移動</li>
-                <li><strong>Tabキー</strong>で編集完了・右のセルに移動</li>
-                <li><strong>Escapeキー</strong>で編集キャンセル</li>
+                <li><strong>単一セル選択:</strong> セルをクリック → <span class="key">Ctrl+C</span>でコピー → 別のセルで<span class="key">Ctrl+V</span>でペースト</li>
+                <li><strong>範囲選択:</strong> セルをドラッグして範囲選択 → <span class="key">Ctrl+C</span>でコピー → 別の場所で<span class="key">Ctrl+V</span>でペースト</li>
+                <li><strong>Excel連携:</strong> Excelでデータをコピー → NinjaTableで<span class="key">Ctrl+V</span>でペースト</li>
+                <li><strong>カット機能:</strong> 範囲選択 → <span class="key">Ctrl+X</span>でカット → 別の場所で<span class="key">Ctrl+V</span>でペースト</li>
+                <li><strong>全選択:</strong> <span class="key">Ctrl+A</span>で全選択 → <span class="key">Ctrl+C</span>でコピー</li>
             </ol>
-            <p><strong>修正内容:</strong> Rustのborrow checkerエラーを解決しました。編集中のEnter/Tab/Escapeキーが正常に動作するはずです。</p>
         </div>
 
         <canvas id="table-canvas" width="800" height="600"></canvas>
         
         <div class="status">
             <div><strong>選択セル:</strong> <span id="selected-cell">なし</span></div>
+            <div><strong>選択情報:</strong> <span id="selection-info">なし</span></div>
             <div><strong>編集状態:</strong> <span id="editing-status">非編集中</span></div>
             <div><strong>ステータス:</strong> <span id="status">準備完了</span></div>
+        </div>
+
+        <div class="test-section">
+            <h4>📝 テスト用データ:</h4>
+            <p>以下のデータをExcelやスプレッドシートにコピーして、NinjaTableにペーストしてみてください：</p>
+            <textarea readonly style="width: 100%; height: 100px; font-family: monospace;">名前	年齢	職業	給与
+田中太郎	30	エンジニア	5000000
+佐藤花子	25	デザイナー	4500000
+山田次郎	35	マネージャー	6000000</textarea>
         </div>
     </div>
 
@@ -69,6 +127,7 @@
                 
                 const canvas = document.getElementById('table-canvas');
                 const selectedCellSpan = document.getElementById('selected-cell');
+                const selectionInfoSpan = document.getElementById('selection-info');
                 const editingStatusSpan = document.getElementById('editing-status');
                 const statusSpan = document.getElementById('status');
                 
@@ -76,7 +135,7 @@
                 const config = {
                     row_count: 20,
                     col_count: 10,
-                    default_col_width: 80,
+                    default_col_width: 100,
                     default_row_height: 30,
                     header_height: 35,
                     row_header_width: 50,
@@ -96,31 +155,64 @@
                 
                 // サンプルデータを設定
                 const sampleData = [
-                    { row: 0, col: 0, value: 'A1データ' },
-                    { row: 0, col: 1, value: 'B1データ' },
-                    { row: 1, col: 0, value: 'A2データ' },
-                    { row: 1, col: 1, value: 'B2データ' },
-                    { row: 2, col: 0, value: '編集テスト' },
-                    { row: 2, col: 1, value: '123.45' }
+                    { row: 0, col: 0, value: 'Apple' },
+                    { row: 0, col: 1, value: '100' },
+                    { row: 0, col: 2, value: '赤' },
+                    { row: 1, col: 0, value: 'Banana' },
+                    { row: 1, col: 1, value: '80' },
+                    { row: 1, col: 2, value: '黄色' },
+                    { row: 2, col: 0, value: 'Orange' },
+                    { row: 2, col: 1, value: '120' },
+                    { row: 2, col: 2, value: 'オレンジ' },
+                    { row: 4, col: 0, value: 'コピーテスト用データ' },
+                    { row: 4, col: 1, value: '範囲選択して' },
+                    { row: 4, col: 2, value: 'コピー&ペースト' },
+                    { row: 5, col: 0, value: '123.45' },
+                    { row: 5, col: 1, value: '678.90' },
+                    { row: 5, col: 2, value: '999.99' }
                 ];
                 
                 table.setBatchData(sampleData);
                 
+                // 選択情報を更新する関数
+                function updateSelectionInfo() {
+                    const selectedCell = table.getSelectedCell();
+                    const selectionInfo = table.getSelectionInfo();
+                    
+                    if (selectedCell) {
+                        selectedCellSpan.textContent = `${NinjaTable.getCellReference(selectedCell.row, selectedCell.col)} (${selectedCell.row}, ${selectedCell.col})`;
+                    } else {
+                        selectedCellSpan.textContent = 'なし';
+                    }
+                    
+                    if (selectionInfo && selectionInfo.hasSelection) {
+                        if (selectionInfo.isRange) {
+                            selectionInfoSpan.textContent = `範囲選択: ${selectionInfo.cell_count}セル (${selectionInfo.start_row},${selectionInfo.start_col})-(${selectionInfo.end_row},${selectionInfo.end_col})`;
+                        } else {
+                            selectionInfoSpan.textContent = `単一セル: (${selectionInfo.row},${selectionInfo.col})`;
+                        }
+                    } else {
+                        selectionInfoSpan.textContent = 'なし';
+                    }
+                    
+                    editingStatusSpan.textContent = table.isEditing() ? '編集中' : '非編集中';
+                }
+                
                 // イベントハンドラーを設定
                 table.setEventHandlers({
                     onCellSelect: (position) => {
-                        selectedCellSpan.textContent = `${NinjaTable.getCellReference(position.row, position.col)} (${position.row}, ${position.col})`;
-                        editingStatusSpan.textContent = table.isEditing() ? '編集中' : '非編集中';
+                        updateSelectionInfo();
                     },
                     onEditStart: (position, value) => {
-                        editingStatusSpan.textContent = '編集中';
+                        updateSelectionInfo();
                         statusSpan.textContent = `編集開始: ${NinjaTable.getCellReference(position.row, position.col)} = "${value}"`;
                     },
                     onEditEnd: (position, value) => {
-                        editingStatusSpan.textContent = '非編集中';
+                        updateSelectionInfo();
                         statusSpan.textContent = `編集完了: ${NinjaTable.getCellReference(position.row, position.col)} = "${value}"`;
                     },
                     onCellChange: (position, oldValue, newValue) => {
+                        updateSelectionInfo();
                         statusSpan.textContent = `値変更: ${NinjaTable.getCellReference(position.row, position.col)} "${oldValue}" → "${newValue}"`;
                     }
                 });
@@ -130,10 +222,14 @@
                 
                 // 初期セル選択
                 table.selectCell(0, 0);
+                updateSelectionInfo();
                 
-                statusSpan.textContent = 'テーブル初期化完了 - 編集機能をテストしてください';
+                statusSpan.textContent = 'テーブル初期化完了 - コピー&ペースト機能をテストしてください';
                 
                 console.log('🎉 NinjaTable initialized successfully!');
+                
+                // デバッグ用: グローバルに公開
+                window.ninjaTable = table;
                 
             } catch (error) {
                 console.error('❌ Error initializing NinjaTable:', error);

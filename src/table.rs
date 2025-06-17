@@ -1325,7 +1325,9 @@ impl NinjaTable {
     /// 指定されたセルの画面上の位置を取得（ピクセル座標）
     #[wasm_bindgen]
     pub fn get_cell_screen_position(&self, row: usize, col: usize) -> String {
-        let x = self.get_column_x_position(col);
+        // スクロールを考慮したX座標計算
+        let x = self.get_column_x_position(col) - self.scroll_x;
+        // スクロールを考慮したY座標計算
         let y = (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64 - self.scroll_y;
         let width = self.get_column_width(col);
         let height = self.config.default_row_height as f64;
@@ -1336,7 +1338,11 @@ impl NinjaTable {
             "width": width,
             "height": height,
             "centerX": x + width / 2.0,
-            "centerY": y + height / 2.0
+            "centerY": y + height / 2.0,
+            "scroll_x": self.scroll_x,
+            "scroll_y": self.scroll_y,
+            "raw_x": self.get_column_x_position(col),
+            "raw_y": (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64
         }).to_string()
     }
 
