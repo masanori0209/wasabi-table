@@ -947,6 +947,14 @@ export class NinjaTable {
           event.stopImmediatePropagation();
           console.log('🚫 [DEBUG] Tab key completely blocked during editing');
         }
+        
+        // 編集中の矢印キーは入力フィールド内でのカーソル移動として処理
+        // ドキュメントレベルでは何もしない（入力フィールドが処理する）
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+          console.log('⬅️➡️ [DEBUG] Arrow key in editing mode - allowing input field to handle cursor movement');
+          return; // 入力フィールドのデフォルト動作を許可
+        }
+        
         return;
       }
 
@@ -1057,25 +1065,13 @@ export class NinjaTable {
     (window as any).handleEditingTab = () => {
       console.log('➡️ [DEBUG] Handling editing Tab');
       try {
-        // まずキャンバスにフォーカスを設定（編集完了前に確実にフォーカスを移動）
-        this.canvas.focus();
-        console.log('🎯 [DEBUG] Canvas focused before tab processing');
-        
         this.wasmTable.handle_editing_tab();
-        
-        // 追加の安全措置としてもう一度フォーカスを設定
+        // レンダリングはRust側で実行されるため削除
+        // キャンバスにフォーカスを確実に戻す
         setTimeout(() => {
           this.canvas.focus();
-          console.log('🎯 [DEBUG] Focus returned to canvas after Tab (delayed)');
-          
-          // さらに確実にするため、activeElementを確認
-          if (document.activeElement !== this.canvas) {
-            console.log('⚠️ [DEBUG] Canvas not focused, forcing focus');
-            this.canvas.focus();
-            this.canvas.click(); // 強制的にキャンバスをアクティブにする
-          }
-        }, 5);
-        
+          console.log('🎯 [DEBUG] Focus returned to canvas after Tab');
+        }, 10);
         this.triggerCellSelectEvent();
       } catch (error) {
         console.error('Error handling editing Tab:', error);

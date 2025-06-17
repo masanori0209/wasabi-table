@@ -174,6 +174,12 @@ impl crate::table::NinjaTable {
                         }
                     }
                 }
+                // 矢印キーは入力フィールド内でのカーソル移動として処理（デフォルトの動作を許可）
+                "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" => {
+                    web_sys::console::log_1(&format!("⬅️➡️ [DEBUG] Arrow key {} in input field - allowing default cursor movement", key).into());
+                    // デフォルトの動作を許可（入力フィールド内でのカーソル移動）
+                    // event.prevent_default() を呼び出さない
+                }
                 _ => {
                     // その他のキーは通常通り処理
                     // Rustのハンドラーは呼び出さない（重複を避けるため）
