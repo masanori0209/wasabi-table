@@ -713,8 +713,7 @@ export class NinjaTable {
             console.log('📝 [DEBUG] Handling editing Enter');
             try {
                 this.wasmTable.handle_editing_enter();
-                // レンダリングを明示的に呼び出し
-                this.wasmTable.render();
+                // レンダリングはRust側で実行されるため削除
                 // キャンバスにフォーカスを確実に戻す
                 setTimeout(() => {
                     this.canvas.focus();
@@ -730,8 +729,7 @@ export class NinjaTable {
             console.log('➡️ [DEBUG] Handling editing Tab');
             try {
                 this.wasmTable.handle_editing_tab();
-                // レンダリングを明示的に呼び出し
-                this.wasmTable.render();
+                // レンダリングはRust側で実行されるため削除
                 // キャンバスにフォーカスを確実に戻す
                 setTimeout(() => {
                     this.canvas.focus();
@@ -748,8 +746,7 @@ export class NinjaTable {
             try {
                 // handle_editing_escapeを呼び出す（cancel_editingではなく）
                 this.wasmTable.handle_editing_escape();
-                // レンダリングを明示的に呼び出し
-                this.wasmTable.render();
+                // レンダリングはRust側で実行されるため削除
                 // キャンバスにフォーカスを確実に戻す
                 setTimeout(() => {
                     this.canvas.focus();

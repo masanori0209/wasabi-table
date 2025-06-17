@@ -796,25 +796,27 @@ impl NinjaTable {
     #[wasm_bindgen]
     pub fn finish_editing(&mut self) -> Result<(), JsValue> {
         if let Some((row, col)) = self.editing_cell {
-            // 編集入力フィールドから値を取得して保存
-            if let Some(input) = &self.editing_input {
-                let value = input.value();
-                web_sys::console::log_1(&format!("💾 [DEBUG] Saving edited value: '{}' to cell ({}, {})", value, row, col).into());
-                
-                // セルデータを更新
-                self.set_cell_data(row, col, value)?;
-            }
+            // 編集入力フィールドから値を取得
+            let value = if let Some(input) = &self.editing_input {
+                input.value()
+            } else {
+                String::new()
+            };
+            
+            web_sys::console::log_1(&format!("💾 [DEBUG] Saving edited value: '{}' to cell ({}, {})", value, row, col).into());
+            
+            // セルデータを更新
+            self.set_cell_data(row, col, value)?;
             
             // 編集入力フィールドを削除
-            if let Some(input) = &self.editing_input {
+            if let Some(input) = self.editing_input.take() {
                 if let Some(parent) = input.parent_node() {
-                    parent.remove_child(input)?;
+                    parent.remove_child(&input)?;
                 }
             }
             
             // 編集状態をクリア
             self.editing_cell = None;
-            self.editing_input = None;
             
             // キャンバスにフォーカスを戻す
             self.canvas.focus()?;
@@ -1404,12 +1406,17 @@ impl NinjaTable {
             if row + 1 < self.config.row_count {
                 self.selected_cell = Some((row + 1, col));
                 web_sys::console::log_1(&format!("⬇️ [DEBUG] Moved to cell ({}, {})", row + 1, col).into());
+            } else {
+                // 最下行の場合は同じセルに留まる
+                self.selected_cell = Some((row, col));
+                web_sys::console::log_1(&format!("⬇️ [DEBUG] Stayed at cell ({}, {}) - last row", row, col).into());
             }
             
             // キャンバスにフォーカスを確実に戻す
             self.canvas.focus()?;
             
-            // render()の呼び出しを削除（JavaScriptサイドで処理）
+            // 明示的にレンダリングを実行
+            self.render()?;
         }
         Ok(())
     }
@@ -1427,12 +1434,17 @@ impl NinjaTable {
             if col + 1 < self.config.col_count {
                 self.selected_cell = Some((row, col + 1));
                 web_sys::console::log_1(&format!("➡️ [DEBUG] Moved to cell ({}, {})", row, col + 1).into());
+            } else {
+                // 最右列の場合は同じセルに留まる
+                self.selected_cell = Some((row, col));
+                web_sys::console::log_1(&format!("➡️ [DEBUG] Stayed at cell ({}, {}) - last column", row, col).into());
             }
             
             // キャンバスにフォーカスを確実に戻す
             self.canvas.focus()?;
             
-            // render()の呼び出しを削除（JavaScriptサイドで処理）
+            // 明示的にレンダリングを実行
+            self.render()?;
         }
         Ok(())
     }
@@ -1445,7 +1457,9 @@ impl NinjaTable {
             
             // 編集をキャンセル（cancel_editingでキャンバスフォーカスも処理される）
             self.cancel_editing()?;
-            // render()の呼び出しを削除（JavaScriptサイドで処理）
+            
+            // 明示的にレンダリングを実行
+            self.render()?;
         }
         Ok(())
     }

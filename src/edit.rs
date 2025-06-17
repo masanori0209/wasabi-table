@@ -52,17 +52,12 @@ impl Editable for crate::table::NinjaTable {
                 input.remove();
                 self.editing_cell = None;
                 
-                // 下のセルに移動（範囲内チェック）
-                if row + 1 < self.config.row_count {
-                    self.selected_cell = Some((row + 1, col));
-                }
+                // セル移動は呼び出し元で制御するため、ここでは実行しない
                 
                 // キャンバスにフォーカスを戻す
                 let _ = self.canvas.focus();
                 
-                // render()の呼び出しを削除（JavaScriptサイドで処理）
-                
-                web_sys::console::log_1(&format!("✅ [DEBUG] Finished editing cell {}:{}, moved to {}:{}", row, col, row + 1, col).into());
+                web_sys::console::log_1(&format!("✅ [DEBUG] Finished editing cell {}:{}", row, col).into());
             }
         }
         Ok(())
@@ -72,47 +67,18 @@ impl Editable for crate::table::NinjaTable {
         match event.key().as_str() {
             "Enter" => {
                 event.prevent_default();
-                self.stop_editing()?;
+                // Enterキー処理はhandle_editing_enterで実行されるため、ここでは何もしない
+                web_sys::console::log_1(&"⌨️ [DEBUG] Enter key detected in edit.rs, delegating to handle_editing_enter".into());
             }
             "Escape" => {
                 event.prevent_default();
-                // 編集をキャンセル（値を保存せずに終了）
-                if let Some(input) = self.editing_input.take() {
-                    if let Some((row, col)) = self.editing_cell {
-                        input.remove();
-                        self.editing_cell = None;
-                        
-                        // キャンバスにフォーカスを戻す
-                        let _ = self.canvas.focus();
-                        
-                        // render()の呼び出しを削除（JavaScriptサイドで処理）
-                        
-                        web_sys::console::log_1(&format!("❌ [DEBUG] Cancelled editing cell {}:{}", row, col).into());
-                    }
-                }
+                // Escapeキー処理はhandle_editing_escapeで実行されるため、ここでは何もしない
+                web_sys::console::log_1(&"⌨️ [DEBUG] Escape key detected in edit.rs, delegating to handle_editing_escape".into());
             }
             "Tab" => {
                 event.prevent_default();
-                if let Some(input) = self.editing_input.take() {
-                    if let Some((row, col)) = self.editing_cell {
-                        let value = input.value();
-                        self.set_cell_data(row, col, value)?;
-                        input.remove();
-                        self.editing_cell = None;
-                        
-                        // 右のセルに移動（範囲内チェック）
-                        if col + 1 < self.config.col_count {
-                            self.selected_cell = Some((row, col + 1));
-                        }
-                        
-                        // キャンバスにフォーカスを戻す
-                        let _ = self.canvas.focus();
-                        
-                        // render()の呼び出しを削除（JavaScriptサイドで処理）
-                        
-                        web_sys::console::log_1(&format!("➡️ [DEBUG] Tab completed editing cell {}:{}, moved to {}:{}", row, col, row, col + 1).into());
-                    }
-                }
+                // Tabキー処理はhandle_editing_tabで実行されるため、ここでは何もしない
+                web_sys::console::log_1(&"⌨️ [DEBUG] Tab key detected in edit.rs, delegating to handle_editing_tab".into());
             }
             _ => {}
         }
