@@ -836,7 +836,9 @@ export class NinjaTable {
             return 0;
         const config = this.getConfig();
         const totalHeight = config.row_count * config.default_row_height;
-        const visibleHeight = this.canvas.height - (config.header_height || 30);
-        return Math.max(0, totalHeight - visibleHeight);
+        const scrollbarHeight = 17; // スクロールバーの高さ
+        const visibleHeight = this.canvas.height - (config.header_height || 30) - scrollbarHeight;
+        const margin = 10; // 余白
+        return Math.max(0, totalHeight - visibleHeight + margin);
     }
 }

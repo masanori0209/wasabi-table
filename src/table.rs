@@ -552,11 +552,14 @@ impl NinjaTable {
         // 全行の高さを計算
         let total_height = self.config.row_count as f64 * self.config.default_row_height;
         
-        // キャンバス高さからヘッダー高さを引いた表示領域高さ
-        let visible_area_height = self.canvas_height - self.config.header_height;
+        // キャンバス高さからヘッダー高さとスクロールバー分を引いた表示領域高さ
+        let scrollbar_height = 17.0; // スクロールバーの高さ
+        let visible_area_height = self.canvas_height - self.config.header_height - scrollbar_height;
         
-        // 最大スクロール値 = 総コンテンツ高さ - 表示領域高さ（ただし0未満にならないように）
-        (total_height - visible_area_height).max(0.0)
+        // 最大スクロール値 = 総コンテンツ高さ - 表示領域高さ + 余白（ただし0未満にならないように）
+        // 余白を追加して最後の行が完全に表示されるようにする
+        let margin = 10.0;
+        (total_height - visible_area_height + margin).max(0.0)
     }
 
     // セル選択
@@ -665,6 +668,19 @@ impl NinjaTable {
             }
         }
         accumulated_width
+    }
+
+    // テーブルの総幅を計算
+    fn get_table_width(&self) -> f64 {
+        let mut total_width = 0.0;
+        for col in 0..self.config.col_count {
+            if let Some(header) = self.get_column_header(col) {
+                total_width += header.width;
+            } else {
+                total_width += self.config.default_col_width;
+            }
+        }
+        total_width
     }
 
     // バッチデータ設定
@@ -1126,7 +1142,10 @@ impl NinjaTable {
             if y >= self.config.header_height && y <= self.canvas.height() as f64 {
                 self.ctx.begin_path();
                 self.ctx.move_to(self.config.row_header_width, y);
-                self.ctx.line_to(self.canvas.width() as f64, y);
+                // 横線は最後の列の終端まで描画（テーブルの実際の幅まで）
+                let table_end_x = self.get_table_width() + self.config.row_header_width - self.scroll_x;
+                let line_end_x = table_end_x.min(self.canvas.width() as f64);
+                self.ctx.line_to(line_end_x, y);
                 self.ctx.stroke();
             }
         }
