@@ -189,12 +189,9 @@ export class NinjaTable {
     selectCell(row, col) {
         this.ensureInitialized();
         console.log('🎯 [DEBUG] selectCell called with row:', row, 'col:', col);
-        // Rustの内部状態を直接更新する方法を使用
-        // まず、簡単な座標計算でselect_cellを呼び出す
-        const x = this.config.row_header_width + (col * this.config.default_col_width) + (this.config.default_col_width / 2);
-        const y = this.config.header_height + (row * this.config.default_row_height) + (this.config.default_row_height / 2);
-        console.log('🎯 [DEBUG] Calculated position x:', x, 'y:', y);
-        const result = this.wasmTable.select_cell(x, y);
+        // 直接行・列番号でセルを選択する方法を使用
+        // 座標計算に依存せず、Rust側のselect_cell_by_positionメソッドを使用
+        const result = this.wasmTable.select_cell_by_position(row, col);
         console.log('🎯 [DEBUG] selectCell result:', result);
         // 結果を検証
         const selectedAfter = this.getSelectedCell();
@@ -1470,6 +1467,9 @@ export class NinjaTable {
         console.log('🎯 [DEBUG] handleArrowKey called with:', key);
         const selectedCell = this.getSelectedCell();
         console.log('🎯 [DEBUG] Current selected cell:', selectedCell);
+        // デバッグ: 現在のスクロール位置を記録
+        const stats = this.getStats();
+        console.log('🎯 [DEBUG] Current scroll position:', { scrollX: stats.scrollX, scrollY: stats.scrollY });
         if (!selectedCell) {
             console.log('❌ [DEBUG] No selected cell found, defaulting to (0,0)');
             // 選択セルがない場合は(0,0)を選択してから移動
@@ -1494,8 +1494,20 @@ export class NinjaTable {
                 break;
         }
         console.log('🎯 [DEBUG] Moving from', selectedCell, 'to', { row: newRow, col: newCol });
+        // デバッグ: セル移動前後の座標を詳しく記録
+        const beforePosition = this.getCellScreenPosition(selectedCell.row, selectedCell.col);
+        console.log('🎯 [DEBUG] Before move - cell screen position:', beforePosition);
         // 新しいセルを選択
         this.selectCell(newRow, newCol);
+        // デバッグ: 移動後の座標を記録
+        const afterPosition = this.getCellScreenPosition(newRow, newCol);
+        console.log('🎯 [DEBUG] After move - cell screen position:', afterPosition);
+        // デバッグ: pixel_to_cellで逆変換テスト
+        const centerX = afterPosition.centerX;
+        const centerY = afterPosition.centerY;
+        console.log('🎯 [DEBUG] Testing pixel_to_cell with center coordinates:', { centerX, centerY });
+        const pixelToCell = this.wasmTable.pixel_to_cell(centerX, centerY);
+        console.log('🎯 [DEBUG] pixel_to_cell result:', pixelToCell);
         this.render();
         console.log('🎯 [DEBUG] Arrow key movement completed');
     }

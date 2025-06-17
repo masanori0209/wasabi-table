@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>横スクロール座標バグテスト - NinjaTable</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .test-section h2 {
+            color: #2c5aa0;
+            margin-top: 0;
+        }
+        .bug-description {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .bug-description h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .test-steps {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .test-steps h3 {
+            margin-top: 0;
+            color: #0c5460;
+        }
+        .test-steps ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .test-steps li {
+            margin-bottom: 8px;
+        }
+        .test-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 14px;
+        }
+        .test-btn:hover {
+            background: #218838;
+        }
+        .test-btn.danger {
+            background: #dc3545;
+        }
+        .test-btn.danger:hover {
+            background: #c82333;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        .status strong {
+            color: #495057;
+        }
+        .coord-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .coord-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .coord-box h4 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .coord-item {
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        canvas {
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐛 横スクロール座標バグテスト</h1>
+        
+        <div class="bug-description">
+            <h3>🔍 修正したバグの説明</h3>
+            <p><strong>問題:</strong> 横スクロール後にセルの移動（矢印キーやクリック）すると一マス分追加でずれて移動されてしまう</p>
+            <p><strong>原因:</strong> <code>pixel_to_cell_internal</code>と<code>get_cell_screen_position</code>で座標変換の一貫性がなかった</p>
+            <p><strong>修正内容:</strong></p>
+            <ul>
+                <li><code>pixel_to_cell_internal</code>: スクロール座標の計算を修正</li>
+                <li><code>get_cell_screen_position</code>: 二重スクロール減算を修正</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 テスト手順</h2>
+            <div class="test-steps">
+                <h3>📋 バグ再現＆修正確認手順</h3>
+                <ol>
+                    <li><button class="test-btn" onclick="setupTestData()">テストデータを設定</button></li>
+                    <li><button class="test-btn" onclick="scrollHorizontally(200)">横スクロール実行 (200px)</button></li>
+                    <li>テーブル内のセルをクリックして選択</li>
+                    <li>矢印キー（←→）でセル移動をテスト</li>
+                    <li><button class="test-btn" onclick="testCoordinateConsistency()">座標一貫性テスト</button></li>
+                    <li><button class="test-btn danger" onclick="resetTest()">テストリセット</button></li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 NinjaTable</h2>
+            <canvas id="ninja-canvas" width="800" height="400"></canvas>
+        </div>
+
+        <div class="status">
+            <div><strong>選択セル:</strong> <span id="selected-cell">なし</span></div>
+            <div><strong>スクロール位置:</strong> <span id="scroll-position">X: 0, Y: 0</span></div>
+            <div><strong>テスト結果:</strong> <span id="test-result">テスト待機中</span></div>
+        </div>
+
+        <div class="coord-info">
+            <div class="coord-box">
+                <h4>📍 セル→画面座標</h4>
+                <div id="cell-to-screen-coords">
+                    <div class="coord-item">選択したセルの座標情報がここに表示されます</div>
+                </div>
+            </div>
+            <div class="coord-box">
+                <h4>🖱️ 画面→セル座標</h4>
+                <div id="screen-to-cell-coords">
+                    <div class="coord-item">クリックした位置の座標情報がここに表示されます</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { NinjaTable as WasmNinjaTable } from './pkg/ninja_table.js';
+        import { NinjaTable } from './dist/index.js';
+
+        let table;
+
+        async function initTable() {
+            await init();
+
+            const canvas = document.getElementById('ninja-canvas');
+            const config = {
+                row_count: 15,
+                col_count: 20,
+                default_col_width: 100,
+                default_row_height: 30,
+                header_height: 35,
+                row_header_width: 50,
+                font_family: 'Arial, sans-serif',
+                font_size: 14,
+                background_color: '#ffffff',
+                text_color: '#333333',
+                grid_color: '#e0e0e0',
+                header_background_color: '#f8f9fa',
+                selected_cell_color: '#007bff',
+                show_grid: true,
+                column_headers: []
+            };
+
+            table = await NinjaTable.create(canvas, config);
+            
+            // イベントハンドラー設定
+            table.setEventHandlers({
+                onCellSelect: (position) => {
+                    updateSelectedCellInfo(position);
+                    updateCellToScreenCoords(position.row, position.col);
+                }
+            });
+
+            // キャンバスクリックイベント
+            canvas.addEventListener('click', (event) => {
+                const rect = canvas.getBoundingClientRect();
+                const canvasX = event.clientX - rect.left;
+                const canvasY = event.clientY - rect.top;
+                updateScreenToCellCoords(canvasX, canvasY);
+            });
+
+            table.render();
+            table.selectCell(0, 0);
+            
+            updateScrollPosition();
+            document.getElementById('test-result').textContent = 'テーブル初期化完了';
+            
+            window.ninjaTable = table;
+            console.log('✅ NinjaTable initialized for scroll bug testing');
+        }
+
+        function updateSelectedCellInfo(position) {
+            document.getElementById('selected-cell').textContent = 
+                `${NinjaTable.getCellReference(position.row, position.col)} (${position.row}, ${position.col})`;
+        }
+
+        function updateScrollPosition() {
+            if (!table) return;
+            const stats = table.getStats();
+            document.getElementById('scroll-position').textContent = 
+                `X: ${stats.scrollX.toFixed(1)}, Y: ${stats.scrollY.toFixed(1)}`;
+        }
+
+        function updateCellToScreenCoords(row, col) {
+            if (!table) return;
+            
+            const screenPos = table.getCellScreenPosition(row, col);
+            const coords = JSON.parse(screenPos);
+            
+            const html = `
+                <div class="coord-item"><strong>セル:</strong> (${row}, ${col})</div>
+                <div class="coord-item"><strong>画面X:</strong> <span class="highlight">${coords.x.toFixed(1)}</span></div>
+                <div class="coord-item"><strong>画面Y:</strong> <span class="highlight">${coords.y.toFixed(1)}</span></div>
+                <div class="coord-item"><strong>幅:</strong> ${coords.width.toFixed(1)}</div>
+                <div class="coord-item"><strong>高さ:</strong> ${coords.height.toFixed(1)}</div>
+                <div class="coord-item"><strong>中央X:</strong> ${coords.centerX.toFixed(1)}</div>
+                <div class="coord-item"><strong>中央Y:</strong> ${coords.centerY.toFixed(1)}</div>
+                <div class="coord-item"><strong>スクロールX:</strong> ${coords.scroll_x.toFixed(1)}</div>
+                <div class="coord-item"><strong>スクロールY:</strong> ${coords.scroll_y.toFixed(1)}</div>
+                <div class="coord-item"><strong>絶対X:</strong> ${coords.raw_x.toFixed(1)}</div>
+                <div class="coord-item"><strong>絶対Y:</strong> ${coords.raw_y.toFixed(1)}</div>
+            `;
+            
+            document.getElementById('cell-to-screen-coords').innerHTML = html;
+        }
+
+        function updateScreenToCellCoords(canvasX, canvasY) {
+            if (!table) return;
+            
+            const cellRef = table.wasmTable.pixel_to_cell(canvasX, canvasY);
+            
+            const html = `
+                <div class="coord-item"><strong>クリック位置:</strong> (${canvasX.toFixed(1)}, ${canvasY.toFixed(1)})</div>
+                <div class="coord-item"><strong>検出セル:</strong> <span class="highlight">${cellRef || 'なし'}</span></div>
+            `;
+            
+            if (cellRef) {
+                const parts = cellRef.split(':');
+                if (parts.length === 2) {
+                    const row = parseInt(parts[0]);
+                    const col = parseInt(parts[1]);
+                    
+                    // 逆変換して検証
+                    const screenPos = table.getCellScreenPosition(row, col);
+                    const coords = JSON.parse(screenPos);
+                    
+                    const isInside = canvasX >= coords.x && canvasX <= coords.x + coords.width &&
+                                   canvasY >= coords.y && canvasY <= coords.y + coords.height;
+                    
+                    document.getElementById('screen-to-cell-coords').innerHTML = html + `
+                        <div class="coord-item"><strong>逆変換X:</strong> ${coords.x.toFixed(1)} - ${(coords.x + coords.width).toFixed(1)}</div>
+                        <div class="coord-item"><strong>逆変換Y:</strong> ${coords.y.toFixed(1)} - ${(coords.y + coords.height).toFixed(1)}</div>
+                        <div class="coord-item"><strong>整合性:</strong> <span class="${isInside ? 'success' : 'error'}">${isInside ? '✅ OK' : '❌ NG'}</span></div>
+                    `;
+                }
+            } else {
+                document.getElementById('screen-to-cell-coords').innerHTML = html;
+            }
+        }
+
+        // グローバル関数
+        window.setupTestData = function() {
+            if (!table) return;
+            
+            // 多くの列にデータを設定
+            for (let row = 0; row < 10; row++) {
+                for (let col = 0; col < 15; col++) {
+                    const cellValue = `R${row + 1}C${col + 1}`;
+                    table.setCellValue(row, col, cellValue);
+                }
+            }
+            
+            table.render();
+            table.selectCell(0, 0);
+            updateScrollPosition();
+            
+            document.getElementById('test-result').textContent = '✅ テストデータ設定完了 - 横スクロールをテストしてください';
+            console.log('📊 Test data setup completed');
+        };
+
+        window.scrollHorizontally = function(scrollX) {
+            if (!table) return;
+            
+            // 現在のスクロール位置を取得
+            const stats = table.getStats();
+            const deltaX = scrollX - stats.scrollX;
+            
+            // スクロール実行
+            table.wasmTable.scroll(deltaX, 0);
+            table.render();
+            
+            updateScrollPosition();
+            
+            // 選択中のセルがあれば座標を更新
+            const selectedCell = table.getSelectedCell();
+            if (selectedCell) {
+                updateCellToScreenCoords(selectedCell.row, selectedCell.col);
+            }
+            
+            document.getElementById('test-result').textContent = `🔄 横スクロール完了 (${scrollX}px) - セルをクリック＆矢印キーでテスト`;
+            console.log(`🔄 Horizontal scroll executed: ${scrollX}px`);
+        };
+
+        window.testCoordinateConsistency = function() {
+            if (!table) return;
+            
+            const testCells = [
+                [0, 0], [0, 5], [0, 10],
+                [2, 2], [2, 7], [2, 12],
+                [5, 1], [5, 6], [5, 11]
+            ];
+            
+            let errors = [];
+            let totalTests = 0;
+            
+            testCells.forEach(([row, col]) => {
+                const screenPos = table.getCellScreenPosition(row, col);
+                const coords = JSON.parse(screenPos);
+                
+                // 中央座標でピクセル→セル変換をテスト
+                const cellRef = table.wasmTable.pixel_to_cell(coords.centerX, coords.centerY);
+                const expectedRef = `${row}:${col}`;
+                
+                totalTests++;
+                if (cellRef !== expectedRef) {
+                    errors.push(`セル(${row}, ${col}): 期待値 ${expectedRef}, 実際 ${cellRef || 'なし'}`);
+                }
+            });
+            
+            if (errors.length === 0) {
+                document.getElementById('test-result').innerHTML = 
+                    `<span class="success">✅ 座標一貫性テスト: ${totalTests}件すべて正常</span>`;
+            } else {
+                document.getElementById('test-result').innerHTML = 
+                    `<span class="error">❌ 座標一貫性テスト: ${errors.length}/${totalTests}件エラー</span><br>` +
+                    errors.map(err => `<small>• ${err}</small>`).join('<br>');
+            }
+            
+            console.log(`🧪 Coordinate consistency test: ${totalTests - errors.length}/${totalTests} passed`);
+        };
+
+        window.resetTest = function() {
+            if (!table) return;
+            
+            // データクリア
+            for (let row = 0; row < 15; row++) {
+                for (let col = 0; col < 20; col++) {
+                    table.setCellValue(row, col, '');
+                }
+            }
+            
+            // スクロールリセット
+            table.wasmTable.scroll(-1000, -1000); // 確実に0,0に戻す
+            table.render();
+            table.selectCell(0, 0);
+            
+            updateScrollPosition();
+            document.getElementById('test-result').textContent = '🔄 テストリセット完了';
+            console.log('🔄 Test reset completed');
+        };
+
+        // 初期化
+        initTable().catch(console.error);
+    </script>
+</body>
+</html> 

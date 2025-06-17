@@ -592,8 +592,9 @@ impl NinjaTable {
         let row = ((y - self.config.header_height + self.scroll_y) / self.config.default_row_height) as usize;
         
         // 列の計算（カスタム幅対応）
+        // スクロールを考慮した絶対X座標を計算（get_column_x_positionと一貫性を保つ）
         let mut accumulated_width = self.config.row_header_width;
-        let target_x = x + self.scroll_x;
+        let absolute_x = x + self.scroll_x; // 画面座標を絶対座標に変換
         
         for col in 0..self.config.col_count {
             let column_width = if let Some(header) = self.get_column_header(col) {
@@ -602,7 +603,7 @@ impl NinjaTable {
                 self.config.default_col_width
             };
             
-            if target_x >= accumulated_width && target_x < accumulated_width + column_width {
+            if absolute_x >= accumulated_width && absolute_x < accumulated_width + column_width {
                 if row < self.config.row_count {
                     return Some((row, col));
                 }
@@ -1327,12 +1328,17 @@ impl NinjaTable {
     /// 指定されたセルの画面上の位置を取得（ピクセル座標）
     #[wasm_bindgen]
     pub fn get_cell_screen_position(&self, row: usize, col: usize) -> String {
-        // スクロールを考慮したX座標計算
-        let x = self.get_column_x_position(col) - self.scroll_x;
-        // スクロールを考慮したY座標計算
+        // get_column_x_positionは既にスクロールを考慮した画面座標を返すため、
+        // さらにスクロールを引く必要はない
+        let x = self.get_column_x_position(col);
+        // Y座標のスクロール計算
         let y = (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64 - self.scroll_y;
         let width = self.get_column_width(col);
         let height = self.config.default_row_height as f64;
+        
+        // 絶対座標（スクロール前）の計算
+        let raw_x = self.get_column_x_position(col) + self.scroll_x;
+        let raw_y = (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64;
         
         serde_json::json!({
             "x": x,
@@ -1343,8 +1349,8 @@ impl NinjaTable {
             "centerY": y + height / 2.0,
             "scroll_x": self.scroll_x,
             "scroll_y": self.scroll_y,
-            "raw_x": self.get_column_x_position(col),
-            "raw_y": (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64
+            "raw_x": raw_x,
+            "raw_y": raw_y
         }).to_string()
     }
 
