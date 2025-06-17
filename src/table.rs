@@ -683,6 +683,11 @@ impl NinjaTable {
         total_width
     }
 
+    // テーブルの総高さを計算
+    fn get_table_height(&self) -> f64 {
+        self.config.row_count as f64 * self.config.default_row_height
+    }
+
     // バッチデータ設定
     #[wasm_bindgen]
     pub fn set_batch_data(&mut self, data_json: &str) -> Result<(), JsValue> {
@@ -1121,7 +1126,10 @@ impl NinjaTable {
             if x >= self.config.row_header_width && x <= self.canvas.width() as f64 {
                 self.ctx.begin_path();
                 self.ctx.move_to(x, self.config.header_height);
-                self.ctx.line_to(x, self.canvas.height() as f64);
+                // 縦線はテーブルの実際の高さまで描画（最後の行の終端まで）
+                let table_end_y = self.get_table_height() + self.config.header_height - self.scroll_y;
+                let line_end_y = table_end_y.min(self.canvas.height() as f64);
+                self.ctx.line_to(x, line_end_y);
                 self.ctx.stroke();
             }
             
