@@ -508,9 +508,21 @@ export declare class NinjaTable {
      */
     private handleShiftArrowKey;
     /**
+     * Shift+Ctrl+矢印キーによる範囲選択（データの端まで）を処理
+     */
+    private handleShiftCtrlArrowKey;
+    /**
      * 通常の矢印キーによるセル移動を処理
      */
     private handleArrowKey;
+    /**
+     * Ctrl+矢印キーによるExcel風の端まで移動を処理
+     */
+    private handleCtrlArrowNavigation;
+    /**
+     * データの端を見つける（Excel風の動作）
+     */
+    private findDataEdge;
     /**
      * グローバルTabキーキャプチャを設定
      */

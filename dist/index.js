@@ -669,6 +669,8 @@ export class NinjaTable {
                 return;
             }
             console.log('🔑 [DEBUG] Key pressed:', event.key, 'Shift:', event.shiftKey);
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const cmdKey = isMac ? event.metaKey : event.ctrlKey;
             // キーボードショートカット（Ctrl/Cmd + キー）
             if (this.handleKeyboardShortcut(event)) {
                 event.preventDefault();
@@ -676,7 +678,12 @@ export class NinjaTable {
             }
             // 矢印キーの処理
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-                if (event.shiftKey) {
+                if (event.shiftKey && cmdKey) {
+                    // Shift+Ctrl+矢印キーによる範囲選択（データの端まで）
+                    console.log('🔀🚀 [DEBUG] Handling Shift+Ctrl+Arrow:', event.key);
+                    this.handleShiftCtrlArrowKey(event.key);
+                }
+                else if (event.shiftKey) {
                     // Shift+矢印キーによる範囲選択
                     console.log('🔀 [DEBUG] Handling Shift+Arrow:', event.key);
                     this.handleShiftArrowKey(event.key);
@@ -1153,6 +1160,14 @@ export class NinjaTable {
                     event.preventDefault();
                     this.handleSelectAll();
                     return true;
+                case 'arrowup':
+                case 'arrowdown':
+                case 'arrowleft':
+                case 'arrowright':
+                    // Ctrl+Arrow / Cmd+Arrow でExcel風の端まで移動
+                    event.preventDefault();
+                    this.handleCtrlArrowNavigation(event.key);
+                    return true;
             }
         }
         return false;
@@ -1405,6 +1420,46 @@ export class NinjaTable {
         console.log('🔀 [DEBUG] Updated selection info:', updatedSelection);
     }
     /**
+     * Shift+Ctrl+矢印キーによる範囲選択（データの端まで）を処理
+     */
+    handleShiftCtrlArrowKey(key) {
+        console.log('🔀🚀 [DEBUG] handleShiftCtrlArrowKey called with:', key);
+        const selectedCell = this.getSelectedCell();
+        if (!selectedCell) {
+            console.log('❌ [DEBUG] No selected cell for Shift+Ctrl+Arrow navigation');
+            return;
+        }
+        // 範囲選択が始まっていない場合は開始
+        const selectionInfo = this.getSelectionInfo();
+        if (!selectionInfo || !selectionInfo.isRange) {
+            console.log('🔀🚀 [DEBUG] Starting new range selection from current cell');
+            this.startRangeSelection(selectedCell.row, selectedCell.col);
+        }
+        let newRow = selectedCell.row;
+        let newCol = selectedCell.col;
+        switch (key) {
+            case 'ArrowUp':
+                newRow = this.findDataEdge(selectedCell.row, selectedCell.col, 'up');
+                break;
+            case 'ArrowDown':
+                newRow = this.findDataEdge(selectedCell.row, selectedCell.col, 'down');
+                break;
+            case 'ArrowLeft':
+                newCol = this.findDataEdge(selectedCell.row, selectedCell.col, 'left');
+                break;
+            case 'ArrowRight':
+                newCol = this.findDataEdge(selectedCell.row, selectedCell.col, 'right');
+                break;
+        }
+        console.log('🔀🚀 [DEBUG] Shift+Ctrl+Arrow extending range from', selectedCell, 'to', { row: newRow, col: newCol });
+        // 範囲選択を更新（終端位置を移動）
+        this.updateRangeSelection(newRow, newCol);
+        this.render();
+        // 更新後の選択情報を確認
+        const updatedSelection = this.getSelectionInfo();
+        console.log('🔀🚀 [DEBUG] Updated selection info:', updatedSelection);
+    }
+    /**
      * 通常の矢印キーによるセル移動を処理
      */
     handleArrowKey(key) {
@@ -1439,6 +1494,149 @@ export class NinjaTable {
         this.selectCell(newRow, newCol);
         this.render();
         console.log('🎯 [DEBUG] Arrow key movement completed');
+    }
+    /**
+     * Ctrl+矢印キーによるExcel風の端まで移動を処理
+     */
+    handleCtrlArrowNavigation(key) {
+        console.log('🚀 [DEBUG] handleCtrlArrowNavigation called with:', key);
+        const selectedCell = this.getSelectedCell();
+        if (!selectedCell) {
+            console.log('❌ [DEBUG] No selected cell found for Ctrl+Arrow navigation');
+            return;
+        }
+        let newRow = selectedCell.row;
+        let newCol = selectedCell.col;
+        switch (key.toLowerCase()) {
+            case 'arrowup':
+                newRow = this.findDataEdge(selectedCell.row, selectedCell.col, 'up');
+                break;
+            case 'arrowdown':
+                newRow = this.findDataEdge(selectedCell.row, selectedCell.col, 'down');
+                break;
+            case 'arrowleft':
+                newCol = this.findDataEdge(selectedCell.row, selectedCell.col, 'left');
+                break;
+            case 'arrowright':
+                newCol = this.findDataEdge(selectedCell.row, selectedCell.col, 'right');
+                break;
+        }
+        console.log('🚀 [DEBUG] Ctrl+Arrow moving from', selectedCell, 'to', { row: newRow, col: newCol });
+        // 新しいセルを選択
+        this.selectCell(newRow, newCol);
+        this.render();
+        console.log('🚀 [DEBUG] Ctrl+Arrow navigation completed');
+    }
+    /**
+     * データの端を見つける（Excel風の動作）
+     */
+    findDataEdge(currentRow, currentCol, direction) {
+        const currentValue = this.getCellValue(currentRow, currentCol);
+        const isCurrentEmpty = !currentValue || currentValue.trim() === '';
+        switch (direction) {
+            case 'up':
+                if (isCurrentEmpty) {
+                    // 現在のセルが空の場合、上方向の最初の非空セルを探す
+                    for (let row = currentRow - 1; row >= 0; row--) {
+                        const value = this.getCellValue(row, currentCol);
+                        if (value && value.trim() !== '') {
+                            return row;
+                        }
+                    }
+                    return 0; // 非空セルが見つからない場合は最上行
+                }
+                else {
+                    // 現在のセルに値がある場合、連続するデータの最上端を探す
+                    let lastNonEmptyRow = currentRow;
+                    for (let row = currentRow - 1; row >= 0; row--) {
+                        const value = this.getCellValue(row, currentCol);
+                        if (value && value.trim() !== '') {
+                            lastNonEmptyRow = row;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    return lastNonEmptyRow;
+                }
+            case 'down':
+                if (isCurrentEmpty) {
+                    // 現在のセルが空の場合、下方向の最初の非空セルを探す
+                    for (let row = currentRow + 1; row < this.config.row_count; row++) {
+                        const value = this.getCellValue(row, currentCol);
+                        if (value && value.trim() !== '') {
+                            return row;
+                        }
+                    }
+                    return this.config.row_count - 1; // 非空セルが見つからない場合は最下行
+                }
+                else {
+                    // 現在のセルに値がある場合、連続するデータの最下端を探す
+                    let lastNonEmptyRow = currentRow;
+                    for (let row = currentRow + 1; row < this.config.row_count; row++) {
+                        const value = this.getCellValue(row, currentCol);
+                        if (value && value.trim() !== '') {
+                            lastNonEmptyRow = row;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    return lastNonEmptyRow;
+                }
+            case 'left':
+                if (isCurrentEmpty) {
+                    // 現在のセルが空の場合、左方向の最初の非空セルを探す
+                    for (let col = currentCol - 1; col >= 0; col--) {
+                        const value = this.getCellValue(currentRow, col);
+                        if (value && value.trim() !== '') {
+                            return col;
+                        }
+                    }
+                    return 0; // 非空セルが見つからない場合は最左列
+                }
+                else {
+                    // 現在のセルに値がある場合、連続するデータの最左端を探す
+                    let lastNonEmptyCol = currentCol;
+                    for (let col = currentCol - 1; col >= 0; col--) {
+                        const value = this.getCellValue(currentRow, col);
+                        if (value && value.trim() !== '') {
+                            lastNonEmptyCol = col;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    return lastNonEmptyCol;
+                }
+            case 'right':
+                if (isCurrentEmpty) {
+                    // 現在のセルが空の場合、右方向の最初の非空セルを探す
+                    for (let col = currentCol + 1; col < this.config.col_count; col++) {
+                        const value = this.getCellValue(currentRow, col);
+                        if (value && value.trim() !== '') {
+                            return col;
+                        }
+                    }
+                    return this.config.col_count - 1; // 非空セルが見つからない場合は最右列
+                }
+                else {
+                    // 現在のセルに値がある場合、連続するデータの最右端を探す
+                    let lastNonEmptyCol = currentCol;
+                    for (let col = currentCol + 1; col < this.config.col_count; col++) {
+                        const value = this.getCellValue(currentRow, col);
+                        if (value && value.trim() !== '') {
+                            lastNonEmptyCol = col;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    return lastNonEmptyCol;
+                }
+            default:
+                return direction === 'up' || direction === 'down' ? currentRow : currentCol;
+        }
     }
     /**
      * グローバルTabキーキャプチャを設定
