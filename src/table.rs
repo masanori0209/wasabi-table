@@ -843,7 +843,7 @@ impl NinjaTable {
             // キャンバスにフォーカスを戻す
             self.canvas.focus()?;
             
-            self.render()?;
+            // render()の呼び出しを削除（JavaScriptサイドで処理）
             
             web_sys::console::log_1(&format!("❌ [DEBUG] Cancelled editing cell ({}, {})", row, col).into());
         }
@@ -1403,7 +1403,7 @@ impl NinjaTable {
             // キャンバスにフォーカスを確実に戻す
             self.canvas.focus()?;
             
-            self.render()?;
+            // render()の呼び出しを削除（JavaScriptサイドで処理）
         }
         Ok(())
     }
@@ -1426,7 +1426,7 @@ impl NinjaTable {
             // キャンバスにフォーカスを確実に戻す
             self.canvas.focus()?;
             
-            self.render()?;
+            // render()の呼び出しを削除（JavaScriptサイドで処理）
         }
         Ok(())
     }
@@ -1439,7 +1439,7 @@ impl NinjaTable {
             
             // 編集をキャンセル（cancel_editingでキャンバスフォーカスも処理される）
             self.cancel_editing()?;
-            self.render()?;
+            // render()の呼び出しを削除（JavaScriptサイドで処理）
         }
         Ok(())
     }

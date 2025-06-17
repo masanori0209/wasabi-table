@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{HtmlInputElement, KeyboardEvent};
+use web_sys::{HtmlInputElement, KeyboardEvent, FocusEvent};
 use crate::types::CellData;
 use crate::render::Renderable;
 
@@ -52,14 +52,17 @@ impl Editable for crate::table::NinjaTable {
                 input.remove();
                 self.editing_cell = None;
                 
-                // 下のセルに移動
+                // 下のセルに移動（範囲内チェック）
                 if row + 1 < self.config.row_count {
                     self.selected_cell = Some((row + 1, col));
                 }
                 
-                self.render()?;
+                // キャンバスにフォーカスを戻す
+                let _ = self.canvas.focus();
                 
-                web_sys::console::log_1(&format!("✅ [DEBUG] Finished editing cell {}:{}", row, col).into());
+                // render()の呼び出しを削除（JavaScriptサイドで処理）
+                
+                web_sys::console::log_1(&format!("✅ [DEBUG] Finished editing cell {}:{}, moved to {}:{}", row, col, row + 1, col).into());
             }
         }
         Ok(())
@@ -73,11 +76,19 @@ impl Editable for crate::table::NinjaTable {
             }
             "Escape" => {
                 event.prevent_default();
-                // 編集をキャンセル（値を元に戻す）
+                // 編集をキャンセル（値を保存せずに終了）
                 if let Some(input) = self.editing_input.take() {
-                    input.remove();
-                    self.editing_cell = None;
-                    self.render()?;
+                    if let Some((row, col)) = self.editing_cell {
+                        input.remove();
+                        self.editing_cell = None;
+                        
+                        // キャンバスにフォーカスを戻す
+                        let _ = self.canvas.focus();
+                        
+                        // render()の呼び出しを削除（JavaScriptサイドで処理）
+                        
+                        web_sys::console::log_1(&format!("❌ [DEBUG] Cancelled editing cell {}:{}", row, col).into());
+                    }
                 }
             }
             "Tab" => {
@@ -89,12 +100,17 @@ impl Editable for crate::table::NinjaTable {
                         input.remove();
                         self.editing_cell = None;
                         
-                        // 右のセルに移動
+                        // 右のセルに移動（範囲内チェック）
                         if col + 1 < self.config.col_count {
                             self.selected_cell = Some((row, col + 1));
                         }
                         
-                        self.render()?;
+                        // キャンバスにフォーカスを戻す
+                        let _ = self.canvas.focus();
+                        
+                        // render()の呼び出しを削除（JavaScriptサイドで処理）
+                        
+                        web_sys::console::log_1(&format!("➡️ [DEBUG] Tab completed editing cell {}:{}, moved to {}:{}", row, col, row, col + 1).into());
                     }
                 }
             }
@@ -137,14 +153,15 @@ impl crate::table::NinjaTable {
         use wasm_bindgen::closure::Closure;
         use wasm_bindgen::JsCast;
         
-        // キーボードイベントリスナーを追加（シンプルなアプローチ）
-        let keydown_closure = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
+        // キーボードイベントリスナーを追加（改善版）
+        let keydown_closure = Closure::wrap(Box::new(move |event: KeyboardEvent| {
             let key = event.key();
             web_sys::console::log_1(&format!("⌨️ [DEBUG] Input key pressed: {}", key).into());
             
             match key.as_str() {
                 "Enter" => {
                     event.prevent_default();
+                    event.stop_propagation(); // イベント伝播を停止
                     // グローバル関数を呼び出してEnter処理
                     if let Some(window) = web_sys::window() {
                         if let Some(handle_enter) = window.get("handleEditingEnter") {
@@ -157,6 +174,7 @@ impl crate::table::NinjaTable {
                 }
                 "Tab" => {
                     event.prevent_default();
+                    event.stop_propagation(); // イベント伝播を停止
                     // グローバル関数を呼び出してTab処理
                     if let Some(window) = web_sys::window() {
                         if let Some(handle_tab) = window.get("handleEditingTab") {
@@ -169,6 +187,7 @@ impl crate::table::NinjaTable {
                 }
                 "Escape" => {
                     event.prevent_default();
+                    event.stop_propagation(); // イベント伝播を停止
                     // グローバル関数を呼び出してEscape処理
                     if let Some(window) = web_sys::window() {
                         if let Some(handle_escape) = window.get("handleEditingEscape") {
@@ -181,11 +200,15 @@ impl crate::table::NinjaTable {
                 }
                 _ => {
                     // その他のキーは通常通り処理
+                    // Rustのハンドラーは呼び出さない（重複を避けるため）
                 }
             }
         }) as Box<dyn FnMut(_)>);
         
         input.add_event_listener_with_callback("keydown", keydown_closure.as_ref().unchecked_ref())?;
+        
+        // blurイベントリスナーを削除（自動編集完了を無効化）
+        // ESCキーでフォーカスが外れた時に意図しない編集完了を防ぐため
         
         // クロージャーをリークして永続化（メモリリークを避けるため、編集終了時に適切にクリーンアップする必要がある）
         keydown_closure.forget();

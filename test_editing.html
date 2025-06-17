@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NinjaTable - 編集テスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #table-canvas {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+        }
+        .instructions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🥷 NinjaTable - 編集機能テスト</h1>
+        
+        <div class="instructions">
+            <h3>テスト手順:</h3>
+            <ol>
+                <li>セルをクリックして選択</li>
+                <li>ダブルクリックまたは文字入力で編集開始</li>
+                <li><strong>Enterキー</strong>で編集完了・下のセルに移動</li>
+                <li><strong>Tabキー</strong>で編集完了・右のセルに移動</li>
+                <li><strong>Escapeキー</strong>で編集キャンセル</li>
+            </ol>
+            <p><strong>修正内容:</strong> Rustのborrow checkerエラーを解決しました。編集中のEnter/Tab/Escapeキーが正常に動作するはずです。</p>
+        </div>
+
+        <canvas id="table-canvas" width="800" height="600"></canvas>
+        
+        <div class="status">
+            <div><strong>選択セル:</strong> <span id="selected-cell">なし</span></div>
+            <div><strong>編集状態:</strong> <span id="editing-status">非編集中</span></div>
+            <div><strong>ステータス:</strong> <span id="status">準備完了</span></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { NinjaTable } from './pkg/ninja_table.js';
+
+        async function main() {
+            try {
+                await init();
+                
+                const canvas = document.getElementById('table-canvas');
+                const selectedCellSpan = document.getElementById('selected-cell');
+                const editingStatusSpan = document.getElementById('editing-status');
+                const statusSpan = document.getElementById('status');
+                
+                // テーブル設定
+                const config = {
+                    row_count: 20,
+                    col_count: 10,
+                    default_col_width: 80,
+                    default_row_height: 30,
+                    header_height: 35,
+                    row_header_width: 50,
+                    font_family: 'Arial',
+                    font_size: 14,
+                    background_color: '#ffffff',
+                    text_color: '#333333',
+                    grid_color: '#e0e0e0',
+                    header_background_color: '#f8f9fa',
+                    selected_cell_color: '#007bff',
+                    show_grid: true,
+                    column_headers: []
+                };
+
+                // NinjaTableを作成
+                const table = await NinjaTable.create(canvas, config);
+                
+                // サンプルデータを設定
+                const sampleData = [
+                    { row: 0, col: 0, value: 'A1データ' },
+                    { row: 0, col: 1, value: 'B1データ' },
+                    { row: 1, col: 0, value: 'A2データ' },
+                    { row: 1, col: 1, value: 'B2データ' },
+                    { row: 2, col: 0, value: '編集テスト' },
+                    { row: 2, col: 1, value: '123.45' }
+                ];
+                
+                table.setBatchData(sampleData);
+                
+                // イベントハンドラーを設定
+                table.setEventHandlers({
+                    onCellSelect: (position) => {
+                        selectedCellSpan.textContent = `${NinjaTable.getCellReference(position.row, position.col)} (${position.row}, ${position.col})`;
+                        editingStatusSpan.textContent = table.isEditing() ? '編集中' : '非編集中';
+                    },
+                    onEditStart: (position, value) => {
+                        editingStatusSpan.textContent = '編集中';
+                        statusSpan.textContent = `編集開始: ${NinjaTable.getCellReference(position.row, position.col)} = "${value}"`;
+                    },
+                    onEditEnd: (position, value) => {
+                        editingStatusSpan.textContent = '非編集中';
+                        statusSpan.textContent = `編集完了: ${NinjaTable.getCellReference(position.row, position.col)} = "${value}"`;
+                    },
+                    onCellChange: (position, oldValue, newValue) => {
+                        statusSpan.textContent = `値変更: ${NinjaTable.getCellReference(position.row, position.col)} "${oldValue}" → "${newValue}"`;
+                    }
+                });
+
+                // 初期レンダリング
+                table.render();
+                
+                // 初期セル選択
+                table.selectCell(0, 0);
+                
+                statusSpan.textContent = 'テーブル初期化完了 - 編集機能をテストしてください';
+                
+                console.log('🎉 NinjaTable initialized successfully!');
+                
+            } catch (error) {
+                console.error('❌ Error initializing NinjaTable:', error);
+                document.getElementById('status').textContent = `エラー: ${error.message}`;
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html> 

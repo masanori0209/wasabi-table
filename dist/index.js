@@ -637,6 +637,11 @@ export class NinjaTable {
         // 統一されたキーボードイベント処理
         document.addEventListener('keydown', (event) => {
             var _a;
+            // 編集中の場合は通常のキーイベントを無視（編集フィールドが処理する）
+            if (this.isEditing()) {
+                console.log('📝 [DEBUG] Editing in progress, ignoring document keydown for key:', event.key);
+                return;
+            }
             // フォーカス状態の詳細デバッグ
             console.log('🔍 [DEBUG] Focus check - activeElement:', (_a = document.activeElement) === null || _a === void 0 ? void 0 : _a.tagName, 'canvas:', this.canvas.tagName);
             console.log('🔍 [DEBUG] Focus match:', this.canvas === document.activeElement);
@@ -703,18 +708,58 @@ export class NinjaTable {
             this.isComposing = false;
             console.log('🈴 [DEBUG] IME composition ended');
         });
-        // 編集中のキーイベントハンドラー
+        // 編集中のキーイベントハンドラー（改善版）
         window.handleEditingEnter = () => {
-            this.wasmTable.handle_editing_enter();
-            this.triggerCellSelectEvent();
+            console.log('📝 [DEBUG] Handling editing Enter');
+            try {
+                this.wasmTable.handle_editing_enter();
+                // レンダリングを明示的に呼び出し
+                this.wasmTable.render();
+                // キャンバスにフォーカスを確実に戻す
+                setTimeout(() => {
+                    this.canvas.focus();
+                    console.log('🎯 [DEBUG] Focus returned to canvas after Enter');
+                }, 10);
+                this.triggerCellSelectEvent();
+            }
+            catch (error) {
+                console.error('Error handling editing Enter:', error);
+            }
         };
         window.handleEditingTab = () => {
-            this.wasmTable.handle_editing_tab();
-            this.triggerCellSelectEvent();
+            console.log('➡️ [DEBUG] Handling editing Tab');
+            try {
+                this.wasmTable.handle_editing_tab();
+                // レンダリングを明示的に呼び出し
+                this.wasmTable.render();
+                // キャンバスにフォーカスを確実に戻す
+                setTimeout(() => {
+                    this.canvas.focus();
+                    console.log('🎯 [DEBUG] Focus returned to canvas after Tab');
+                }, 10);
+                this.triggerCellSelectEvent();
+            }
+            catch (error) {
+                console.error('Error handling editing Tab:', error);
+            }
         };
         window.handleEditingEscape = () => {
-            this.wasmTable.handle_editing_escape();
-            this.triggerCellSelectEvent();
+            console.log('❌ [DEBUG] Handling editing Escape');
+            try {
+                // handle_editing_escapeを呼び出す（cancel_editingではなく）
+                this.wasmTable.handle_editing_escape();
+                // レンダリングを明示的に呼び出し
+                this.wasmTable.render();
+                // キャンバスにフォーカスを確実に戻す
+                setTimeout(() => {
+                    this.canvas.focus();
+                    console.log('🎯 [DEBUG] Focus returned to canvas after Escape');
+                }, 10);
+                this.triggerCellSelectEvent();
+            }
+            catch (error) {
+                console.error('Error handling editing Escape:', error);
+            }
         };
     }
     triggerCellSelectEvent() {
