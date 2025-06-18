@@ -1,4 +1,33 @@
 /**
+ * テーマの色設定
+ */
+export interface ThemeColors {
+    /** 背景色 */
+    background_color: string;
+    /** テキスト色 */
+    text_color: string;
+    /** グリッド色 */
+    grid_color: string;
+    /** ヘッダー背景色 */
+    header_background_color: string;
+    /** 選択セル色 */
+    selected_cell_color: string;
+    /** 範囲選択色（オプション） */
+    range_selection_color?: string;
+    /** エラーセル色（オプション） */
+    error_cell_color?: string;
+    /** 編集セル色（オプション） */
+    editing_cell_color?: string;
+}
+/**
+ * 事前定義されたテーマ
+ */
+export type PredefinedTheme = 'light' | 'dark';
+/**
+ * 事前定義されたテーマ定義
+ */
+export declare const PREDEFINED_THEMES: Record<PredefinedTheme, ThemeColors>;
+/**
  * テーブル設定のインターface
  */
 export interface TableConfig {
@@ -344,8 +373,6 @@ export declare class WasabiTable {
     getStats(): TableStats;
     /**
      * テーブル設定を取得
-     *
-     * @returns 現在の設定
      */
     getConfig(): TableConfig;
     /**
@@ -636,4 +663,16 @@ export declare class WasabiTable {
      * CheckFieldの値を正規化
      */
     normalizeCheckFieldValue(value: string): string;
+    /**
+     * テーマを適用
+     */
+    applyTheme(theme: PredefinedTheme | ThemeColors): void;
+    /**
+     * カスタムテーマを作成するヘルパー関数
+     */
+    static createCustomTheme(baseTheme: PredefinedTheme, overrides: Partial<ThemeColors>): ThemeColors;
+    /**
+     * 利用可能なテーマ一覧を取得
+     */
+    static getAvailableThemes(): PredefinedTheme[];
 }

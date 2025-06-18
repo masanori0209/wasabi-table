@@ -1,6 +1,34 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
+// テーマの色設定
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThemeColors {
+    pub background_color: String,
+    pub text_color: String,
+    pub grid_color: String,
+    pub header_background_color: String,
+    pub selected_cell_color: String,
+    pub range_selection_color: Option<String>,
+    pub error_cell_color: Option<String>,
+    pub editing_cell_color: Option<String>,
+}
+
+impl Default for ThemeColors {
+    fn default() -> Self {
+        ThemeColors {
+            background_color: "#ffffff".to_string(),
+            text_color: "#000000".to_string(),
+            grid_color: "#e0e0e0".to_string(),
+            header_background_color: "#f5f5f5".to_string(),
+            selected_cell_color: "#3498db".to_string(),
+            range_selection_color: Some("rgba(52, 152, 219, 0.2)".to_string()),
+            error_cell_color: Some("#e74c3c".to_string()),
+            editing_cell_color: Some("#f39c12".to_string()),
+        }
+    }
+}
+
 // 条件の型定義
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Condition {

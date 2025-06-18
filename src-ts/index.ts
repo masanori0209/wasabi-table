@@ -1,6 +1,59 @@
 import init, { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
 
 /**
+ * テーマの色設定
+ */
+export interface ThemeColors {
+  /** 背景色 */
+  background_color: string;
+  /** テキスト色 */
+  text_color: string;
+  /** グリッド色 */
+  grid_color: string;
+  /** ヘッダー背景色 */
+  header_background_color: string;
+  /** 選択セル色 */
+  selected_cell_color: string;
+  /** 範囲選択色（オプション） */
+  range_selection_color?: string;
+  /** エラーセル色（オプション） */
+  error_cell_color?: string;
+  /** 編集セル色（オプション） */
+  editing_cell_color?: string;
+}
+
+/**
+ * 事前定義されたテーマ
+ */
+export type PredefinedTheme = 'light' | 'dark';
+
+/**
+ * 事前定義されたテーマ定義
+ */
+export const PREDEFINED_THEMES: Record<PredefinedTheme, ThemeColors> = {
+  light: {
+    background_color: '#ffffff',
+    text_color: '#000000',
+    grid_color: '#e0e0e0',
+    header_background_color: '#f5f5f5',
+    selected_cell_color: '#3498db',
+    range_selection_color: 'rgba(52, 152, 219, 0.2)',
+    error_cell_color: '#e74c3c',
+    editing_cell_color: '#f39c12'
+  },
+  dark: {
+    background_color: '#2d3748',
+    text_color: '#e2e8f0',
+    grid_color: '#4a5568',
+    header_background_color: '#1a202c',
+    selected_cell_color: '#667eea',
+    range_selection_color: 'rgba(102, 126, 234, 0.2)',
+    error_cell_color: '#fc8181',
+    editing_cell_color: '#f6ad55'
+  }
+};
+
+/**
  * テーブル設定のインターface
  */
 export interface TableConfig {
@@ -696,11 +749,10 @@ export class WasabiTable {
 
   /**
    * テーブル設定を取得
-   * 
-   * @returns 現在の設定
    */
   public getConfig(): TableConfig {
-    return { ...this.config };
+    this.ensureInitialized();
+    return this.config;
   }
 
   /**
@@ -2955,5 +3007,62 @@ export class WasabiTable {
    */
   public normalizeCheckFieldValue(value: string): string {
     return this.isCheckFieldChecked(value) ? 'true' : 'false';
+  }
+
+  /**
+   * テーマを適用
+   */
+  public applyTheme(theme: PredefinedTheme | ThemeColors): void {
+    this.ensureInitialized();
+    
+    let themeColors: ThemeColors;
+    
+    if (typeof theme === 'string') {
+      // 事前定義されたテーマの場合
+      themeColors = PREDEFINED_THEMES[theme];
+      if (!themeColors) {
+        throw new Error(`Unknown theme: ${theme}`);
+      }
+    } else {
+      // カスタムテーマオブジェクトの場合
+      themeColors = theme;
+    }
+
+    // 現在の設定にテーマを適用
+    const newConfig: TableConfig = {
+      ...this.config,
+      background_color: themeColors.background_color,
+      text_color: themeColors.text_color,
+      grid_color: themeColors.grid_color,
+      header_background_color: themeColors.header_background_color,
+      selected_cell_color: themeColors.selected_cell_color
+    };
+    
+    // Rust側の設定を更新
+    this.wasmTable.update_config(JSON.stringify(newConfig));
+    
+    // TypeScript側の設定も更新
+    this.config = newConfig;
+    
+    // 再描画
+    this.render();
+  }
+
+  /**
+   * カスタムテーマを作成するヘルパー関数
+   */
+  public static createCustomTheme(baseTheme: PredefinedTheme, overrides: Partial<ThemeColors>): ThemeColors {
+    const base = PREDEFINED_THEMES[baseTheme];
+    if (!base) {
+      throw new Error(`Unknown base theme: ${baseTheme}`);
+    }
+    return { ...base, ...overrides };
+  }
+
+  /**
+   * 利用可能なテーマ一覧を取得
+   */
+  public static getAvailableThemes(): PredefinedTheme[] {
+    return Object.keys(PREDEFINED_THEMES) as PredefinedTheme[];
   }
 } 

@@ -44,36 +44,53 @@
                     <h3>📊 テーブル設定</h3>
                     <div class="control-row">
                         <div class="control-group">
-                            <label>行数</label>
-                            <input type="number" id="rowCount" value="50" min="10" max="1000">
+                            <label for="rowCount">行数:</label>
+                            <input type="number" id="rowCount" value="100" min="1" max="10000">
                         </div>
                         <div class="control-group">
-                            <label>列数</label>
-                            <input type="number" id="colCount" value="20" min="5" max="50">
-                        </div>
-                    </div>
-                    <div class="control-row">
-                        <div class="control-group">
-                            <label>列幅</label>
-                            <input type="number" id="colWidth" value="120" min="50" max="300">
+                            <label for="colCount">列数:</label>
+                            <input type="number" id="colCount" value="26" min="1" max="100">
                         </div>
                         <div class="control-group">
-                            <label>行高</label>
-                            <input type="number" id="rowHeight" value="28" min="20" max="60">
+                            <label for="colWidth">列幅:</label>
+                            <input type="number" id="colWidth" value="100" min="50" max="500">
                         </div>
-                    </div>
-                    <div class="button-group">
-                        <button class="btn btn-primary" onclick="updateTableConfig()">設定更新</button>
+                        <div class="control-group">
+                            <label for="rowHeight">行高:</label>
+                            <input type="number" id="rowHeight" value="25" min="20" max="100">
+                        </div>
                     </div>
                 </div>
                 
                 <div class="controls-section">
-                    <h3>🛠️ データ操作</h3>
-                    <div class="button-group">
-                        <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ</button>
-                        <button class="btn btn-secondary" onclick="clearTable()">クリア</button>
-                        <button class="btn btn-secondary" onclick="exportCSV()">CSV出力</button>
+                    <h3>📊 データ操作</h3>
+                    <div class="control-row">
+                        <div class="button-group">
+                            <button class="btn btn-primary" onclick="updateTableConfig()">設定更新</button>
+                            <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ読み込み</button>
+                        </div>
                     </div>
+                </div>
+
+                <div class="controls-section">
+                    <h3>🎨 テーマ設定</h3>
+                    <div class="control-row">
+                        <div class="control-group">
+                            <label for="themeSelect">テーマ選択:</label>
+                            <select id="themeSelect" onchange="applySelectedTheme()">
+                                <option value="light">Light (デフォルト)</option>
+                                <option value="dark">Dark</option>
+                            </select>
+                        </div>
+                        <div class="button-group">
+                            <button class="btn btn-secondary" onclick="createCustomTheme()">カスタムテーマ作成</button>
+                            <button class="btn btn-primary" onclick="resetToDefaultTheme()">デフォルトに戻す</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls-section">
+                    <h3>⚙️ テーブル設定</h3>
                 </div>
             </div>
 
@@ -450,6 +467,77 @@
             currentConfig.default_row_height = parseInt(document.getElementById('rowHeight').value);
             
             initTable();
+        };
+
+        // テーマ関連の関数
+        window.applySelectedTheme = () => {
+            if (!table) return;
+            
+            const themeSelect = document.getElementById('themeSelect');
+            const selectedTheme = themeSelect.value;
+            
+            try {
+                table.applyTheme(selectedTheme);
+                console.log(`✅ テーマ "${selectedTheme}" を適用しました`);
+                
+                // テーマ適用後の統計情報を更新
+                updateStats();
+            } catch (error) {
+                console.error('❌ テーマ適用エラー:', error);
+            }
+        };
+
+        window.createCustomTheme = () => {
+            if (!table) return;
+            
+            // カスタムテーマの例
+            const customTheme = WasabiTable.createCustomTheme('light', {
+                background_color: '#f8f9fa',
+                text_color: '#212529',
+                grid_color: '#dee2e6',
+                header_background_color: '#e9ecef',
+                selected_cell_color: '#0d6efd'
+            });
+            
+            try {
+                table.applyTheme(customTheme);
+                console.log('✅ カスタムテーマを適用しました');
+                
+                // セレクトボックスをカスタムに設定（オプション追加）
+                const themeSelect = document.getElementById('themeSelect');
+                let customOption = themeSelect.querySelector('option[value="custom"]');
+                if (!customOption) {
+                    customOption = document.createElement('option');
+                    customOption.value = 'custom';
+                    customOption.textContent = 'カスタム';
+                    themeSelect.appendChild(customOption);
+                }
+                themeSelect.value = 'custom';
+                
+                updateStats();
+            } catch (error) {
+                console.error('❌ カスタムテーマ適用エラー:', error);
+            }
+        };
+
+        window.resetToDefaultTheme = () => {
+            if (!table) return;
+            
+            try {
+                table.applyTheme('light');
+                document.getElementById('themeSelect').value = 'light';
+                console.log('✅ デフォルトテーマに戻しました');
+                updateStats();
+            } catch (error) {
+                console.error('❌ デフォルトテーマ適用エラー:', error);
+            }
+        };
+
+        // 利用可能なテーマ一覧を表示
+        window.showAvailableThemes = () => {
+            const themes = WasabiTable.getAvailableThemes();
+            console.log('📋 利用可能なテーマ:', themes);
+            return themes;
         };
 
         window.loadSampleData = () => {
