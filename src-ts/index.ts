@@ -144,6 +144,32 @@ export enum FieldType {
 }
 
 /**
+ * MenuFieldの選択肢設定
+ */
+export interface MenuFieldOption {
+  /** 表示値 */
+  label: string;
+  /** 内部値 */
+  value: string;
+  /** 無効化フラグ */
+  disabled?: boolean;
+}
+
+/**
+ * MenuFieldの設定（KeyValueまたはリスト形式）
+ */
+export interface MenuFieldConfig {
+  /** 選択肢（KeyValue形式またはリスト形式） */
+  options: MenuFieldOption[] | string[];
+  /** 検索可能フラグ */
+  searchable?: boolean;
+  /** プレースホルダーテキスト */
+  placeholder?: string;
+  /** 最大表示項目数 */
+  maxDisplayItems?: number;
+}
+
+/**
  * 列ヘッダー設定のインターface
  */
 export interface ColumnHeader {
@@ -173,6 +199,8 @@ export interface ColumnHeader {
   max_number?: number;
   /** 選択肢（メニューフィールド用） */
   choices?: string[];
+  /** MenuField設定（新しい設定） */
+  menu_config?: MenuFieldConfig;
 }
 
 /**
@@ -304,16 +332,21 @@ export class WasabiTable {
   private tooltipElement: HTMLElement | null = null;
   private canvas: HTMLCanvasElement;
   private isComposing = false; // IME入力状態を管理
-
-  // スクロールバー関連の要素
+  
+  // スクロールバー関連
   private scrollContainer: HTMLElement | null = null;
   private horizontalScrollbar: HTMLElement | null = null;
   private verticalScrollbar: HTMLElement | null = null;
   private horizontalThumb: HTMLElement | null = null;
   private verticalThumb: HTMLElement | null = null;
   
-  // Canvasリサイズ監視用
+  // リサイズ監視
   private resizeObserver: ResizeObserver | null = null;
+  
+  // MenuField SelectBox関連
+  private selectBoxElement: HTMLElement | null = null;
+  private currentMenuFieldCell: CellPosition | null = null;
+  private menuFieldOptions: Map<string, MenuFieldConfig> = new Map();
 
   private constructor(
     wasmTable: ExtendedWasmWasabiTable,
@@ -906,6 +939,9 @@ export class WasabiTable {
       this.tooltipElement = null;
     }
 
+    // MenuField SelectBoxを削除
+    this.hideMenuFieldSelectBox();
+
     if (this.wasmTable) {
       this.wasmTable.free();
     }
@@ -1012,6 +1048,13 @@ export class WasabiTable {
         const result = this.wasmTable.select_cell(x, y);
         if (result) {
           this.triggerCellSelectEvent();
+          
+          // MenuFieldセルの場合はSelectBoxを表示
+          const cellPos = this.wasmTable.pixel_to_cell(x, y);
+          if (cellPos) {
+            const [row, col] = cellPos.split(':').map(Number);
+            this.showMenuFieldSelectBox(row, col);
+          }
         }
       }
     });
@@ -2420,6 +2463,265 @@ export class WasabiTable {
       console.log('🔧 [DEBUG] ResizeObserver setup completed for:', parentElement.className);
     } else {
       console.warn('🔧 [DEBUG] No parent element found for ResizeObserver');
+    }
+  }
+
+  /**
+   * MenuFieldの選択肢を設定
+   */
+  public setMenuFieldOptions(columnName: string, config: MenuFieldConfig): void {
+    this.menuFieldOptions.set(columnName, config);
+  }
+
+  /**
+   * MenuFieldの選択肢を取得
+   */
+  public getMenuFieldOptions(columnName: string): MenuFieldConfig | undefined {
+    return this.menuFieldOptions.get(columnName);
+  }
+
+  /**
+   * MenuFieldセルのSelectBoxを表示
+   */
+  public showMenuFieldSelectBox(row: number, col: number): void {
+    const columnHeaders = this.getColumnHeadersAsArray();
+    if (col >= columnHeaders.length) return;
+    
+    const header = columnHeaders[col];
+    if (header.field_type !== FieldType.MenuField) return;
+
+    // 既存のSelectBoxを非表示
+    this.hideMenuFieldSelectBox();
+
+    // セルの画面位置を取得
+    const cellPosition = this.getCellScreenPosition(row, col);
+    if (!cellPosition) return;
+
+    // 選択肢を取得
+    const menuConfig = header.menu_config || this.menuFieldOptions.get(header.name);
+    const choices = header.choices || [];
+    
+    let options: MenuFieldOption[] = [];
+    
+    if (menuConfig?.options) {
+      if (Array.isArray(menuConfig.options)) {
+        if (typeof menuConfig.options[0] === 'string') {
+          // string[]形式
+          options = (menuConfig.options as string[]).map(opt => ({
+            label: opt,
+            value: opt
+          }));
+        } else {
+          // MenuFieldOption[]形式
+          options = menuConfig.options as MenuFieldOption[];
+        }
+      }
+    } else if (choices.length > 0) {
+      // 従来のchoices形式
+      options = choices.map(choice => ({
+        label: choice,
+        value: choice
+      }));
+    }
+
+    if (options.length === 0) return;
+
+    // SelectBox要素を作成
+    this.createSelectBoxElement(cellPosition, options, menuConfig);
+    
+    // 現在のセル値を設定
+    const currentValue = this.getCellValue(row, col) || '';
+    this.setSelectBoxValue(currentValue);
+    
+    // 現在のMenuFieldセルを記録
+    this.currentMenuFieldCell = { row, col };
+  }
+
+  /**
+   * MenuFieldのSelectBoxを非表示
+   */
+  public hideMenuFieldSelectBox(): void {
+    if (this.selectBoxElement) {
+      this.selectBoxElement.remove();
+      this.selectBoxElement = null;
+    }
+    this.currentMenuFieldCell = null;
+  }
+
+  /**
+   * SelectBox要素を作成
+   */
+  private createSelectBoxElement(
+    cellPosition: CellScreenPosition, 
+    options: MenuFieldOption[], 
+    config?: MenuFieldConfig
+  ): void {
+    const selectBox = document.createElement('div');
+    selectBox.className = 'wasabi-menu-field-selectbox';
+    selectBox.style.cssText = `
+      position: absolute;
+      left: ${cellPosition.x}px;
+      top: ${cellPosition.y + cellPosition.height}px;
+      width: ${Math.max(cellPosition.width, 200)}px;
+      max-height: 200px;
+      background: white;
+      border: 2px solid #4a7c59;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
+      z-index: 1000;
+      overflow: hidden;
+      font-family: ${this.config.font_family};
+      font-size: ${this.config.font_size}px;
+    `;
+
+    // 検索可能な場合は検索ボックスを追加
+    if (config?.searchable) {
+      const searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.placeholder = config.placeholder || '検索...';
+      searchInput.className = 'wasabi-menu-search';
+      searchInput.style.cssText = `
+        width: 100%;
+        padding: 8px 12px;
+        border: none;
+        border-bottom: 1px solid #c8e6c9;
+        outline: none;
+        font-size: ${this.config.font_size}px;
+        font-family: ${this.config.font_family};
+      `;
+      
+      selectBox.appendChild(searchInput);
+      
+      // 検索機能を実装
+      searchInput.addEventListener('input', (e) => {
+        const searchTerm = (e.target as HTMLInputElement).value.toLowerCase();
+        this.filterSelectBoxOptions(searchTerm);
+      });
+    }
+
+    // オプションリストコンテナ
+    const optionsContainer = document.createElement('div');
+    optionsContainer.className = 'wasabi-menu-options';
+    optionsContainer.style.cssText = `
+      max-height: ${config?.maxDisplayItems ? config.maxDisplayItems * 32 : 160}px;
+      overflow-y: auto;
+    `;
+
+    // オプションを追加
+    options.forEach(option => {
+      const optionElement = document.createElement('div');
+      optionElement.className = 'wasabi-menu-option';
+      optionElement.textContent = option.label;
+      optionElement.dataset.value = option.value;
+      optionElement.style.cssText = `
+        padding: 8px 12px;
+        cursor: ${option.disabled ? 'not-allowed' : 'pointer'};
+        transition: background-color 0.2s;
+        ${option.disabled ? 'opacity: 0.5;' : ''}
+      `;
+
+      if (!option.disabled) {
+        optionElement.addEventListener('mouseenter', () => {
+          optionElement.style.backgroundColor = '#f0f8f0';
+        });
+        
+        optionElement.addEventListener('mouseleave', () => {
+          optionElement.style.backgroundColor = '';
+        });
+        
+        optionElement.addEventListener('click', () => {
+          this.selectMenuFieldOption(option.value);
+        });
+      }
+
+      optionsContainer.appendChild(optionElement);
+    });
+
+    selectBox.appendChild(optionsContainer);
+    
+    // Canvasの親要素に追加
+    const canvasParent = this.canvas.parentElement;
+    if (canvasParent) {
+      canvasParent.style.position = 'relative';
+      canvasParent.appendChild(selectBox);
+    }
+
+    this.selectBoxElement = selectBox;
+
+    // 外部クリックで閉じる
+    setTimeout(() => {
+      document.addEventListener('click', this.handleOutsideClick.bind(this), { once: true });
+    }, 0);
+  }
+
+  /**
+   * SelectBoxの値を設定
+   */
+  private setSelectBoxValue(value: string): void {
+    if (!this.selectBoxElement) return;
+    
+    const options = this.selectBoxElement.querySelectorAll('.wasabi-menu-option');
+    options.forEach(option => {
+      const optionElement = option as HTMLElement;
+      if (optionElement.dataset.value === value) {
+        optionElement.style.backgroundColor = '#e8f5e8';
+        optionElement.style.fontWeight = 'bold';
+      } else {
+        optionElement.style.backgroundColor = '';
+        optionElement.style.fontWeight = '';
+      }
+    });
+  }
+
+  /**
+   * SelectBoxオプションをフィルタリング
+   */
+  private filterSelectBoxOptions(searchTerm: string): void {
+    if (!this.selectBoxElement) return;
+    
+    const options = this.selectBoxElement.querySelectorAll('.wasabi-menu-option');
+    options.forEach(option => {
+      const optionElement = option as HTMLElement;
+      const label = optionElement.textContent || '';
+      const visible = label.toLowerCase().includes(searchTerm);
+      optionElement.style.display = visible ? 'block' : 'none';
+    });
+  }
+
+  /**
+   * MenuFieldオプションを選択
+   */
+  private selectMenuFieldOption(value: string): void {
+    if (!this.currentMenuFieldCell) return;
+    
+    const { row, col } = this.currentMenuFieldCell;
+    
+    // セル値を更新
+    this.setCellValue(row, col, value);
+    
+    // SelectBoxを非表示
+    this.hideMenuFieldSelectBox();
+    
+    // 再描画
+    this.render();
+    
+    // イベントを発火
+    this.eventHandlers.onCellChange?.(
+      { row, col }, 
+      this.getCellValue(row, col) || '', 
+      value
+    );
+  }
+
+  /**
+   * 外部クリック処理
+   */
+  private handleOutsideClick(event: MouseEvent): void {
+    if (!this.selectBoxElement) return;
+    
+    const target = event.target as HTMLElement;
+    if (!this.selectBoxElement.contains(target) && target !== this.canvas) {
+      this.hideMenuFieldSelectBox();
     }
   }
 } 

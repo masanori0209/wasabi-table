@@ -117,6 +117,30 @@ export declare enum FieldType {
     MenuField = "MenuField"
 }
 /**
+ * MenuFieldの選択肢設定
+ */
+export interface MenuFieldOption {
+    /** 表示値 */
+    label: string;
+    /** 内部値 */
+    value: string;
+    /** 無効化フラグ */
+    disabled?: boolean;
+}
+/**
+ * MenuFieldの設定（KeyValueまたはリスト形式）
+ */
+export interface MenuFieldConfig {
+    /** 選択肢（KeyValue形式またはリスト形式） */
+    options: MenuFieldOption[] | string[];
+    /** 検索可能フラグ */
+    searchable?: boolean;
+    /** プレースホルダーテキスト */
+    placeholder?: string;
+    /** 最大表示項目数 */
+    maxDisplayItems?: number;
+}
+/**
  * 列ヘッダー設定のインターface
  */
 export interface ColumnHeader {
@@ -146,6 +170,8 @@ export interface ColumnHeader {
     max_number?: number;
     /** 選択肢（メニューフィールド用） */
     choices?: string[];
+    /** MenuField設定（新しい設定） */
+    menu_config?: MenuFieldConfig;
 }
 /**
  * 入力検証エラーのインターface
@@ -228,6 +254,9 @@ export declare class WasabiTable {
     private horizontalThumb;
     private verticalThumb;
     private resizeObserver;
+    private selectBoxElement;
+    private currentMenuFieldCell;
+    private menuFieldOptions;
     private constructor();
     /**
      * NinjaTableインスタンスを作成
@@ -543,4 +572,40 @@ export declare class WasabiTable {
      */
     private setupGlobalTabCapture;
     private setupResizeObserver;
+    /**
+     * MenuFieldの選択肢を設定
+     */
+    setMenuFieldOptions(columnName: string, config: MenuFieldConfig): void;
+    /**
+     * MenuFieldの選択肢を取得
+     */
+    getMenuFieldOptions(columnName: string): MenuFieldConfig | undefined;
+    /**
+     * MenuFieldセルのSelectBoxを表示
+     */
+    showMenuFieldSelectBox(row: number, col: number): void;
+    /**
+     * MenuFieldのSelectBoxを非表示
+     */
+    hideMenuFieldSelectBox(): void;
+    /**
+     * SelectBox要素を作成
+     */
+    private createSelectBoxElement;
+    /**
+     * SelectBoxの値を設定
+     */
+    private setSelectBoxValue;
+    /**
+     * SelectBoxオプションをフィルタリング
+     */
+    private filterSelectBoxOptions;
+    /**
+     * MenuFieldオプションを選択
+     */
+    private selectMenuFieldOption;
+    /**
+     * 外部クリック処理
+     */
+    private handleOutsideClick;
 }

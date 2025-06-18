@@ -954,21 +954,47 @@ impl WasabiTable {
             self.ctx.stroke_rect(x + 1.0, y + 1.0, width - 2.0, height - 2.0);
         }
 
+        // MenuFieldかどうかを判定
+        let is_menu_field = if let Some(header) = self.get_column_header(col) {
+            matches!(header.field_type, crate::types::FieldType::MenuField)
+        } else {
+            false
+        };
+
         // テキストを描画
         if !cell_value.is_empty() {
             self.ctx.set_fill_style_str(&self.config.text_color);
             self.ctx.set_font(&format!("{}px {}", self.config.font_size, self.config.font_family));
             
-            // 検証エラーがある場合はテキストを右にずらす（警告アイコン用のスペース）
-            let text_x = if has_validation_error { x + 25.0 } else { x + 5.0 };
-            let text_y = y + (height / 2.0) + (self.config.font_size as f64 / 3.0);
+            // アイコン用のスペースを考慮してテキスト位置を調整
+            let mut text_x = x + 5.0;
+            if has_validation_error {
+                text_x += 20.0; // 警告アイコン用のスペース
+            }
+            if is_menu_field {
+                // MenuFieldの場合、右側のドロップダウンアイコン用のスペースを確保
+                let max_text_width = width - 25.0 - (text_x - x);
+                self.ctx.save();
+                self.ctx.rect(text_x, y, max_text_width, height);
+                self.ctx.clip();
+            }
             
+            let text_y = y + (height / 2.0) + (self.config.font_size as f64 / 3.0);
             self.ctx.fill_text(&cell_value, text_x, text_y)?;
+            
+            if is_menu_field {
+                self.ctx.restore();
+            }
         }
 
         // 検証エラーがある場合は警告アイコンを描画
         if has_validation_error {
             self.draw_warning_icon(x + 5.0, y + (height / 2.0) - 8.0)?;
+        }
+
+        // MenuFieldの場合はドロップダウンアイコンを描画
+        if is_menu_field {
+            self.draw_dropdown_icon(x + width - 20.0, y + (height / 2.0) - 6.0)?;
         }
 
         Ok(())
@@ -998,6 +1024,42 @@ impl WasabiTable {
         self.ctx.set_fill_style_str("#000000");
         self.ctx.set_font("bold 10px Arial");
         self.ctx.fill_text("!", x + size / 2.0 - 2.0, y + size - 3.0)?;
+        
+        Ok(())
+    }
+
+    // ドロップダウンアイコンを描画（MenuField用）
+    fn draw_dropdown_icon(&mut self, x: f64, y: f64) -> Result<(), JsValue> {
+        let size = 12.0;
+        
+        // 背景の丸いボタンを描画
+        self.ctx.begin_path();
+        self.ctx.arc(x + size / 2.0, y + size / 2.0, size / 2.0, 0.0, 2.0 * std::f64::consts::PI)?;
+        
+        // わさび色の背景
+        self.ctx.set_fill_style_str("#4a7c59");
+        self.ctx.fill();
+        
+        // 境界線
+        self.ctx.set_stroke_style_str("#2d5a3d");
+        self.ctx.set_line_width(1.0);
+        self.ctx.stroke();
+        
+        // 下向き矢印を描画
+        self.ctx.begin_path();
+        let arrow_size = 4.0;
+        let center_x = x + size / 2.0;
+        let center_y = y + size / 2.0;
+        
+        // 三角形の矢印
+        self.ctx.move_to(center_x - arrow_size / 2.0, center_y - 1.0);
+        self.ctx.line_to(center_x + arrow_size / 2.0, center_y - 1.0);
+        self.ctx.line_to(center_x, center_y + arrow_size / 2.0);
+        self.ctx.close_path();
+        
+        // 白い矢印
+        self.ctx.set_fill_style_str("#ffffff");
+        self.ctx.fill();
         
         Ok(())
     }
