@@ -593,6 +593,18 @@ export declare class WasabiTable {
      */
     private createSelectBoxElement;
     /**
+     * SelectBoxのキーボードナビゲーション設定
+     */
+    private setupSelectBoxKeyboardNavigation;
+    /**
+     * オプションをハイライト
+     */
+    private highlightOption;
+    /**
+     * オプションのハイライトをクリア
+     */
+    private clearOptionHighlight;
+    /**
      * SelectBoxの値を設定
      */
     private setSelectBoxValue;
@@ -604,6 +616,10 @@ export declare class WasabiTable {
      * MenuFieldオプションを選択
      */
     private selectMenuFieldOption;
+    /**
+     * SelectBoxのキーダウンハンドラー
+     */
+    private handleSelectBoxKeydown;
     /**
      * 外部クリック処理
      */

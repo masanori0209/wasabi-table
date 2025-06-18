@@ -628,6 +628,14 @@ export class WasabiTable {
    */
   public startEditing(row: number, col: number): void {
     this.ensureInitialized();
+    
+    // MenuFieldの場合は編集の代わりにSelectBoxを表示
+    const columnHeaders = this.getColumnHeadersAsArray();
+    if (col < columnHeaders.length && columnHeaders[col].field_type === FieldType.MenuField) {
+      this.showMenuFieldSelectBox(row, col);
+      return;
+    }
+    
     this.wasmTable.start_editing(row, col);
   }
 
@@ -1059,7 +1067,7 @@ export class WasabiTable {
       }
     });
 
-    // ダブルクリックで編集開始
+    // ダブルクリックで編集開始（MenuFieldは除く）
     this.canvas.addEventListener('dblclick', (event) => {
       const rect = this.canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
@@ -1068,6 +1076,14 @@ export class WasabiTable {
       const cellPos = this.wasmTable.pixel_to_cell(x, y);
       if (cellPos) {
         const [row, col] = cellPos.split(':').map(Number);
+        
+        // MenuFieldの場合は編集を開始しない（SelectBoxを表示）
+        const columnHeaders = this.getColumnHeadersAsArray();
+        if (col < columnHeaders.length && columnHeaders[col].field_type === FieldType.MenuField) {
+          this.showMenuFieldSelectBox(row, col);
+          return;
+        }
+        
         this.startEditing(row, col);
       }
     });
@@ -2546,6 +2562,9 @@ export class WasabiTable {
       this.selectBoxElement = null;
     }
     this.currentMenuFieldCell = null;
+    
+    // ESCキーリスナーを削除
+    document.removeEventListener('keydown', this.handleSelectBoxKeydown);
   }
 
   /**
@@ -2562,71 +2581,84 @@ export class WasabiTable {
       position: absolute;
       left: ${cellPosition.x}px;
       top: ${cellPosition.y + cellPosition.height}px;
-      width: ${Math.max(cellPosition.width, 200)}px;
-      max-height: 200px;
+      width: ${Math.max(cellPosition.width, 250)}px;
+      max-height: 300px;
       background: white;
       border: 2px solid #4a7c59;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(74, 124, 89, 0.3);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(74, 124, 89, 0.3);
       z-index: 1000;
       overflow: hidden;
       font-family: ${this.config.font_family};
       font-size: ${this.config.font_size}px;
+      backdrop-filter: blur(10px);
     `;
 
-    // 検索可能な場合は検索ボックスを追加
-    if (config?.searchable) {
-      const searchInput = document.createElement('input');
-      searchInput.type = 'text';
-      searchInput.placeholder = config.placeholder || '検索...';
-      searchInput.className = 'wasabi-menu-search';
-      searchInput.style.cssText = `
-        width: 100%;
-        padding: 8px 12px;
-        border: none;
-        border-bottom: 1px solid #c8e6c9;
-        outline: none;
-        font-size: ${this.config.font_size}px;
-        font-family: ${this.config.font_family};
-      `;
-      
-      selectBox.appendChild(searchInput);
-      
-      // 検索機能を実装
-      searchInput.addEventListener('input', (e) => {
-        const searchTerm = (e.target as HTMLInputElement).value.toLowerCase();
-        this.filterSelectBoxOptions(searchTerm);
-      });
-    }
+    // 検索ボックスを追加（常に表示、デフォルトで検索可能）
+    const searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = config?.placeholder || '検索してください...';
+    searchInput.className = 'wasabi-menu-search';
+    searchInput.style.cssText = `
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-bottom: 2px solid #c8e6c9;
+      outline: none;
+      font-size: ${this.config.font_size}px;
+      font-family: ${this.config.font_family};
+      background: linear-gradient(135deg, #f8fdf8 0%, #f0f8f0 100%);
+      box-sizing: border-box;
+    `;
+    
+    selectBox.appendChild(searchInput);
+    
+    // 検索機能を実装
+    searchInput.addEventListener('input', (e) => {
+      const searchTerm = (e.target as HTMLInputElement).value.toLowerCase();
+      this.filterSelectBoxOptions(searchTerm);
+    });
 
     // オプションリストコンテナ
     const optionsContainer = document.createElement('div');
     optionsContainer.className = 'wasabi-menu-options';
     optionsContainer.style.cssText = `
-      max-height: ${config?.maxDisplayItems ? config.maxDisplayItems * 32 : 160}px;
+      max-height: ${config?.maxDisplayItems ? config.maxDisplayItems * 40 : 200}px;
       overflow-y: auto;
+      padding: 8px 0;
     `;
 
     // オプションを追加
-    options.forEach(option => {
+    options.forEach((option, index) => {
       const optionElement = document.createElement('div');
       optionElement.className = 'wasabi-menu-option';
       optionElement.textContent = option.label;
       optionElement.dataset.value = option.value;
+      optionElement.dataset.index = index.toString();
       optionElement.style.cssText = `
-        padding: 8px 12px;
+        padding: 12px 16px;
         cursor: ${option.disabled ? 'not-allowed' : 'pointer'};
-        transition: background-color 0.2s;
-        ${option.disabled ? 'opacity: 0.5;' : ''}
+        transition: all 0.2s ease;
+        border-radius: 6px;
+        margin: 2px 8px;
+        ${option.disabled ? 'opacity: 0.5; background: #f5f5f5;' : ''}
       `;
 
       if (!option.disabled) {
         optionElement.addEventListener('mouseenter', () => {
-          optionElement.style.backgroundColor = '#f0f8f0';
+          // 他の選択を解除
+          this.clearOptionHighlight();
+          optionElement.style.backgroundColor = '#e8f5e8';
+          optionElement.style.fontWeight = '600';
+          optionElement.classList.add('highlighted');
         });
         
         optionElement.addEventListener('mouseleave', () => {
-          optionElement.style.backgroundColor = '';
+          if (!optionElement.classList.contains('selected')) {
+            optionElement.style.backgroundColor = '';
+            optionElement.style.fontWeight = '';
+            optionElement.classList.remove('highlighted');
+          }
         });
         
         optionElement.addEventListener('click', () => {
@@ -2648,10 +2680,95 @@ export class WasabiTable {
 
     this.selectBoxElement = selectBox;
 
+    // 検索入力にフォーカス
+    setTimeout(() => {
+      searchInput.focus();
+    }, 50);
+
+    // キーボードナビゲーションを設定
+    this.setupSelectBoxKeyboardNavigation(searchInput);
+
     // 外部クリックで閉じる
     setTimeout(() => {
       document.addEventListener('click', this.handleOutsideClick.bind(this), { once: true });
     }, 0);
+
+    // ESCキーで閉じる
+    document.addEventListener('keydown', this.handleSelectBoxKeydown.bind(this));
+  }
+
+  /**
+   * SelectBoxのキーボードナビゲーション設定
+   */
+  private setupSelectBoxKeyboardNavigation(searchInput: HTMLInputElement): void {
+    searchInput.addEventListener('keydown', (e) => {
+      const optionsContainer = this.selectBoxElement?.querySelector('.wasabi-menu-options');
+      if (!optionsContainer) return;
+
+      const visibleOptions = Array.from(optionsContainer.querySelectorAll('.wasabi-menu-option:not([style*="display: none"])')) as HTMLElement[];
+      const highlightedOption = optionsContainer.querySelector('.wasabi-menu-option.highlighted') as HTMLElement;
+      
+      let currentIndex = highlightedOption ? parseInt(highlightedOption.dataset.index || '0') : -1;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          currentIndex = Math.min(currentIndex + 1, visibleOptions.length - 1);
+          this.highlightOption(visibleOptions[currentIndex]);
+          break;
+          
+        case 'ArrowUp':
+          e.preventDefault();
+          currentIndex = Math.max(currentIndex - 1, 0);
+          this.highlightOption(visibleOptions[currentIndex]);
+          break;
+          
+        case 'Enter':
+          e.preventDefault();
+          if (highlightedOption && !highlightedOption.dataset.disabled) {
+            const value = highlightedOption.dataset.value || '';
+            this.selectMenuFieldOption(value);
+          }
+          break;
+          
+        case 'Escape':
+          e.preventDefault();
+          this.hideMenuFieldSelectBox();
+          break;
+      }
+    });
+  }
+
+  /**
+   * オプションをハイライト
+   */
+  private highlightOption(optionElement: HTMLElement): void {
+    if (!optionElement) return;
+    
+    this.clearOptionHighlight();
+    optionElement.style.backgroundColor = '#e8f5e8';
+    optionElement.style.fontWeight = '600';
+    optionElement.classList.add('highlighted');
+    
+    // スクロールして表示
+    optionElement.scrollIntoView({ block: 'nearest' });
+  }
+
+  /**
+   * オプションのハイライトをクリア
+   */
+  private clearOptionHighlight(): void {
+    if (!this.selectBoxElement) return;
+    
+    const highlightedOptions = this.selectBoxElement.querySelectorAll('.wasabi-menu-option.highlighted');
+    highlightedOptions.forEach(option => {
+      const optionElement = option as HTMLElement;
+      if (!optionElement.classList.contains('selected')) {
+        optionElement.style.backgroundColor = '';
+        optionElement.style.fontWeight = '';
+      }
+      optionElement.classList.remove('highlighted');
+    });
   }
 
   /**
@@ -2664,11 +2781,15 @@ export class WasabiTable {
     options.forEach(option => {
       const optionElement = option as HTMLElement;
       if (optionElement.dataset.value === value) {
-        optionElement.style.backgroundColor = '#e8f5e8';
+        optionElement.style.backgroundColor = '#4a7c59';
+        optionElement.style.color = 'white';
         optionElement.style.fontWeight = 'bold';
+        optionElement.classList.add('selected');
       } else {
         optionElement.style.backgroundColor = '';
+        optionElement.style.color = '';
         optionElement.style.fontWeight = '';
+        optionElement.classList.remove('selected');
       }
     });
   }
@@ -2680,12 +2801,25 @@ export class WasabiTable {
     if (!this.selectBoxElement) return;
     
     const options = this.selectBoxElement.querySelectorAll('.wasabi-menu-option');
+    let firstVisibleOption: HTMLElement | null = null;
+    
     options.forEach(option => {
       const optionElement = option as HTMLElement;
       const label = optionElement.textContent || '';
       const visible = label.toLowerCase().includes(searchTerm);
       optionElement.style.display = visible ? 'block' : 'none';
+      
+      if (visible && !firstVisibleOption) {
+        firstVisibleOption = optionElement;
+      }
     });
+    
+    // 検索結果の最初のオプションをハイライト
+    if (firstVisibleOption && searchTerm) {
+      this.highlightOption(firstVisibleOption);
+    } else {
+      this.clearOptionHighlight();
+    }
   }
 
   /**
@@ -2712,6 +2846,16 @@ export class WasabiTable {
       value
     );
   }
+
+  /**
+   * SelectBoxのキーダウンハンドラー
+   */
+  private handleSelectBoxKeydown = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.hideMenuFieldSelectBox();
+    }
+  };
 
   /**
    * 外部クリック処理
