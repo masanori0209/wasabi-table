@@ -60,11 +60,73 @@
             font-family: monospace;
             font-size: 12px;
         }
+        .resize-controls {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6c3;
+        }
+        .resize-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .resize-group label {
+            min-width: 60px;
+            font-weight: bold;
+        }
+        .resize-group input {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            background-color: #007bff;
+            color: white;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .canvas-container {
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            resize: both;
+            overflow: hidden;
+            width: 800px;
+            height: 600px;
+            min-width: 400px;
+            min-height: 300px;
+            position: relative;
+        }
+        .canvas-container canvas {
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🥷 NinjaTable - コピー&ペーストテスト</h1>
+        
+        <div class="resize-controls">
+            <h3>🔧 Canvasリサイズコントロール</h3>
+            <div class="resize-group">
+                <label>幅:</label>
+                <input type="number" id="widthInput" value="800" min="400" max="1200">
+                <label>高さ:</label>
+                <input type="number" id="heightInput" value="600" min="300" max="800">
+                <button class="btn" onclick="resizeCanvas()">手動リサイズ</button>
+                <button class="btn" onclick="resetCanvasSize()">デフォルトサイズ</button>
+            </div>
+        </div>
         
         <div class="instructions">
             <h3>📋 コピー&ペースト機能テスト:</h3>
@@ -99,7 +161,9 @@
             </ol>
         </div>
 
-        <canvas id="table-canvas" width="800" height="600"></canvas>
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="table-canvas"></canvas>
+        </div>
         
         <div class="status">
             <div><strong>選択セル:</strong> <span id="selected-cell">なし</span></div>
@@ -119,17 +183,23 @@
     </div>
 
     <script type="module">
-        import init, { NinjaTable } from './pkg/ninja_table.js';
+        import init, { NinjaTable as WasmNinjaTable } from './pkg/ninja_table.js';
+        import { NinjaTable } from './dist/index.js';
 
         async function main() {
             try {
                 await init();
                 
                 const canvas = document.getElementById('table-canvas');
+                const canvasContainer = document.getElementById('canvasContainer');
                 const selectedCellSpan = document.getElementById('selected-cell');
                 const selectionInfoSpan = document.getElementById('selection-info');
                 const editingStatusSpan = document.getElementById('editing-status');
                 const statusSpan = document.getElementById('status');
+                
+                // 初期Canvasサイズを設定
+                canvas.width = 800;
+                canvas.height = 600;
                 
                 // テーブル設定
                 const config = {
@@ -227,6 +297,56 @@
                 statusSpan.textContent = 'テーブル初期化完了 - コピー&ペースト機能をテストしてください';
                 
                 console.log('🎉 NinjaTable initialized successfully!');
+                
+                // ResizeObserverでコンテナのリサイズを監視
+                const resizeObserver = new ResizeObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.target === canvasContainer && table) {
+                            const { width, height } = entry.contentRect;
+                            document.getElementById('widthInput').value = Math.round(width);
+                            document.getElementById('heightInput').value = Math.round(height);
+                            
+                            // NinjaTableの自動リサイズ機能が動作
+                            setTimeout(updateSelectionInfo, 50);
+                        }
+                    }
+                });
+                resizeObserver.observe(canvasContainer);
+
+                // ウィンドウリサイズイベント
+                window.addEventListener('resize', () => {
+                    if (table) {
+                        setTimeout(updateSelectionInfo, 100);
+                    }
+                });
+                
+                // リサイズ関数をグローバルに公開
+                window.resizeCanvas = function() {
+                    const width = parseInt(document.getElementById('widthInput').value);
+                    const height = parseInt(document.getElementById('heightInput').value);
+                    
+                    canvasContainer.style.width = `${width}px`;
+                    canvasContainer.style.height = `${height}px`;
+                    
+                    // 新しいリサイズ機能を使用
+                    table.updateCanvasSize();
+                    updateSelectionInfo();
+                    
+                    statusSpan.textContent = `Canvasサイズを${width}×${height}にリサイズしました`;
+                };
+
+                window.resetCanvasSize = function() {
+                    document.getElementById('widthInput').value = 800;
+                    document.getElementById('heightInput').value = 600;
+                    
+                    canvasContainer.style.width = '800px';
+                    canvasContainer.style.height = '600px';
+                    
+                    table.updateCanvasSize();
+                    updateSelectionInfo();
+                    
+                    statusSpan.textContent = 'Canvasサイズをデフォルト(800×600)にリセットしました';
+                };
                 
                 // デバッグ用: グローバルに公開
                 window.ninjaTable = table;

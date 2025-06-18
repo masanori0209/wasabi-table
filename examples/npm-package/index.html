@@ -363,7 +363,7 @@
             const canvas = document.getElementById('myCanvas');
             const container = document.querySelector('.table-container');
             
-            if (!canvas || !container) return;
+            if (!canvas || !container) return { width: 800, height: 600 };
             
             // コンテナの幅を取得（パディングとボーダーを除く）
             const containerWidth = container.clientWidth - 4; // ボーダー2px * 2
@@ -378,13 +378,17 @@
             canvas.style.height = containerHeight + 'px';
             
             console.log(`Canvas resized to: ${containerWidth}x${containerHeight}`);
+            
+            return { width: containerWidth, height: containerHeight };
         }
 
         // ウィンドウリサイズ時の処理
         function handleResize() {
-            resizeCanvas();
-            if (table) {
-                table.render();
+            const newSize = resizeCanvas();
+            if (table && newSize) {
+                // 新しいリサイズ機能を使用（明示的なサイズを渡す）
+                console.log('🔧 [DEBUG] Calling updateCanvasSize with:', newSize);
+                table.updateCanvasSize(newSize.width, newSize.height);
                 updateStats();
             }
         }
@@ -398,9 +402,15 @@
                 }
 
                 // Canvasサイズを初期化
-                resizeCanvas();
+                const initialSize = resizeCanvas();
 
                 table = await NinjaTable.create(canvas, currentConfig);
+                
+                // 初期化後にサイズを確実に設定
+                if (initialSize) {
+                    console.log('🔧 [DEBUG] Setting initial canvas size:', initialSize);
+                    table.updateCanvasSize(initialSize.width, initialSize.height);
+                }
                 
                 table.setEventHandlers({
                     onCellSelect: (position) => {

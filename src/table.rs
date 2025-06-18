@@ -883,12 +883,12 @@ impl NinjaTable {
     // レンダリングメソッドの更新
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
-        // キャンバスをクリア
-        self.ctx.clear_rect(0.0, 0.0, self.canvas.width() as f64, self.canvas.height() as f64);
+        // キャンバスをクリア（フィールドの値を使用）
+        self.ctx.clear_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
         
-        // 背景を描画
+        // 背景を描画（フィールドの値を使用）
         self.ctx.set_fill_style_str(&self.config.background_color);
-        self.ctx.fill_rect(0.0, 0.0, self.canvas.width() as f64, self.canvas.height() as f64);
+        self.ctx.fill_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
         
         // すべての可視セルを描画（空のセルも含む）
         // テーブルの範囲内でのみ描画
@@ -1008,10 +1008,10 @@ impl NinjaTable {
         self.ctx.set_stroke_style_str(&self.config.grid_color);
         
         // 列ヘッダー背景（上部の固定領域）
-        self.ctx.fill_rect(self.config.row_header_width, 0.0, self.canvas.width() as f64 - self.config.row_header_width, self.config.header_height);
+        self.ctx.fill_rect(self.config.row_header_width, 0.0, self.canvas_width - self.config.row_header_width, self.config.header_height);
         
         // 行ヘッダー背景（左側の固定領域）
-        self.ctx.fill_rect(0.0, self.config.header_height, self.config.row_header_width, self.canvas.height() as f64 - self.config.header_height);
+        self.ctx.fill_rect(0.0, self.config.header_height, self.config.row_header_width, self.canvas_height - self.config.header_height);
 
         // テキスト描画設定
         self.ctx.set_fill_style_str(&self.config.text_color);
@@ -1044,7 +1044,7 @@ impl NinjaTable {
             };
             
             // 列ヘッダーは画面内に表示される場合のみ描画
-            if x + column_width > self.config.row_header_width && x < self.canvas.width() as f64 {
+            if x + column_width > self.config.row_header_width && x < self.canvas_width {
                 let display_name = if let Some(header) = self.get_column_header(col) {
                     if header.is_visible {
                         header.display_name.clone()
@@ -1064,7 +1064,7 @@ impl NinjaTable {
         for row in self.visible_rows.0..max_row {
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
             // 行ヘッダーは画面内に表示される場合のみ描画
-            if y + self.config.default_row_height > self.config.header_height && y < self.canvas.height() as f64 {
+            if y + self.config.default_row_height > self.config.header_height && y < self.canvas_height {
                 let row_number = (row + 1).to_string();
                 self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0)?;
             }
@@ -1077,12 +1077,12 @@ impl NinjaTable {
         // 行ヘッダーと列ヘッダーの境界線
         self.ctx.begin_path();
         self.ctx.move_to(self.config.row_header_width, 0.0);
-        self.ctx.line_to(self.config.row_header_width, self.canvas.height() as f64);
+        self.ctx.line_to(self.config.row_header_width, self.canvas_height);
         self.ctx.stroke();
 
         self.ctx.begin_path();
         self.ctx.move_to(0.0, self.config.header_height);
-        self.ctx.line_to(self.canvas.width() as f64, self.config.header_height);
+        self.ctx.line_to(self.canvas_width, self.config.header_height);
         self.ctx.stroke();
         
         // 左上角の背景を最後に描画（他の要素の上に重ねる）
@@ -1139,12 +1139,12 @@ impl NinjaTable {
         let mut accumulated_width = self.config.row_header_width;
         for col in 0..=self.config.col_count {
             let x = accumulated_width - self.scroll_x;
-            if x >= self.config.row_header_width && x <= self.canvas.width() as f64 {
+            if x >= self.config.row_header_width && x <= self.canvas_width {
                 self.ctx.begin_path();
                 self.ctx.move_to(x, self.config.header_height);
                 // 縦線はテーブルの実際の高さまで描画（最後の行の終端まで）
                 let table_end_y = self.get_table_height() + self.config.header_height - self.scroll_y;
-                let line_end_y = table_end_y.min(self.canvas.height() as f64);
+                let line_end_y = table_end_y.min(self.canvas_height);
                 self.ctx.line_to(x, line_end_y);
                 self.ctx.stroke();
             }
@@ -1163,12 +1163,12 @@ impl NinjaTable {
         let max_row = self.visible_rows.1.min(self.config.row_count);
         for row in self.visible_rows.0..=max_row {
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
-            if y >= self.config.header_height && y <= self.canvas.height() as f64 {
+            if y >= self.config.header_height && y <= self.canvas_height {
                 self.ctx.begin_path();
                 self.ctx.move_to(self.config.row_header_width, y);
                 // 横線は最後の列の終端まで描画（テーブルの実際の幅まで）
                 let table_end_x = self.get_table_width() + self.config.row_header_width - self.scroll_x;
-                let line_end_x = table_end_x.min(self.canvas.width() as f64);
+                let line_end_x = table_end_x.min(self.canvas_width);
                 self.ctx.line_to(line_end_x, y);
                 self.ctx.stroke();
             }
@@ -1653,6 +1653,25 @@ impl NinjaTable {
                 }
             }
         }
+        Ok(())
+    }
+
+    /// Canvasサイズを更新し、表示範囲を再計算
+    #[wasm_bindgen]
+    pub fn update_canvas_size(&mut self, width: f64, height: f64) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("🔧 [RUST DEBUG] Updating canvas size to: {}x{}", width, height).into());
+        
+        // キャンバスサイズを更新
+        self.canvas_width = width;
+        self.canvas_height = height;
+        
+        // 表示範囲を再計算
+        self.calculate_visible_range();
+        
+        web_sys::console::log_1(&format!("🔧 [RUST DEBUG] Visible range updated: rows({}-{}), cols({}-{})", 
+            self.visible_rows.0, self.visible_rows.1, 
+            self.visible_cols.0, self.visible_cols.1).into());
+        
         Ok(())
     }
 } 

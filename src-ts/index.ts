@@ -273,6 +273,7 @@ interface ExtendedWasmNinjaTable extends WasmNinjaTable {
   handle_mouse_drag(canvasX: number, canvasY: number, isDragging: boolean): void;
   pixel_to_cell(x: number, y: number): string | undefined;
   select_cell_by_position(row: number, col: number): string | undefined;
+  update_canvas_size(width: number, height: number): void;
 }
 
 /**
@@ -310,6 +311,9 @@ export class NinjaTable {
   private verticalScrollbar: HTMLElement | null = null;
   private horizontalThumb: HTMLElement | null = null;
   private verticalThumb: HTMLElement | null = null;
+  
+  // Canvasリサイズ監視用
+  private resizeObserver: ResizeObserver | null = null;
 
   private constructor(
     wasmTable: ExtendedWasmNinjaTable,
@@ -327,7 +331,7 @@ export class NinjaTable {
     this.setupEventHandlers();
     this.createTooltipElement();
     this.setupScrollbars();
-    this.setupGlobalTabCapture(); // グローバルTabキーキャプチャを設定
+    this.setupResizeObserver();
     
     // 初期フォーカスを設定
     setTimeout(() => {
@@ -768,6 +772,18 @@ export class NinjaTable {
    * リソースを解放
    */
   public dispose(): void {
+    // ResizeObserverを停止
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+
+    // ツールチップ要素を削除
+    if (this.tooltipElement && this.tooltipElement.parentNode) {
+      this.tooltipElement.parentNode.removeChild(this.tooltipElement);
+      this.tooltipElement = null;
+    }
+
     if (this.wasmTable) {
       this.wasmTable.free();
     }
@@ -1432,6 +1448,106 @@ export class NinjaTable {
     this.verticalThumb.style.height = `${thumbHeight}px`;
     this.verticalThumb.style.top = `${thumbTop}px`;
     this.verticalScrollbar.style.display = maxScrollY > 0 ? 'block' : 'none';
+  }
+
+  /**
+   * Canvasのサイズを更新
+   */
+  public updateCanvasSize(width?: number, height?: number): void {
+    console.log('🔧 [DEBUG] updateCanvasSize called with:', { width, height });
+    
+    let actualWidth: number;
+    let actualHeight: number;
+
+    if (width !== undefined && height !== undefined) {
+      // 明示的なサイズが指定された場合
+      actualWidth = width;
+      actualHeight = height;
+      console.log('🔧 [DEBUG] Using explicit size:', { actualWidth, actualHeight });
+    } else {
+      // 親要素のサイズに合わせる
+      const parent = this.canvas.parentElement;
+      if (parent) {
+        const rect = parent.getBoundingClientRect();
+        actualWidth = Math.floor(rect.width);
+        actualHeight = Math.floor(rect.height);
+        console.log('🔧 [DEBUG] Using parent size:', { actualWidth, actualHeight, parentRect: rect });
+      } else {
+        console.warn('🔧 [DEBUG] No parent element found, using current canvas size');
+        actualWidth = this.canvas.width;
+        actualHeight = this.canvas.height;
+      }
+    }
+
+    // Canvas要素のサイズを更新
+    const oldWidth = this.canvas.width;
+    const oldHeight = this.canvas.height;
+    
+    this.canvas.width = actualWidth;
+    this.canvas.height = actualHeight;
+    this.canvas.style.width = `${actualWidth}px`;
+    this.canvas.style.height = `${actualHeight}px`;
+    
+    console.log('🔧 [DEBUG] Canvas size updated:', { 
+      oldSize: { width: oldWidth, height: oldHeight },
+      newSize: { width: actualWidth, height: actualHeight }
+    });
+
+    // スクロールコンテナのサイズも更新
+    if (this.scrollContainer) {
+      this.scrollContainer.style.width = `${actualWidth}px`;
+      this.scrollContainer.style.height = `${actualHeight}px`;
+      
+      // スクロールバーのサイズも明示的に更新
+      if (this.horizontalScrollbar) {
+        const scrollbarWidth = Math.max(0, actualWidth - 17);
+        this.horizontalScrollbar.style.width = `${scrollbarWidth}px`;
+        console.log('🔧 [DEBUG] Horizontal scrollbar width updated:', scrollbarWidth);
+      }
+      if (this.verticalScrollbar) {
+        const scrollbarHeight = Math.max(0, actualHeight - 17);
+        this.verticalScrollbar.style.height = `${scrollbarHeight}px`;
+        console.log('🔧 [DEBUG] Vertical scrollbar height updated:', scrollbarHeight);
+      }
+      
+      console.log('🔧 [DEBUG] Scroll container size updated:', { width: actualWidth, height: actualHeight });
+    }
+
+        // Rust側のキャンバスサイズも更新（新しいメソッドを使用）
+    if (this.wasmTable) {
+      try {
+        // 新しいupdate_canvas_sizeメソッドを使用
+        this.wasmTable.update_canvas_size(actualWidth, actualHeight);
+        console.log('🔧 [DEBUG] WASM canvas size updated via update_canvas_size:', { width: actualWidth, height: actualHeight });
+      } catch (error) {
+        console.error('🔧 [DEBUG] Error updating WASM canvas size:', error);
+        
+        // フォールバック: 直接プロパティを更新
+        try {
+          if ('canvas_width' in this.wasmTable && 'canvas_height' in this.wasmTable) {
+            (this.wasmTable as any).canvas_width = actualWidth;
+            (this.wasmTable as any).canvas_height = actualHeight;
+            console.log('🔧 [DEBUG] WASM canvas size updated via direct property access:', { width: actualWidth, height: actualHeight });
+          }
+        } catch (fallbackError) {
+          console.error('🔧 [DEBUG] Fallback canvas size update also failed:', fallbackError);
+        }
+      }
+    }
+
+    // スクロールバーとテーブルを再描画
+    console.log('🔧 [DEBUG] Updating scrollbars and rendering...');
+    this.updateScrollbars();
+    this.render();
+    
+    console.log('🔧 [DEBUG] updateCanvasSize completed');
+  }
+
+  /**
+   * Canvasリサイズイベントハンドラー
+   */
+  public handleCanvasResize(): void {
+    this.updateCanvasSize();
   }
 
   /**
@@ -2149,5 +2265,33 @@ export class NinjaTable {
         console.log('🚫 [DEBUG] Global Tab key capture - editing mode');
       }
     }, true); // キャプチャフェーズで実行
+  }
+
+  // Canvasリサイズ監視用
+  private setupResizeObserver(): void {
+    this.resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Canvasの親要素（コンテナ）のサイズ変更を監視
+        const target = entry.target as HTMLElement;
+        if (target === this.canvas.parentElement) {
+          const { width, height } = entry.contentRect;
+          
+          // デバッグログ
+          console.log('🔧 [DEBUG] ResizeObserver: Container resized:', { width, height, target: target.className });
+          
+          // updateCanvasSizeメソッドを使用して統一的に処理
+          this.updateCanvasSize(Math.floor(width), Math.floor(height));
+        }
+      }
+    });
+    
+    // Canvasの親要素を監視
+    const parentElement = this.canvas.parentElement;
+    if (parentElement) {
+      this.resizeObserver.observe(parentElement);
+      console.log('🔧 [DEBUG] ResizeObserver setup completed for:', parentElement.className);
+    } else {
+      console.warn('🔧 [DEBUG] No parent element found for ResizeObserver');
+    }
   }
 } 

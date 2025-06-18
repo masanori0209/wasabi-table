@@ -85,6 +85,32 @@ const listeners = createNinjaTableListeners(table, {
 <canvas id="myCanvas" width="1200" height="500"></canvas>
 ```
 
+### Canvasリサイズ機能
+
+NinjaTableは動的なCanvasリサイズに対応しています：
+
+```typescript
+// 手動でCanvasサイズを更新
+table.updateCanvasSize(800, 600);
+
+// 親要素のサイズに合わせて自動調整
+table.updateCanvasSize();
+
+// リサイズイベントハンドラー
+table.handleCanvasResize();
+
+// ウィンドウリサイズ時の自動対応
+window.addEventListener('resize', () => {
+  table.handleCanvasResize();
+});
+```
+
+**主な機能:**
+- 🔄 自動的なセル描画の更新
+- 📏 スクロールバーの自動調整
+- 🎯 レスポンシブ対応
+- ⚡ ResizeObserverによる効率的な監視
+
 ## 🛠️ 開発
 
 ### 利用可能なスクリプト

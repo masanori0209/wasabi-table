@@ -90,12 +90,62 @@
             padding: 2px 4px;
             border-radius: 2px;
         }
+        .resize-controls {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6c3;
+        }
+        .resize-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .resize-group label {
+            min-width: 60px;
+            font-weight: bold;
+        }
+        .resize-group input {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100px;
+        }
+        .canvas-container {
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            resize: both;
+            overflow: hidden;
+            width: 800px;
+            height: 600px;
+            min-width: 400px;
+            min-height: 300px;
+            position: relative;
+        }
+        .canvas-container canvas {
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔍 NinjaTable - スクロール座標テスト</h1>
         
+        <div class="resize-controls">
+            <h3>🔧 Canvasリサイズコントロール</h3>
+            <div class="resize-group">
+                <label>幅:</label>
+                <input type="number" id="widthInput" value="800" min="400" max="1200">
+                <label>高さ:</label>
+                <input type="number" id="heightInput" value="600" min="300" max="800">
+                <button class="btn btn-primary" onclick="resizeCanvas()">手動リサイズ</button>
+                <button class="btn btn-secondary" onclick="resetCanvasSize()">デフォルトサイズ</button>
+            </div>
+        </div>
+
         <div class="test-controls">
             <h3>📐 座標テストコントロール</h3>
             <div class="button-group">
@@ -114,7 +164,9 @@
             </div>
         </div>
 
-        <canvas id="table-canvas" width="800" height="600"></canvas>
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="table-canvas"></canvas>
+        </div>
         
         <div class="status">
             <div><strong>選択セル:</strong> <span id="selected-cell">なし</span></div>
@@ -142,7 +194,8 @@
     </div>
 
     <script type="module">
-        import init, { NinjaTable } from './pkg/ninja_table.js';
+        import init, { NinjaTable as WasmNinjaTable } from './pkg/ninja_table.js';
+        import { NinjaTable } from './dist/index.js';
 
         let table = null;
 
@@ -151,6 +204,11 @@
                 await init();
                 
                 const canvas = document.getElementById('table-canvas');
+                const canvasContainer = document.getElementById('canvasContainer');
+                
+                // 初期Canvasサイズを設定
+                canvas.width = 800;
+                canvas.height = 600;
                 
                 // テーブル設定（大きめのテーブル）
                 const config = {
@@ -210,6 +268,28 @@
                 
                 updateScrollPosition();
                 document.getElementById('test-result').textContent = 'テーブル初期化完了 - 座標テストを開始してください';
+                
+                // ResizeObserverでコンテナのリサイズを監視
+                const resizeObserver = new ResizeObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.target === canvasContainer && table) {
+                            const { width, height } = entry.contentRect;
+                            document.getElementById('widthInput').value = Math.round(width);
+                            document.getElementById('heightInput').value = Math.round(height);
+                            
+                            // NinjaTableの自動リサイズ機能が動作
+                            setTimeout(updateScrollPosition, 50);
+                        }
+                    }
+                });
+                resizeObserver.observe(canvasContainer);
+
+                // ウィンドウリサイズイベント
+                window.addEventListener('resize', () => {
+                    if (table) {
+                        setTimeout(updateScrollPosition, 100);
+                    }
+                });
                 
                 // グローバルに公開
                 window.ninjaTable = table;
@@ -365,6 +445,52 @@
             } else {
                 document.getElementById('test-result').textContent = `❌ 完全座標テスト: エラー ${errors.length}件 - ${errors.join(', ')}`;
             }
+        };
+
+        // リサイズ関数
+        window.resizeCanvas = function() {
+            if (!table) return;
+            
+            const width = parseInt(document.getElementById('widthInput').value);
+            const height = parseInt(document.getElementById('heightInput').value);
+            const canvasContainer = document.getElementById('canvasContainer');
+            
+            canvasContainer.style.width = `${width}px`;
+            canvasContainer.style.height = `${height}px`;
+            
+            // 新しいリサイズ機能を使用
+            table.updateCanvasSize();
+            updateScrollPosition();
+            
+            // 選択中のセルがあれば座標を更新
+            const selectedCell = table.getSelectedCell();
+            if (selectedCell) {
+                updateCellToScreenCoords(selectedCell.row, selectedCell.col);
+            }
+            
+            document.getElementById('test-result').textContent = `Canvasサイズを${width}×${height}にリサイズしました`;
+        };
+
+        window.resetCanvasSize = function() {
+            if (!table) return;
+            
+            document.getElementById('widthInput').value = 800;
+            document.getElementById('heightInput').value = 600;
+            
+            const canvasContainer = document.getElementById('canvasContainer');
+            canvasContainer.style.width = '800px';
+            canvasContainer.style.height = '600px';
+            
+            table.updateCanvasSize();
+            updateScrollPosition();
+            
+            // 選択中のセルがあれば座標を更新
+            const selectedCell = table.getSelectedCell();
+            if (selectedCell) {
+                updateCellToScreenCoords(selectedCell.row, selectedCell.col);
+            }
+            
+            document.getElementById('test-result').textContent = 'Canvasサイズをデフォルト(800×600)にリセットしました';
         };
 
         main();

@@ -227,6 +227,7 @@ export declare class NinjaTable {
     private verticalScrollbar;
     private horizontalThumb;
     private verticalThumb;
+    private resizeObserver;
     private constructor();
     /**
      * NinjaTableインスタンスを作成
@@ -432,6 +433,14 @@ export declare class NinjaTable {
      */
     private updateScrollbars;
     /**
+     * Canvasのサイズを更新
+     */
+    updateCanvasSize(width?: number, height?: number): void;
+    /**
+     * Canvasリサイズイベントハンドラー
+     */
+    handleCanvasResize(): void;
+    /**
      * 最大水平スクロール値を計算
      */
     private calculateMaxScrollX;
@@ -527,4 +536,5 @@ export declare class NinjaTable {
      * グローバルTabキーキャプチャを設定
      */
     private setupGlobalTabCapture;
+    private setupResizeObserver;
 }
