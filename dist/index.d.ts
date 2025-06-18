@@ -624,4 +624,16 @@ export declare class WasabiTable {
      * 外部クリック処理
      */
     private handleOutsideClick;
+    /**
+     * CheckFieldの値を切り替え
+     */
+    toggleCheckField(row: number, col: number): void;
+    /**
+     * CheckFieldの値がチェック状態かどうかを判定
+     */
+    private isCheckFieldChecked;
+    /**
+     * CheckFieldの値を正規化
+     */
+    normalizeCheckFieldValue(value: string): string;
 }

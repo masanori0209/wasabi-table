@@ -629,11 +629,20 @@ export class WasabiTable {
   public startEditing(row: number, col: number): void {
     this.ensureInitialized();
     
-    // MenuFieldの場合は編集の代わりにSelectBoxを表示
+    // 特別なフィールドタイプの場合は編集の代わりに専用処理
     const columnHeaders = this.getColumnHeadersAsArray();
-    if (col < columnHeaders.length && columnHeaders[col].field_type === FieldType.MenuField) {
-      this.showMenuFieldSelectBox(row, col);
-      return;
+    if (col < columnHeaders.length) {
+      const header = columnHeaders[col];
+      
+      if (header.field_type === FieldType.MenuField) {
+        // MenuFieldの場合はSelectBoxを表示
+        this.showMenuFieldSelectBox(row, col);
+        return;
+      } else if (header.field_type === FieldType.CheckField || header.field_type === FieldType.BooleanField) {
+        // CheckFieldの場合はチェック状態を切り替え
+        this.toggleCheckField(row, col);
+        return;
+      }
     }
     
     this.wasmTable.start_editing(row, col);
@@ -1057,11 +1066,23 @@ export class WasabiTable {
         if (result) {
           this.triggerCellSelectEvent();
           
-          // MenuFieldセルの場合はSelectBoxを表示
+          // MenuFieldまたはCheckFieldセルの特別な処理
           const cellPos = this.wasmTable.pixel_to_cell(x, y);
           if (cellPos) {
             const [row, col] = cellPos.split(':').map(Number);
-            this.showMenuFieldSelectBox(row, col);
+            const columnHeaders = this.getColumnHeadersAsArray();
+            
+            if (col < columnHeaders.length) {
+              const header = columnHeaders[col];
+              
+              if (header.field_type === FieldType.MenuField) {
+                // MenuFieldの場合はSelectBoxを表示
+                this.showMenuFieldSelectBox(row, col);
+              } else if (header.field_type === FieldType.CheckField || header.field_type === FieldType.BooleanField) {
+                // CheckFieldの場合はチェック状態を切り替え
+                this.toggleCheckField(row, col);
+              }
+            }
           }
         }
       }
@@ -2867,5 +2888,53 @@ export class WasabiTable {
     if (!this.selectBoxElement.contains(target) && target !== this.canvas) {
       this.hideMenuFieldSelectBox();
     }
+  }
+
+  /**
+   * CheckFieldの値を切り替え
+   */
+  public toggleCheckField(row: number, col: number): void {
+    const columnHeaders = this.getColumnHeadersAsArray();
+    if (col >= columnHeaders.length) return;
+    
+    const header = columnHeaders[col];
+    if (header.field_type !== FieldType.CheckField && header.field_type !== FieldType.BooleanField) return;
+
+    // 現在の値を取得
+    const currentValue = this.getCellValue(row, col) || '';
+    
+    // チェック状態を判定
+    const isCurrentlyChecked = this.isCheckFieldChecked(currentValue);
+    
+    // 新しい値を設定
+    const newValue = isCurrentlyChecked ? 'false' : 'true';
+    
+    // セル値を更新
+    this.setCellValue(row, col, newValue);
+    
+    // 再描画
+    this.render();
+    
+    // イベントを発火
+    this.eventHandlers.onCellChange?.(
+      { row, col }, 
+      currentValue, 
+      newValue
+    );
+  }
+
+  /**
+   * CheckFieldの値がチェック状態かどうかを判定
+   */
+  private isCheckFieldChecked(value: string): boolean {
+    const normalizedValue = value.toLowerCase().trim();
+    return ['true', '1', 'yes', 'はい', '✓', 'checked'].includes(normalizedValue);
+  }
+
+  /**
+   * CheckFieldの値を正規化
+   */
+  public normalizeCheckFieldValue(value: string): string {
+    return this.isCheckFieldChecked(value) ? 'true' : 'false';
   }
 } 

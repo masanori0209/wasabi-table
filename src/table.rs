@@ -954,15 +954,31 @@ impl WasabiTable {
             self.ctx.stroke_rect(x + 1.0, y + 1.0, width - 2.0, height - 2.0);
         }
 
-        // MenuFieldかどうかを判定
-        let is_menu_field = if let Some(header) = self.get_column_header(col) {
-            matches!(header.field_type, crate::types::FieldType::MenuField)
+        // フィールドタイプを判定
+        let (is_menu_field, is_check_field) = if let Some(header) = self.get_column_header(col) {
+            (
+                matches!(header.field_type, crate::types::FieldType::MenuField),
+                matches!(header.field_type, crate::types::FieldType::CheckField | crate::types::FieldType::BooleanField)
+            )
         } else {
-            false
+            (false, false)
         };
 
-        // テキストを描画
-        if !cell_value.is_empty() {
+        // CheckFieldの場合はチェックボックスを描画（テキストの代わり）
+        if is_check_field {
+            let checkbox_size = 16.0;
+            let checkbox_x = x + (width / 2.0) - (checkbox_size / 2.0);
+            let checkbox_y = y + (height / 2.0) - (checkbox_size / 2.0);
+            
+            // チェック状態を判定
+            let is_checked = match cell_value.to_lowercase().as_str() {
+                "true" | "1" | "yes" | "はい" | "✓" | "checked" => true,
+                _ => false,
+            };
+            
+            self.draw_checkbox(checkbox_x, checkbox_y, checkbox_size, is_checked)?;
+        } else if !cell_value.is_empty() {
+            // 通常のテキストを描画
             self.ctx.set_fill_style_str(&self.config.text_color);
             self.ctx.set_font(&format!("{}px {}", self.config.font_size, self.config.font_family));
             
@@ -1060,6 +1076,50 @@ impl WasabiTable {
         // 白い矢印
         self.ctx.set_fill_style_str("#ffffff");
         self.ctx.fill();
+        
+        Ok(())
+    }
+
+    // チェックボックスを描画（CheckField用）
+    fn draw_checkbox(&mut self, x: f64, y: f64, size: f64, is_checked: bool) -> Result<(), JsValue> {
+        // チェックボックスの背景
+        self.ctx.begin_path();
+        self.ctx.rect(x, y, size, size);
+        
+        if is_checked {
+            // チェック済みの場合はわさび色の背景
+            self.ctx.set_fill_style_str("#4a7c59");
+        } else {
+            // 未チェックの場合は白い背景
+            self.ctx.set_fill_style_str("#ffffff");
+        }
+        self.ctx.fill();
+        
+        // 境界線
+        self.ctx.set_stroke_style_str("#2d5a3d");
+        self.ctx.set_line_width(2.0);
+        self.ctx.stroke();
+        
+        // チェックマークを描画
+        if is_checked {
+            self.ctx.begin_path();
+            self.ctx.set_stroke_style_str("#ffffff");
+            self.ctx.set_line_width(2.0);
+            self.ctx.set_line_cap("round");
+            self.ctx.set_line_join("round");
+            
+            // チェックマークの形状
+            let check_offset = size * 0.2;
+            let check_width = size * 0.6;
+            let check_height = size * 0.4;
+            
+            // チェックマークのパス
+            self.ctx.move_to(x + check_offset, y + size / 2.0);
+            self.ctx.line_to(x + check_offset + check_width * 0.4, y + size / 2.0 + check_height * 0.5);
+            self.ctx.line_to(x + check_offset + check_width, y + size / 2.0 - check_height * 0.5);
+            
+            self.ctx.stroke();
+        }
         
         Ok(())
     }
