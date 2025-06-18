@@ -248,6 +248,8 @@ export interface CellScreenPosition {
     height: number;
     centerX: number;
     centerY: number;
+    absolute_x: number;
+    absolute_y: number;
 }
 /**
  * WasabiTable - 高性能なExcel風テーブルコンポーネント

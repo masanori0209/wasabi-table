@@ -1450,29 +1450,35 @@ impl WasabiTable {
     /// 指定されたセルの画面上の位置を取得（ピクセル座標）
     #[wasm_bindgen]
     pub fn get_cell_screen_position(&self, row: usize, col: usize) -> String {
-        // get_column_x_positionは既にスクロールを考慮した画面座標を返すため、
-        // さらにスクロールを引く必要はない
-        let x = self.get_column_x_position(col);
-        // Y座標のスクロール計算
-        let y = (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64 - self.scroll_y;
+        // 絶対座標（スクロールを考慮しない位置）を計算
+        let mut absolute_x = self.config.row_header_width;
+        for prev_col in 0..col {
+            if let Some(header) = self.get_column_header(prev_col) {
+                absolute_x += header.width;
+            } else {
+                absolute_x += self.config.default_col_width;
+            }
+        }
+        let absolute_y = (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64;
+        
+        // 画面座標（スクロールを考慮した位置）を計算
+        let screen_x = absolute_x - self.scroll_x;
+        let screen_y = absolute_y - self.scroll_y;
+        
         let width = self.get_column_width(col);
         let height = self.config.default_row_height as f64;
         
-        // 絶対座標（スクロール前）の計算
-        let raw_x = self.get_column_x_position(col) + self.scroll_x;
-        let raw_y = (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64;
-        
         serde_json::json!({
-            "x": x,
-            "y": y,
+            "x": screen_x,
+            "y": screen_y,
             "width": width,
             "height": height,
-            "centerX": x + width / 2.0,
-            "centerY": y + height / 2.0,
+            "centerX": screen_x + width / 2.0,
+            "centerY": screen_y + height / 2.0,
             "scroll_x": self.scroll_x,
             "scroll_y": self.scroll_y,
-            "raw_x": raw_x,
-            "raw_y": raw_y
+            "absolute_x": absolute_x,
+            "absolute_y": absolute_y
         }).to_string()
     }
 

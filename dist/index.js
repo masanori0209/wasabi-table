@@ -266,17 +266,20 @@ export class WasabiTable {
         const headerHeight = this.config.header_height;
         const rowHeaderWidth = this.config.row_header_width;
         const scrollbarWidth = 17; // スクロールバーの幅
-        const viewportWidth = this.canvas.width - rowHeaderWidth - scrollbarWidth;
-        const viewportHeight = this.canvas.height - headerHeight - scrollbarWidth;
+        // 論理ピクセルサイズを使用（CSSサイズ）
+        const canvasDisplayWidth = parseFloat(this.canvas.style.width) || this.canvas.width;
+        const canvasDisplayHeight = parseFloat(this.canvas.style.height) || this.canvas.height;
+        const viewportWidth = canvasDisplayWidth - rowHeaderWidth - scrollbarWidth;
+        const viewportHeight = canvasDisplayHeight - headerHeight - scrollbarWidth;
         console.log('🎯 [DEBUG] Viewport dimensions:', {
             viewportWidth,
             viewportHeight,
             headerHeight,
             rowHeaderWidth
         });
-        // セルの絶対位置を計算（スクロールを考慮しない位置）
-        const absoluteCellX = cellPosition.x + currentScrollX;
-        const absoluteCellY = cellPosition.y + currentScrollY;
+        // セルの絶対位置を取得（Rustから返される値を使用）
+        const absoluteCellX = cellPosition.absolute_x;
+        const absoluteCellY = cellPosition.absolute_y;
         console.log('🎯 [DEBUG] Absolute cell position:', {
             absoluteCellX,
             absoluteCellY,
@@ -1257,16 +1260,18 @@ export class WasabiTable {
         const maxScrollY = this.calculateMaxScrollY();
         // 水平スクロールバーの更新
         const scrollbarWidth = this.horizontalScrollbar.offsetWidth;
-        const contentWidth = maxScrollX + this.canvas.width;
-        const thumbWidth = Math.max(20, (this.canvas.width / contentWidth) * scrollbarWidth);
+        const canvasDisplayWidth = parseFloat(this.canvas.style.width) || this.canvas.width;
+        const contentWidth = maxScrollX + canvasDisplayWidth;
+        const thumbWidth = Math.max(20, (canvasDisplayWidth / contentWidth) * scrollbarWidth);
         const thumbLeft = maxScrollX > 0 ? (stats.scrollX / maxScrollX) * (scrollbarWidth - thumbWidth) : 0;
         this.horizontalThumb.style.width = `${thumbWidth}px`;
         this.horizontalThumb.style.left = `${thumbLeft}px`;
         this.horizontalScrollbar.style.display = maxScrollX > 0 ? 'block' : 'none';
         // 垂直スクロールバーの更新
         const scrollbarHeight = this.verticalScrollbar.offsetHeight;
-        const contentHeight = maxScrollY + this.canvas.height;
-        const thumbHeight = Math.max(20, (this.canvas.height / contentHeight) * scrollbarHeight);
+        const canvasDisplayHeight = parseFloat(this.canvas.style.height) || this.canvas.height;
+        const contentHeight = maxScrollY + canvasDisplayHeight;
+        const thumbHeight = Math.max(20, (canvasDisplayHeight / contentHeight) * scrollbarHeight);
         const thumbTop = maxScrollY > 0 ? (stats.scrollY / maxScrollY) * (scrollbarHeight - thumbHeight) : 0;
         this.verticalThumb.style.height = `${thumbHeight}px`;
         this.verticalThumb.style.top = `${thumbTop}px`;
@@ -1406,8 +1411,17 @@ export class WasabiTable {
                 totalWidth += config.default_col_width;
             }
         }
-        const visibleWidth = this.canvas.width - (config.row_header_width || 50);
-        return Math.max(0, totalWidth - visibleWidth + 50);
+        // 論理ピクセルサイズを使用（CSSサイズ）
+        const canvasDisplayWidth = parseFloat(this.canvas.style.width) || this.canvas.width;
+        const visibleWidth = canvasDisplayWidth - (config.row_header_width || 50);
+        const maxScroll = Math.max(0, totalWidth - visibleWidth + 50);
+        console.log('🔧 [DEBUG] calculateMaxScrollX:', {
+            totalWidth,
+            canvasDisplayWidth,
+            visibleWidth,
+            maxScroll
+        });
+        return maxScroll;
     }
     /**
      * 最大垂直スクロール値を計算
@@ -1418,9 +1432,18 @@ export class WasabiTable {
         const config = this.getConfig();
         const totalHeight = config.row_count * config.default_row_height;
         const scrollbarHeight = 17; // スクロールバーの高さ
-        const visibleHeight = this.canvas.height - (config.header_height || 30) - scrollbarHeight;
+        // 論理ピクセルサイズを使用（CSSサイズ）
+        const canvasDisplayHeight = parseFloat(this.canvas.style.height) || this.canvas.height;
+        const visibleHeight = canvasDisplayHeight - (config.header_height || 30) - scrollbarHeight;
         const margin = 10; // 余白
-        return Math.max(0, totalHeight - visibleHeight + margin);
+        const maxScroll = Math.max(0, totalHeight - visibleHeight + margin);
+        console.log('🔧 [DEBUG] calculateMaxScrollY:', {
+            totalHeight,
+            canvasDisplayHeight,
+            visibleHeight,
+            maxScroll
+        });
+        return maxScroll;
     }
     /**
      * 範囲選択を開始
