@@ -272,8 +272,14 @@ export declare class NinjaTable {
      *
      * @param row - 行インデックス
      * @param col - 列インデックス
+     * @param autoScroll - 自動スクロールを有効にするかどうか（デフォルト: true）
      */
-    selectCell(row: number, col: number): void;
+    selectCell(row: number, col: number, autoScroll?: boolean): void;
+    /**
+     * 選択されたセルが画面に表示されるように自動スクロール
+     * Excelのような動作を実現
+     */
+    scrollToSelectedCell(): void;
     /**
      * 現在選択されているセルの位置を取得
      *

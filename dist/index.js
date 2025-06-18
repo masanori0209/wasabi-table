@@ -187,10 +187,11 @@ export class NinjaTable {
      *
      * @param row - 行インデックス
      * @param col - 列インデックス
+     * @param autoScroll - 自動スクロールを有効にするかどうか（デフォルト: true）
      */
-    selectCell(row, col) {
+    selectCell(row, col, autoScroll = true) {
         this.ensureInitialized();
-        console.log('🎯 [DEBUG] selectCell called with row:', row, 'col:', col);
+        console.log('🎯 [DEBUG] selectCell called with row:', row, 'col:', col, 'autoScroll:', autoScroll);
         // 直接行・列番号でセルを選択する方法を使用
         // 座標計算に依存せず、Rust側のselect_cell_by_positionメソッドを使用
         const result = this.wasmTable.select_cell_by_position(row, col);
@@ -198,6 +199,109 @@ export class NinjaTable {
         // 結果を検証
         const selectedAfter = this.getSelectedCell();
         console.log('🎯 [DEBUG] Selected cell after operation:', selectedAfter);
+        // 自動スクロールが有効な場合、選択されたセルが見えるようにスクロール
+        if (autoScroll && selectedAfter) {
+            this.scrollToSelectedCell();
+        }
+    }
+    /**
+     * 選択されたセルが画面に表示されるように自動スクロール
+     * Excelのような動作を実現
+     */
+    scrollToSelectedCell() {
+        this.ensureInitialized();
+        const selectedCell = this.getSelectedCell();
+        if (!selectedCell) {
+            console.log('🎯 [DEBUG] No selected cell to scroll to');
+            return;
+        }
+        console.log('🎯 [DEBUG] scrollToSelectedCell called for cell:', selectedCell);
+        // セルの画面位置を取得
+        const cellPosition = this.getCellScreenPosition(selectedCell.row, selectedCell.col);
+        console.log('🎯 [DEBUG] Current cell screen position:', cellPosition);
+        // 現在のスクロール位置を取得
+        const stats = this.getStats();
+        const currentScrollX = stats.scrollX;
+        const currentScrollY = stats.scrollY;
+        console.log('🎯 [DEBUG] Current scroll position:', { scrollX: currentScrollX, scrollY: currentScrollY });
+        // 表示領域の計算
+        const headerHeight = this.config.header_height;
+        const rowHeaderWidth = this.config.row_header_width;
+        const scrollbarWidth = 17; // スクロールバーの幅
+        const viewportWidth = this.canvas.width - rowHeaderWidth - scrollbarWidth;
+        const viewportHeight = this.canvas.height - headerHeight - scrollbarWidth;
+        console.log('🎯 [DEBUG] Viewport dimensions:', {
+            viewportWidth,
+            viewportHeight,
+            headerHeight,
+            rowHeaderWidth
+        });
+        // セルの絶対位置を計算（スクロールを考慮しない位置）
+        const absoluteCellX = cellPosition.x + currentScrollX;
+        const absoluteCellY = cellPosition.y + currentScrollY;
+        console.log('🎯 [DEBUG] Absolute cell position:', {
+            absoluteCellX,
+            absoluteCellY,
+            cellWidth: cellPosition.width,
+            cellHeight: cellPosition.height
+        });
+        // 必要なスクロール量を計算
+        let newScrollX = currentScrollX;
+        let newScrollY = currentScrollY;
+        // 水平スクロールの調整
+        const cellLeft = absoluteCellX - rowHeaderWidth;
+        const cellRight = cellLeft + cellPosition.width;
+        const viewportLeft = currentScrollX;
+        const viewportRight = currentScrollX + viewportWidth;
+        if (cellLeft < viewportLeft) {
+            // セルが左側に隠れている場合
+            newScrollX = cellLeft;
+            console.log('🎯 [DEBUG] Cell is hidden on the left, scrolling to:', newScrollX);
+        }
+        else if (cellRight > viewportRight) {
+            // セルが右側に隠れている場合
+            newScrollX = cellRight - viewportWidth;
+            console.log('🎯 [DEBUG] Cell is hidden on the right, scrolling to:', newScrollX);
+        }
+        // 垂直スクロールの調整
+        const cellTop = absoluteCellY - headerHeight;
+        const cellBottom = cellTop + cellPosition.height;
+        const viewportTop = currentScrollY;
+        const viewportBottom = currentScrollY + viewportHeight;
+        if (cellTop < viewportTop) {
+            // セルが上側に隠れている場合
+            newScrollY = cellTop;
+            console.log('🎯 [DEBUG] Cell is hidden on the top, scrolling to:', newScrollY);
+        }
+        else if (cellBottom > viewportBottom) {
+            // セルが下側に隠れている場合
+            newScrollY = cellBottom - viewportHeight;
+            console.log('🎯 [DEBUG] Cell is hidden on the bottom, scrolling to:', newScrollY);
+        }
+        // スクロール範囲の制限
+        const maxScrollX = this.calculateMaxScrollX();
+        const maxScrollY = this.calculateMaxScrollY();
+        newScrollX = Math.max(0, Math.min(newScrollX, maxScrollX));
+        newScrollY = Math.max(0, Math.min(newScrollY, maxScrollY));
+        console.log('🎯 [DEBUG] Final scroll position (after bounds check):', {
+            newScrollX,
+            newScrollY,
+            maxScrollX,
+            maxScrollY
+        });
+        // スクロールが必要な場合のみ実行
+        if (Math.abs(newScrollX - currentScrollX) > 0.1 || Math.abs(newScrollY - currentScrollY) > 0.1) {
+            console.log('🎯 [DEBUG] Scrolling from', { currentScrollX, currentScrollY }, 'to', { newScrollX, newScrollY });
+            // スクロール実行
+            const deltaX = newScrollX - currentScrollX;
+            const deltaY = newScrollY - currentScrollY;
+            this.wasmTable.scroll(deltaX, deltaY);
+            this.updateScrollbars();
+            console.log('🎯 [DEBUG] Auto-scroll completed');
+        }
+        else {
+            console.log('🎯 [DEBUG] Cell is already visible, no scroll needed');
+        }
     }
     /**
      * 現在選択されているセルの位置を取得
@@ -1545,7 +1649,7 @@ export class NinjaTable {
         console.log('🔀 [DEBUG] Current selected cell for range:', selectedCell);
         if (!selectedCell) {
             console.log('❌ [DEBUG] No selected cell for range selection, starting from (0,0)');
-            this.selectCell(0, 0);
+            this.selectCell(0, 0, true);
             this.startRangeSelection(0, 0);
             return;
         }
@@ -1576,6 +1680,10 @@ export class NinjaTable {
         console.log('🔀 [DEBUG] Range selection extending from', selectedCell, 'to', { row: newRow, col: newCol });
         // 範囲選択を更新（終端位置を移動）
         this.updateRangeSelection(newRow, newCol);
+        // 新しい終端セルが見えるように自動スクロール
+        // まず現在のselected_cellを更新してからスクロール
+        this.wasmTable.select_cell_by_position(newRow, newCol);
+        this.scrollToSelectedCell();
         this.render();
         // 更新後の選択情報を確認
         const updatedSelection = this.getSelectionInfo();
@@ -1634,7 +1742,7 @@ export class NinjaTable {
         if (!selectedCell) {
             console.log('❌ [DEBUG] No selected cell found, defaulting to (0,0)');
             // 選択セルがない場合は(0,0)を選択してから移動
-            this.selectCell(0, 0);
+            this.selectCell(0, 0, true);
             this.render();
             return;
         }
@@ -1658,8 +1766,8 @@ export class NinjaTable {
         // デバッグ: セル移動前後の座標を詳しく記録
         const beforePosition = this.getCellScreenPosition(selectedCell.row, selectedCell.col);
         console.log('🎯 [DEBUG] Before move - cell screen position:', beforePosition);
-        // 新しいセルを選択
-        this.selectCell(newRow, newCol);
+        // 新しいセルを選択（自動スクロール有効）
+        this.selectCell(newRow, newCol, true);
         // デバッグ: 移動後の座標を記録
         const afterPosition = this.getCellScreenPosition(newRow, newCol);
         console.log('🎯 [DEBUG] After move - cell screen position:', afterPosition);
@@ -1699,8 +1807,8 @@ export class NinjaTable {
                 break;
         }
         console.log('🚀 [DEBUG] Ctrl+Arrow moving from', selectedCell, 'to', { row: newRow, col: newCol });
-        // 新しいセルを選択
-        this.selectCell(newRow, newCol);
+        // 新しいセルを選択（自動スクロール有効）
+        this.selectCell(newRow, newCol, true);
         this.render();
         console.log('🚀 [DEBUG] Ctrl+Arrow navigation completed');
     }
