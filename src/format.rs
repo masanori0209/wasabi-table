@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 use crate::types::{CellData, CellFormat, Condition};
-use crate::error::NinjaTableError;
+use crate::error::WasabiTableError;
 use crate::ninja_try;
 use crate::render::Renderable;
 use std::collections::HashMap;
@@ -11,7 +11,7 @@ pub trait Formattable {
     fn clear_format(&mut self, row: usize, col: usize) -> Result<(), JsValue>;
 }
 
-impl Formattable for crate::table::NinjaTable {
+impl Formattable for crate::table::WasabiTable {
     fn apply_format(&mut self, row: usize, col: usize, format: CellFormat) -> Result<(), JsValue> {
         let key = format!("format:{}:{}", row, col);
         self.conditional_formats.insert(key, format);

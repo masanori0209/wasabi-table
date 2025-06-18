@@ -1,190 +1,180 @@
-# 🥷 NinjaTable Monorepo
+# Wasabi Table
 
-高性能なExcel風テーブルコンポーネントとイベントリスナーのモノレポです。
+高速で軽量なExcel風テーブルコンポーネント。Rust + WebAssemblyで構築され、Canvas APIを使用してレンダリングします。
 
-## 📦 パッケージ
+## 📁 プロジェクト構成
 
-このモノレポには以下のパッケージが含まれています：
+### [`wasabi-table`](./packages/core) - コアライブラリ
+- Rust + WebAssemblyで実装された高性能テーブルエンジン
+- Canvas APIベースのレンダリング
+- 大量データの効率的な処理
 
-### [`ninja-table`](./packages/core) - コアライブラリ
-- Rust + WebAssemblyで構築された高性能テーブルコンポーネント
-- Canvas ベースのレンダリング
-- 大量データの高速処理
+### [`wasabi-table-listeners`](./packages/listeners) - イベントリスナー
+- TypeScriptで実装されたイベント処理システム
+- キーボード・マウス操作のハンドリング
+- Excel風のユーザーインターフェース
 
-### [`ninja-table-listeners`](./packages/listeners) - イベントリスナー
-- フォーミュラバー機能
-- リアルタイム検証
-- IME（日本語入力）対応
-- キーボードショートカット
+## ✨ 主な機能
+
+### 🚀 高性能レンダリング
+- **Canvas API**: DOMを使わない軽量レンダリング
+- **WebAssembly**: Rustで実装された高速計算エンジン
+- **仮想化**: 大量データでもスムーズなスクロール
+
+### 📊 Excel風インターフェース
+- **セル選択**: 単一セル・範囲選択
+- **キーボードナビゲーション**: 矢印キー・Tab・Enter
+- **編集機能**: インライン編集・コピー&ペースト
+- **リサイズ**: 列幅・行高の調整
+
+### 🔧 開発者フレンドリー
+- **TypeScript**: 型安全なAPI
+- **モジュラー設計**: 必要な機能のみ使用可能
+- **カスタマイズ**: テーマ・スタイルの変更
 
 ## 🚀 クイックスタート
 
 ### インストール
 
 ```bash
-# モノレポ全体の依存関係をインストール
-npm run install:all
-
-# または個別にインストール
-npm install
-npm install -w packages/core
-npm install -w packages/listeners
+npm install wasabi-table
 ```
 
-### ビルド
-
-```bash
-# 全パッケージをビルド
-npm run build
-
-# 個別にビルド
-npm run build:core
-npm run build:listeners
-```
-
-### 開発
-
-```bash
-# 全パッケージを開発モードで起動
-npm run dev
-
-# 個別に開発モード
-npm run dev:core
-npm run dev:listeners
-```
-
-## 📖 使用方法
-
-### 基本的な使用例
+### 基本的な使用方法
 
 ```typescript
-import { NinjaTable } from 'ninja-table';
-import { createNinjaTableListeners } from 'ninja-table-listeners';
+import { WasabiTable } from 'wasabi-table';
+import { createWasabiTableListeners } from 'wasabi-table-listeners';
 
-// テーブルを作成
 const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
-const table = await NinjaTable.create(canvas, {
-  row_count: 50,
-  col_count: 10
-});
+const table = await WasabiTable.create(canvas);
 
-// リスナーを追加
-const listeners = createNinjaTableListeners(table, {
-  cellReferenceSelector: '#cellReference',
-  formulaInputSelector: '#formulaInput'
-});
+// データを設定
+table.setCellValue(0, 0, 'Hello');
+table.setCellValue(0, 1, 'World');
+
+// レンダリング
+table.render();
 ```
 
-### HTML構造
+### Canvas リサイズ機能
 
-```html
-<div class="formula-bar">
-  <div id="cellReference">A1</div>
-  <input type="text" id="formulaInput" placeholder="セルの内容を入力...">
-</div>
-<canvas id="myCanvas" width="1200" height="500"></canvas>
-```
-
-### Canvasリサイズ機能
-
-NinjaTableは動的なCanvasリサイズに対応しています：
+WasabiTableは、Canvasのサイズが変更されたときに自動的にテーブルのレイアウトを調整する機能を提供します。
 
 ```typescript
 // 手動でCanvasサイズを更新
 table.updateCanvasSize(800, 600);
 
 // 親要素のサイズに合わせて自動調整
-table.updateCanvasSize();
+table.updateCanvasSize(); // 引数なしで親要素サイズに合わせる
 
-// リサイズイベントハンドラー
-table.handleCanvasResize();
-
-// ウィンドウリサイズ時の自動対応
-window.addEventListener('resize', () => {
-  table.handleCanvasResize();
-});
+// 自動リサイズ監視を有効にする（推奨）
+// create時に自動的に有効になりますが、手動で設定することも可能
+table.setupResizeObserver();
 ```
 
-**主な機能:**
-- 🔄 自動的なセル描画の更新
-- 📏 スクロールバーの自動調整
-- 🎯 レスポンシブ対応
-- ⚡ ResizeObserverによる効率的な監視
+#### 主な機能：
+- **自動セル描画更新**: リサイズ時にセルが正しく再描画される
+- **スクロールバー自動調整**: 新しいサイズに合わせてスクロールバーが調整される
+- **レスポンシブ対応**: ウィンドウリサイズやコンテナサイズ変更に対応
+- **ResizeObserver監視**: 効率的なサイズ変更検出
 
-## 🛠️ 開発
+## 📚 ドキュメント
 
-### 利用可能なスクリプト
+### API リファレンス
+- [Core API](./docs/api-core.md)
+- [Listeners API](./docs/api-listeners.md)
+- [Configuration](./docs/configuration.md)
+
+### ガイド
+- [Getting Started](./docs/getting-started.md)
+- [Customization](./docs/customization.md)
+- [Performance Tips](./docs/performance.md)
+
+## 🏗️ 開発
+
+### 前提条件
+- Node.js 18+
+- Rust 1.70+
+- wasm-pack
+
+### セットアップ
 
 ```bash
+# リポジトリをクローン
+git clone https://github.com/yourusername/wasabi-table.git
+cd wasabi-table
+
+# 依存関係をインストール
+npm install
+
 # ビルド
-npm run build              # 全パッケージ
-npm run build:core         # コアのみ
-npm run build:listeners    # リスナーのみ
+npm run build
 
-# 開発
-npm run dev                # 全パッケージ（ウォッチモード）
-npm run dev:core           # コアのみ
-npm run dev:listeners      # リスナーのみ
-
-# テスト
-npm run test               # 全パッケージ
-
-# リント
-npm run lint               # 全パッケージ
-
-# クリーンアップ
-npm run clean              # 全パッケージ
-
-# サーバー起動
-npm run serve              # Python HTTP サーバー
-npm run serve:node         # Node.js HTTP サーバー
+# 開発サーバーを起動
+npm run serve
 ```
 
-### モノレポ構造
+### プロジェクト構造
 
 ```
-ninja-table/
-├── packages/
-│   ├── core/                    # ninja-table コアパッケージ
-│   │   ├── src/                 # Rust ソースコード
-│   │   ├── src-ts/              # TypeScript ソースコード
-│   │   ├── pkg/                 # WebAssembly 出力
-│   │   ├── dist/                # TypeScript ビルド出力
-│   │   ├── Cargo.toml           # Rust 設定
-│   │   ├── package.json         # npm パッケージ設定
-│   │   └── README.md            # コア固有のドキュメント
-│   └── listeners/               # ninja-table-listeners パッケージ
-│       ├── src/                 # TypeScript ソースコード
-│       ├── dist/                # ビルド出力
-│       ├── package.json         # npm パッケージ設定
-│       └── README.md            # リスナー固有のドキュメント
-├── examples/                    # 使用例
-├── package.json                 # ワークスペース設定
-└── README.md                    # このファイル
+wasabi-table/
+├── src/                       # Rustソースコード
+│   ├── core/                    # wasabi-table コアパッケージ
+│   │   ├── table.rs           # メインテーブル実装
+│   │   ├── render.rs          # レンダリングエンジン
+│   │   ├── events.rs          # イベント処理
+│   │   └── types.rs           # 型定義
+│   └── wasm/                  # WebAssembly バインディング
+├── src-ts/                    # TypeScriptソースコード
+│   ├── index.ts              # メインエントリーポイント
+│   ├── listeners/               # wasabi-table-listeners パッケージ
+│   │   ├── keyboard.ts        # キーボードイベント
+│   │   ├── mouse.ts           # マウスイベント
+│   │   └── index.ts           # リスナーエントリーポイント
+│   └── utils/                 # ユーティリティ
+├── examples/                  # 使用例
+├── docs/                      # ドキュメント
+└── pkg/                       # ビルド出力
 ```
 
-## 🔧 技術スタック
+### ビルドコマンド
 
-- **Rust**: 高性能なコア処理
-- **WebAssembly**: ブラウザでのRust実行
-- **TypeScript**: 型安全なJavaScript
-- **Canvas API**: 高速レンダリング
-- **npm Workspaces**: モノレポ管理
+```bash
+# 完全ビルド
+npm run build
 
-## 📄 ライセンス
+# Rustのみビルド
+npm run build:rust
 
-MIT
+# TypeScriptのみビルド
+npm run build:ts
 
-## 🤝 貢献
+# 開発モード（ウォッチ）
+npm run dev
+```
 
-プルリクエストやイシューの報告を歓迎します！
+## 🤝 コントリビューション
+
+コントリビューションを歓迎します！
 
 1. このリポジトリをフォーク
-2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
+2. 機能ブランチを作成 (`git checkout -b feature/amazing-feature`)
 3. 変更をコミット (`git commit -m 'Add amazing feature'`)
 4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
 5. プルリクエストを作成
 
-## 📞 サポート
+## 📄 ライセンス
 
-問題が発生した場合は、[GitHub Issues](https://github.com/yourusername/ninja-table/issues) でお知らせください。
+このプロジェクトはMITライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルをご覧ください。
+
+## 🐛 バグ報告・機能要望
+
+問題が発生した場合は、[GitHub Issues](https://github.com/yourusername/wasabi-table/issues) でお知らせください。
+
+## 📊 パフォーマンス
+
+- **大量データ**: 100万セルでもスムーズ
+- **メモリ効率**: 仮想化による低メモリ使用量
+- **レンダリング**: 60fps でのスムーズスクロール
+- **起動時間**: 軽量なWebAssemblyモジュール

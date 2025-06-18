@@ -50,7 +50,7 @@ export function createUIElements(config: {
 /**
  * CSV出力ユーティリティ
  */
-export function exportTableToCSV(table: INinjaTable, filename: string = 'ninja-table-export.csv'): void {
+export function exportTableToCSV(table: INinjaTable, filename: string = 'wasabi-table-export.csv'): void {
   const config = table.getConfig();
   const rows: string[] = [];
   

@@ -9,7 +9,7 @@ pub trait Editable {
     fn handle_keydown(&mut self, event: KeyboardEvent) -> Result<(), JsValue>;
 }
 
-impl Editable for crate::table::NinjaTable {
+impl Editable for crate::table::WasabiTable {
     fn start_editing(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
         // 既に編集中の場合は終了
         if self.editing_cell.is_some() {
@@ -86,7 +86,7 @@ impl Editable for crate::table::NinjaTable {
     }
 }
 
-impl crate::table::NinjaTable {
+impl crate::table::WasabiTable {
     pub fn create_editing_input(&self, row: usize, col: usize) -> Result<HtmlInputElement, JsValue> {
         let document = web_sys::window()
             .unwrap()
@@ -97,7 +97,8 @@ impl crate::table::NinjaTable {
         let input: HtmlInputElement = input.dyn_into()?;
         
         // スタイルを設定
-        let style = input.style();
+        let html_element: web_sys::HtmlElement = input.clone().dyn_into()?;
+        let style = html_element.style();
         style.set_property("position", "fixed")?;
         style.set_property("z-index", "1000")?;
         style.set_property("border", "2px solid #007bff")?;

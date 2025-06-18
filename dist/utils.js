@@ -34,7 +34,7 @@ export function createUIElements(config) {
 /**
  * CSV出力ユーティリティ
  */
-export function exportTableToCSV(table, filename = 'ninja-table-export.csv') {
+export function exportTableToCSV(table, filename = 'wasabi-table-export.csv') {
     const config = table.getConfig();
     const rows = [];
     for (let row = 0; row < config.row_count; row++) {

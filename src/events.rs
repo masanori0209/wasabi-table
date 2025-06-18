@@ -9,7 +9,7 @@ pub trait EventHandler {
     fn handle_keydown(&mut self, event: KeyboardEvent) -> Result<(), JsValue>;
 }
 
-impl EventHandler for crate::table::NinjaTable {
+impl EventHandler for crate::table::WasabiTable {
     fn handle_click(&mut self, event: MouseEvent) -> Result<(), JsValue> {
         let rect = self.canvas.get_bounding_client_rect();
         let x = event.client_x() as f64 - rect.left();

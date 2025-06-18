@@ -11,11 +11,12 @@ pub mod edit;
 pub mod merge;
 pub mod format;
 pub mod validation;
+pub mod tests;
 
-pub use table::NinjaTable;
+pub use table::WasabiTable;
 pub use types::{CellData, TableConfig, CellFormat, Condition};
 pub use format::Formattable;
-pub use error::NinjaTableError;
+pub use error::WasabiTableError;
 
 #[wasm_bindgen]
 extern "C" {

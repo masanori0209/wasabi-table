@@ -1,9 +1,9 @@
-# NinjaTable 使用例（統合版）
+# WasabiTable 使用例（統合版）
 
 ## インストール
 
 ```bash
-npm install ninja-table
+npm install wasabi-table
 ```
 
 ## JavaScript での使用例
@@ -11,14 +11,14 @@ npm install ninja-table
 ### 統合された初期化（推奨）
 
 ```javascript
-import { createNinjaTableWithListeners } from 'ninja-table';
+import { createWasabiTableWithListeners } from 'wasabi-table';
 
 // 基本的な使用方法（統合版）
 async function initTable() {
   const canvas = document.getElementById('myCanvas');
   
   // テーブルとリスナーを同時に作成
-  const { table, listeners } = await createNinjaTableWithListeners(
+  const { table, listeners } = await createWasabiTableWithListeners(
     canvas,
     {
       row_count: 50,

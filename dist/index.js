@@ -1,4 +1,4 @@
-import init, { NinjaTable as WasmNinjaTable } from '../pkg/ninja_table.js';
+import init, { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
 /**
  * デフォルトのテーブル設定
  */
@@ -43,26 +43,26 @@ export var FieldType;
 export { NinjaTableListeners } from './listeners.js';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut } from './utils.js';
 /**
- * NinjaTableとリスナーを簡単に初期化する関数
+ * WasabiTableとリスナーを簡単に初期化する関数
  */
-export async function createNinjaTableWithListeners(canvas, config = {}, uiConfig, listenerOptions, callbacks) {
+export async function createWasabiTableWithListeners(canvas, config = {}, uiConfig, listenerOptions, callbacks) {
     // 遅延インポートで循環インポートを回避
     const { createUIElements } = await import('./utils.js');
     const { NinjaTableListeners } = await import('./listeners.js');
-    const table = await NinjaTable.create(canvas, config);
+    const table = await WasabiTable.create(canvas, config);
     const uiElements = createUIElements(uiConfig);
     const listeners = new NinjaTableListeners(table, uiElements, listenerOptions, callbacks);
     return { table, listeners };
 }
 /**
- * NinjaTable - 高性能なExcel風テーブルコンポーネント
+ * WasabiTable - 高性能なExcel風テーブルコンポーネント
  *
  * @example
  * ```typescript
- * import { NinjaTable } from 'ninja-table';
+ * import { WasabiTable } from 'wasabi-table';
  *
  * const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
- * const table = await NinjaTable.create(canvas, {
+ * const table = await WasabiTable.create(canvas, {
  *   row_count: 50,
  *   col_count: 10
  * });
@@ -74,7 +74,7 @@ export async function createNinjaTableWithListeners(canvas, config = {}, uiConfi
  * table.render();
  * ```
  */
-export class NinjaTable {
+export class WasabiTable {
     constructor(wasmTable, config, canvas) {
         this.eventHandlers = {};
         this.isInitialized = false;
@@ -114,8 +114,8 @@ export class NinjaTable {
         // WebAssemblyモジュールを初期化
         await init();
         const finalConfig = { ...DEFAULT_CONFIG, ...config };
-        const wasmTable = new WasmNinjaTable(canvas, JSON.stringify(finalConfig));
-        const table = new NinjaTable(wasmTable, finalConfig, canvas);
+        const wasmTable = new WasmWasabiTable(canvas, JSON.stringify(finalConfig));
+        const table = new WasabiTable(wasmTable, finalConfig, canvas);
         table.isInitialized = true;
         return table;
     }
@@ -638,7 +638,7 @@ export class NinjaTable {
      * @returns セル参照文字列
      */
     static getCellReference(row, col) {
-        return `${NinjaTable.getColumnName(col)}${row + 1}`;
+        return `${WasabiTable.getColumnName(col)}${row + 1}`;
     }
     setupEventHandlers() {
         let isDragging = false;

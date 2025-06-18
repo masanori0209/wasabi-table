@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 use crate::types::{CellData, TableConfig};
-use crate::error::NinjaTableError;
+use crate::error::WasabiTableError;
 use crate::ninja_try;
 use std::collections::HashMap;
 
@@ -12,14 +12,14 @@ pub trait Renderable {
     fn render_grid(&mut self) -> Result<(), JsValue>;
 }
 
-impl Renderable for crate::table::NinjaTable {
+impl Renderable for crate::table::WasabiTable {
     fn render(&mut self) -> Result<(), JsValue> {
         // 安全なコンテキスト検証
         web_sys::console::log_1(&"🎨 [DEBUG] Starting render process".into());
         
         // contextが有効かチェック
         if self.canvas.get_context("2d").is_err() {
-            return Err(NinjaTableError::CanvasError("Canvas context is invalid".into()).into());
+            return Err(WasabiTableError::CanvasError("Canvas context is invalid".into()).into());
         }
         
         // キャンバスをクリア

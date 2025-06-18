@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NinjaTable NPM Package Example</title>
+    <title>WasabiTable NPM Package Example</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="header">
-        <h1>🥷 NinjaTable</h1>
+        <h1>🌶️ WasabiTable</h1>
         <p>高性能なExcel風テーブルコンポーネント - NPMパッケージ使用例</p>
     </div>
 
@@ -17,14 +17,14 @@
         <div class="demo-section">
             <h2>📦 インストール</h2>
             <div class="installation">
-                npm install ninja-table
+                npm install wasabi-table
             </div>
             <p>TypeScript/JavaScript両方で利用可能な高性能テーブルライブラリです。リスナー機能も統合されています。</p>
         </div>
 
         <!-- ライブデモ -->
         <div class="demo-section">
-            <h2>📊 NinjaTable デモ</h2>
+            <h2>📊 WasabiTable デモ</h2>
             
             <!-- 数式バー -->
             <div class="formula-bar">
@@ -174,7 +174,7 @@
 
     <script src="./code-loader.js"></script>
     <script type="module">
-        import { NinjaTable } from '../../dist/index.js';
+        import { WasabiTable } from '../../dist/index.js';
 
         let table = null;
         let currentConfig = {
@@ -314,7 +314,7 @@
             if (table) {
                 const selectedCell = table.getSelectedCell();
                 if (selectedCell) {
-                    const cellRef = NinjaTable.getCellReference(selectedCell.row, selectedCell.col);
+                    const cellRef = WasabiTable.getCellReference(selectedCell.row, selectedCell.col);
                     cellReference.textContent = cellRef;
                     
                     const cellValue = table.getCellValue(selectedCell.row, selectedCell.col) || '';
@@ -404,7 +404,7 @@
                 // Canvasサイズを初期化
                 const initialSize = resizeCanvas();
 
-                table = await NinjaTable.create(canvas, currentConfig);
+                table = await WasabiTable.create(canvas, currentConfig);
                 
                 // 初期化後にサイズを確実に設定
                 if (initialSize) {
@@ -423,7 +423,7 @@
                 updateCellReference();
                 updateStats();
                 
-                console.log('✅ NinjaTable initialized successfully!');
+                console.log('✅ WasabiTable initialized successfully!');
             } catch (error) {
                 console.error('❌ Initialization error:', error);
                 statsElement.textContent = `初期化エラー: ${error.message}`;
@@ -623,7 +623,7 @@
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = 'ninja-table-export.csv';
+            link.download = 'wasabi-table-export.csv';
             link.click();
         };
 

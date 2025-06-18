@@ -1,5 +1,5 @@
 {
-  "name": "ninja-table",
+  "name": "wasabi-table",
   "version": "0.1.0",
   "description": "High-performance Excel-like table component built with Rust and WebAssembly",
   "type": "module",
@@ -16,8 +16,8 @@
     "build:ts": "tsc",
     "fix-imports": "node scripts/fix-imports.js",
     "dev": "tsc --watch",
-    "test": "jest",
-    "clean": "rm -rf dist pkg target",
+    "test": "wasm-pack test --headless --firefox",
+    "clean": "rm -rf dist pkg",
     "prepublishOnly": "npm run build",
     "serve": "python3 -m http.server 8501",
     "serve:node": "npx http-server -p 8501 -c-1"
@@ -35,7 +35,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/ninja-table.git"
+    "url": "https://github.com/yourusername/wasabi-table.git"
   },
   "devDependencies": {
     "@types/jest": "^29.0.0",

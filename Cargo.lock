@@ -100,21 +100,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ninja-table"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "getrandom",
- "js-sys",
- "regex",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "wasm-bindgen-test",
- "web-sys",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -254,6 +239,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasabi-table"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "getrandom",
+ "js-sys",
+ "regex",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-test",
+ "web-sys",
+]
+
+[[package]]
 name = "wasi"
 version = "0.11.1+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -268,6 +268,8 @@ dependencies = [
  "cfg-if",
  "once_cell",
  "rustversion",
+ "serde",
+ "serde_json",
  "wasm-bindgen-macro",
 ]
 

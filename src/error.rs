@@ -1,8 +1,9 @@
 use wasm_bindgen::prelude::*;
 use std::fmt;
+use wasm_bindgen::JsValue;
 
 #[derive(Debug)]
-pub enum NinjaTableError {
+pub enum WasabiTableError {
     CanvasError(String),
     RenderError(String),
     EventError(String),
@@ -10,20 +11,20 @@ pub enum NinjaTableError {
     ConfigError(String),
 }
 
-impl fmt::Display for NinjaTableError {
+impl fmt::Display for WasabiTableError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            NinjaTableError::CanvasError(msg) => write!(f, "Canvas error: {}", msg),
-            NinjaTableError::RenderError(msg) => write!(f, "Render error: {}", msg),
-            NinjaTableError::EventError(msg) => write!(f, "Event error: {}", msg),
-            NinjaTableError::DataError(msg) => write!(f, "Data error: {}", msg),
-            NinjaTableError::ConfigError(msg) => write!(f, "Config error: {}", msg),
+            WasabiTableError::CanvasError(msg) => write!(f, "Canvas error: {}", msg),
+            WasabiTableError::RenderError(msg) => write!(f, "Render error: {}", msg),
+            WasabiTableError::EventError(msg) => write!(f, "Event error: {}", msg),
+            WasabiTableError::DataError(msg) => write!(f, "Data error: {}", msg),
+            WasabiTableError::ConfigError(msg) => write!(f, "Config error: {}", msg),
         }
     }
 }
 
-impl From<NinjaTableError> for JsValue {
-    fn from(error: NinjaTableError) -> Self {
+impl From<WasabiTableError> for JsValue {
+    fn from(error: WasabiTableError) -> Self {
         JsValue::from_str(&error.to_string())
     }
 }

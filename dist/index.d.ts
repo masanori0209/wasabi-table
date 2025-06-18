@@ -171,16 +171,16 @@ export { NinjaTableListeners } from './listeners';
 export type { ListenerOptions, UIElements, EventCallbacks } from './listeners';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut } from './utils';
 /**
- * NinjaTableとリスナーを簡単に初期化する関数
+ * WasabiTableとリスナーを簡単に初期化する関数
  */
-export declare function createNinjaTableWithListeners(canvas: HTMLCanvasElement, config: Partial<TableConfig> | undefined, uiConfig: {
+export declare function createWasabiTableWithListeners(canvas: HTMLCanvasElement, config: Partial<TableConfig> | undefined, uiConfig: {
     cellReferenceSelector: string;
     formulaInputSelector: string;
     statsElementSelector?: string;
     validationErrorSelector?: string;
     validationSuccessSelector?: string;
 }, listenerOptions?: any, callbacks?: any): Promise<{
-    table: NinjaTable;
+    table: WasabiTable;
     listeners: any;
 }>;
 /**
@@ -195,14 +195,14 @@ export interface CellScreenPosition {
     centerY: number;
 }
 /**
- * NinjaTable - 高性能なExcel風テーブルコンポーネント
+ * WasabiTable - 高性能なExcel風テーブルコンポーネント
  *
  * @example
  * ```typescript
- * import { NinjaTable } from 'ninja-table';
+ * import { WasabiTable } from 'wasabi-table';
  *
  * const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
- * const table = await NinjaTable.create(canvas, {
+ * const table = await WasabiTable.create(canvas, {
  *   row_count: 50,
  *   col_count: 10
  * });
@@ -214,7 +214,7 @@ export interface CellScreenPosition {
  * table.render();
  * ```
  */
-export declare class NinjaTable {
+export declare class WasabiTable {
     private wasmTable;
     private config;
     private eventHandlers;
@@ -236,7 +236,7 @@ export declare class NinjaTable {
      * @param config - テーブル設定（オプション）
      * @returns NinjaTableインスタンス
      */
-    static create(canvas: HTMLCanvasElement, config?: Partial<TableConfig>): Promise<NinjaTable>;
+    static create(canvas: HTMLCanvasElement, config?: Partial<TableConfig>): Promise<WasabiTable>;
     /**
      * イベントハンドラーを設定
      */

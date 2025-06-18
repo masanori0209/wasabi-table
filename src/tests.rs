@@ -20,7 +20,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_cell_data() {
         let canvas = create_test_canvas();
-        let mut table = NinjaTable::new(canvas).unwrap();
+        let mut table = WasabiTable::new(canvas).unwrap();
 
         // セルデータの設定と取得
         table.set_cell_data(0, 0, "Test");
@@ -31,7 +31,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_scroll() {
         let canvas = create_test_canvas();
-        let mut table = NinjaTable::new(canvas).unwrap();
+        let mut table = WasabiTable::new(canvas).unwrap();
 
         // スクロール前の状態
         let initial_scroll = (table.scroll_x, table.scroll_y);
@@ -47,10 +47,10 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_config_update() {
         let canvas = create_test_canvas();
-        let mut table = NinjaTable::new(canvas).unwrap();
+        let mut table = WasabiTable::new(canvas).unwrap();
 
         // 設定の更新
-        let config_json = r#"{
+        let config_json = r##"{
             "row_count": 200,
             "col_count": 30,
             "default_row_height": 30.0,
@@ -64,7 +64,7 @@ mod tests {
             "selected_cell_color": "#0000ff",
             "font_size": 14.0,
             "font_family": "Arial"
-        }"#;
+        }"##;
 
         table.update_config(config_json).unwrap();
         assert_eq!(table.config.row_count, 200);

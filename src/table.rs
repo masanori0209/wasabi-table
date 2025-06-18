@@ -10,7 +10,7 @@ use crate::merge::MergedCell;
 
 // 高速テーブルレンダラー
 #[wasm_bindgen]
-pub struct NinjaTable {
+pub struct WasabiTable {
     #[wasm_bindgen(skip)]
     pub canvas: HtmlCanvasElement,
     #[wasm_bindgen(skip)]
@@ -58,9 +58,9 @@ pub struct NinjaTable {
 }
 
 #[wasm_bindgen]
-impl NinjaTable {
+impl WasabiTable {
     #[wasm_bindgen(constructor)]
-    pub fn new(canvas: HtmlCanvasElement, config_json: &str) -> Result<NinjaTable, JsValue> {
+    pub fn new(canvas: HtmlCanvasElement, config_json: &str) -> Result<WasabiTable, JsValue> {
         let config: TableConfig = serde_json::from_str(config_json)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse config: {}", e)))?;
 
@@ -88,7 +88,7 @@ impl NinjaTable {
             headers.push(format!("{}", (b'A' + (i % 26) as u8) as char));
         }
 
-        let mut table = NinjaTable {
+        let mut table = WasabiTable {
             canvas: canvas.clone(),
             ctx,
             config,
@@ -1372,7 +1372,8 @@ impl NinjaTable {
         input.set_value(initial_value);
         
         // スタイルを設定
-        let style = input.style();
+        let html_element: web_sys::HtmlElement = input.clone().dyn_into()?;
+        let style = html_element.style();
         style.set_property("position", "fixed")?;
         style.set_property("z-index", "1000")?;
         style.set_property("border", "2px solid #007bff")?;

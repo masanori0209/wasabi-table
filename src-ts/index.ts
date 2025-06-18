@@ -1,4 +1,4 @@
-import init, { NinjaTable as WasmNinjaTable } from '../pkg/ninja_table.js';
+import init, { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
 
 /**
  * テーブル設定のインターface
@@ -211,9 +211,9 @@ export {
 } from './utils';
 
 /**
- * NinjaTableとリスナーを簡単に初期化する関数
+ * WasabiTableとリスナーを簡単に初期化する関数
  */
-export async function createNinjaTableWithListeners(
+export async function createWasabiTableWithListeners(
   canvas: HTMLCanvasElement,
   config: Partial<TableConfig> = {},
   uiConfig: {
@@ -225,12 +225,12 @@ export async function createNinjaTableWithListeners(
   },
   listenerOptions?: any,
   callbacks?: any
-): Promise<{ table: NinjaTable; listeners: any }> {
+): Promise<{ table: WasabiTable; listeners: any }> {
   // 遅延インポートで循環インポートを回避
   const { createUIElements } = await import('./utils');
   const { NinjaTableListeners } = await import('./listeners');
   
-  const table = await NinjaTable.create(canvas, config);
+  const table = await WasabiTable.create(canvas, config);
   const uiElements = createUIElements(uiConfig);
   const listeners = new NinjaTableListeners(table, uiElements, listenerOptions, callbacks);
   return { table, listeners };
@@ -249,7 +249,7 @@ export interface CellScreenPosition {
 }
 
 // WasmNinjaTableの型を拡張
-interface ExtendedWasmNinjaTable extends WasmNinjaTable {
+interface ExtendedWasmWasabiTable extends WasmWasabiTable {
   set_cell_data(row: number, col: number, value: string): void;
   get_cell_data(row: number, col: number): string | undefined;
   get_selected_cell(): string | undefined;
@@ -277,14 +277,14 @@ interface ExtendedWasmNinjaTable extends WasmNinjaTable {
 }
 
 /**
- * NinjaTable - 高性能なExcel風テーブルコンポーネント
+ * WasabiTable - 高性能なExcel風テーブルコンポーネント
  * 
  * @example
  * ```typescript
- * import { NinjaTable } from 'ninja-table';
+ * import { WasabiTable } from 'wasabi-table';
  * 
  * const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
- * const table = await NinjaTable.create(canvas, {
+ * const table = await WasabiTable.create(canvas, {
  *   row_count: 50,
  *   col_count: 10
  * });
@@ -296,8 +296,8 @@ interface ExtendedWasmNinjaTable extends WasmNinjaTable {
  * table.render();
  * ```
  */
-export class NinjaTable {
-  private wasmTable: ExtendedWasmNinjaTable;
+export class WasabiTable {
+  private wasmTable: ExtendedWasmWasabiTable;
   private config: TableConfig;
   private eventHandlers: EventHandlers = {};
   private isInitialized = false;
@@ -316,7 +316,7 @@ export class NinjaTable {
   private resizeObserver: ResizeObserver | null = null;
 
   private constructor(
-    wasmTable: ExtendedWasmNinjaTable,
+    wasmTable: ExtendedWasmWasabiTable,
     config: TableConfig,
     canvas: HTMLCanvasElement
   ) {
@@ -349,14 +349,14 @@ export class NinjaTable {
   public static async create(
     canvas: HTMLCanvasElement,
     config: Partial<TableConfig> = {}
-  ): Promise<NinjaTable> {
+  ): Promise<WasabiTable> {
     // WebAssemblyモジュールを初期化
     await init();
 
     const finalConfig: TableConfig = { ...DEFAULT_CONFIG, ...config };
-    const wasmTable = new WasmNinjaTable(canvas, JSON.stringify(finalConfig)) as ExtendedWasmNinjaTable;
+    const wasmTable = new WasmWasabiTable(canvas, JSON.stringify(finalConfig)) as ExtendedWasmWasabiTable;
     
-    const table = new NinjaTable(wasmTable, finalConfig, canvas);
+    const table = new WasabiTable(wasmTable, finalConfig, canvas);
     table.isInitialized = true;
     
     return table;
@@ -941,7 +941,7 @@ export class NinjaTable {
    * @returns セル参照文字列
    */
   public static getCellReference(row: number, col: number): string {
-    return `${NinjaTable.getColumnName(col)}${row + 1}`;
+    return `${WasabiTable.getColumnName(col)}${row + 1}`;
   }
 
   private setupEventHandlers(): void {

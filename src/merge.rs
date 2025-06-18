@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 use crate::types::{CellData, TableConfig};
-use crate::error::NinjaTableError;
+use crate::error::WasabiTableError;
 use crate::ninja_try;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
@@ -21,7 +21,7 @@ pub trait Mergeable {
     fn is_merged_cell(&self, row: usize, col: usize) -> bool;
 }
 
-impl Mergeable for crate::table::NinjaTable {
+impl Mergeable for crate::table::WasabiTable {
     fn merge_cells(&mut self, start_row: usize, start_col: usize, end_row: usize, end_col: usize) -> Result<(), JsValue> {
         if start_row > end_row || start_col > end_col {
             return Err(JsValue::from_str("Invalid merge range"));
