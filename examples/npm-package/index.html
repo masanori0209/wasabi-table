@@ -88,10 +88,6 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="controls-section">
-                    <h3>⚙️ テーブル設定</h3>
-                </div>
             </div>
 
             <!-- 統計情報 -->
@@ -226,7 +222,6 @@
             validationError.textContent = error.message;
             validationError.style.display = 'block';
             validationSuccess.style.display = 'none';
-            
             // 3秒後に自動で非表示
             setTimeout(() => {
                 validationError.style.display = 'none';
@@ -237,7 +232,6 @@
         function showValidationSuccess() {
             validationSuccess.style.display = 'block';
             validationError.style.display = 'none';
-            
             // 2秒後に自動で非表示
             setTimeout(() => {
                 validationSuccess.style.display = 'none';
