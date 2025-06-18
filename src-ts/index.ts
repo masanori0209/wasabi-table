@@ -1681,18 +1681,37 @@ export class WasabiTable {
       }
     }
 
-    // Canvas要素のサイズを更新
+    // Canvas要素のサイズを更新（高解像度ディスプレイ対応）
     const oldWidth = this.canvas.width;
     const oldHeight = this.canvas.height;
     
-    this.canvas.width = actualWidth;
-    this.canvas.height = actualHeight;
+    // devicePixelRatioを取得（高解像度ディスプレイ対応）
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    console.log('🔧 [DEBUG] Device pixel ratio:', devicePixelRatio);
+    
+    // Canvas内部の解像度を物理ピクセルに合わせる
+    const canvasWidth = actualWidth * devicePixelRatio;
+    const canvasHeight = actualHeight * devicePixelRatio;
+    
+    this.canvas.width = canvasWidth;
+    this.canvas.height = canvasHeight;
+    
+    // CSS表示サイズは論理ピクセルで設定
     this.canvas.style.width = `${actualWidth}px`;
     this.canvas.style.height = `${actualHeight}px`;
     
+    // Canvas contextのスケールを調整
+    const ctx = this.canvas.getContext('2d');
+    if (ctx && devicePixelRatio !== 1) {
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+      console.log('🔧 [DEBUG] Canvas context scaled by:', devicePixelRatio);
+    }
+    
     console.log('🔧 [DEBUG] Canvas size updated:', { 
       oldSize: { width: oldWidth, height: oldHeight },
-      newSize: { width: actualWidth, height: actualHeight }
+      newSize: { width: canvasWidth, height: canvasHeight },
+      displaySize: { width: actualWidth, height: actualHeight },
+      devicePixelRatio
     });
 
     // スクロールコンテナのサイズも更新
@@ -1715,10 +1734,10 @@ export class WasabiTable {
       console.log('🔧 [DEBUG] Scroll container size updated:', { width: actualWidth, height: actualHeight });
     }
 
-        // Rust側のキャンバスサイズも更新（新しいメソッドを使用）
+        // Rust側のキャンバスサイズも更新（論理ピクセルで渡す）
     if (this.wasmTable) {
       try {
-        // 新しいupdate_canvas_sizeメソッドを使用
+        // Rust側には論理ピクセルサイズを渡す（描画座標系の一貫性を保つため）
         this.wasmTable.update_canvas_size(actualWidth, actualHeight);
         console.log('🔧 [DEBUG] WASM canvas size updated via update_canvas_size:', { width: actualWidth, height: actualHeight });
       } catch (error) {

@@ -369,15 +369,27 @@
             const containerWidth = container.clientWidth - 4; // ボーダー2px * 2
             const containerHeight = Math.min(600, Math.max(400, window.innerHeight * 0.5)); // 最小400px、最大600px、またはビューポートの50%
             
-            // Canvasのサイズを設定
-            canvas.width = containerWidth;
-            canvas.height = containerHeight;
+            // 高解像度ディスプレイ対応
+            const devicePixelRatio = window.devicePixelRatio || 1;
             
-            // CSSでの表示サイズも調整
+            // Canvasの内部解像度を物理ピクセルに合わせる
+            const canvasWidth = containerWidth * devicePixelRatio;
+            const canvasHeight = containerHeight * devicePixelRatio;
+            
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            
+            // CSSでの表示サイズは論理ピクセルで設定
             canvas.style.width = containerWidth + 'px';
             canvas.style.height = containerHeight + 'px';
             
-            console.log(`Canvas resized to: ${containerWidth}x${containerHeight}`);
+            // Canvas contextのスケールを調整
+            const ctx = canvas.getContext('2d');
+            if (ctx && devicePixelRatio !== 1) {
+                ctx.scale(devicePixelRatio, devicePixelRatio);
+            }
+            
+            console.log(`Canvas resized to: ${containerWidth}x${containerHeight} (display), ${canvasWidth}x${canvasHeight} (internal), DPR: ${devicePixelRatio}`);
             
             return { width: containerWidth, height: containerHeight };
         }
