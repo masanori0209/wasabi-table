@@ -1473,21 +1473,25 @@ impl NinjaTable {
     // 範囲選択開始
     #[wasm_bindgen]
     pub fn start_range_selection(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("🔀 [DEBUG] start_range_selection: ({},{})", row, col).into());
         self.is_selecting = true;
         self.selection_start = Some((row, col));
         self.selected_range = Some(crate::types::CellRange::new(row, col, row, col));
         // 範囲選択中もselected_cellを保持（現在のアクティブセル）
         self.selected_cell = Some((row, col));
+        web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection started: {:?}", self.selected_range).into());
         Ok(())
     }
 
     // 範囲選択更新
     #[wasm_bindgen]
     pub fn update_range_selection(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("🔀 [DEBUG] update_range_selection: ({},{})", row, col).into());
         if let Some((start_row, start_col)) = self.selection_start {
             self.selected_range = Some(crate::types::CellRange::new(start_row, start_col, row, col));
             // 現在のアクティブセル位置を更新
             self.selected_cell = Some((row, col));
+            web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection updated: {:?}", self.selected_range).into());
         }
         Ok(())
     }
@@ -1502,10 +1506,12 @@ impl NinjaTable {
     // 範囲選択をクリア
     #[wasm_bindgen]
     pub fn clear_selection(&mut self) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("🔀 [DEBUG] clear_selection called").into());
         self.selected_range = None;
         self.is_selecting = false;
         self.selection_start = None;
         // 単一セル選択は保持する（clear_selectionは範囲選択のみをクリア）
+        web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection cleared").into());
         Ok(())
     }
 
@@ -1514,7 +1520,15 @@ impl NinjaTable {
     pub fn copy_selection(&mut self) -> Result<String, JsValue> {
         let mut copied_data = Vec::new();
         
+        // デバッグ情報を出力
+        web_sys::console::log_1(&format!("📋 [DEBUG] copy_selection called").into());
+        web_sys::console::log_1(&format!("📋 [DEBUG] selected_range: {:?}", self.selected_range).into());
+        web_sys::console::log_1(&format!("📋 [DEBUG] selected_cell: {:?}", self.selected_cell).into());
+        
         if let Some(range) = self.selected_range {
+            web_sys::console::log_1(&format!("📋 [DEBUG] Copying range: ({},{}) to ({},{})", 
+                range.start_row, range.start_col, range.end_row, range.end_col).into());
+            
             for row in range.start_row..=range.end_row {
                 let mut row_data = Vec::new();
                 for col in range.start_col..=range.end_col {
@@ -1523,8 +1537,13 @@ impl NinjaTable {
                 }
                 copied_data.push(row_data);
             }
+            
+            web_sys::console::log_1(&format!("📋 [DEBUG] Copied {} rows with {} total cells", 
+                copied_data.len(), 
+                copied_data.iter().map(|row| row.len()).sum::<usize>()).into());
         } else if let Some((row, col)) = self.selected_cell {
             // 単一セルの場合
+            web_sys::console::log_1(&format!("📋 [DEBUG] Copying single cell: ({},{})", row, col).into());
             let value = self.get_cell_data(row, col).unwrap_or_default();
             copied_data.push(vec![value]);
         }
@@ -1536,7 +1555,9 @@ impl NinjaTable {
             .map(|row| row.join("\t"))
             .collect::<Vec<_>>()
             .join("\n");
-            
+        
+        web_sys::console::log_1(&format!("📋 [DEBUG] TSV result: '{}'", tsv).into());
+        
         Ok(tsv)
     }
 

@@ -527,6 +527,8 @@ export class NinjaTable {
     setupEventHandlers() {
         let isDragging = false;
         let dragStartCell = null;
+        let justFinishedDragging = false;
+        let hasActuallyDragged = false; // 実際にマウスが移動したかを追跡
         // グローバルハンドラー関数を設定
         window.handleTableClick = (x, y) => {
             this.wasmTable.handle_canvas_click(x, y);
@@ -547,7 +549,13 @@ export class NinjaTable {
         // 矢印キー以外のキーは直接handle_canvas_keydownを呼び出す
         // 基本的なマウスクリック
         this.canvas.addEventListener('click', (event) => {
-            var _a;
+            var _a, _b;
+            // 実際にドラッグした後のクリックイベントは無視
+            if (justFinishedDragging) {
+                console.log('🖱️ [DEBUG] Ignoring click event after actual drag');
+                justFinishedDragging = false;
+                return;
+            }
             const rect = this.canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
@@ -556,18 +564,24 @@ export class NinjaTable {
             this.canvas.focus();
             console.log('🖱️ [DEBUG] Focus set, activeElement:', (_a = document.activeElement) === null || _a === void 0 ? void 0 : _a.tagName);
             if (event.shiftKey) {
-                // Shift+クリックで範囲選択
+                // Shift+クリックで範囲選択（mousedownで既に処理済みの場合はスキップ）
                 const cellPos = this.wasmTable.pixel_to_cell(x, y);
                 if (cellPos) {
                     const [row, col] = cellPos.split(':').map(Number);
+                    // 現在選択されているセルがある場合は、そこから範囲選択を開始
+                    const currentSelection = this.getSelectedCell();
+                    if (currentSelection && !((_b = this.getSelectionInfo()) === null || _b === void 0 ? void 0 : _b.isRange)) {
+                        this.startRangeSelection(currentSelection.row, currentSelection.col);
+                    }
                     this.updateRangeSelection(row, col);
                     this.render();
                 }
             }
             else {
+                // 通常のクリックでは範囲選択をクリアしてから単一セル選択
+                this.clearSelection();
                 const result = this.wasmTable.select_cell(x, y);
                 if (result) {
-                    this.clearSelection(); // 通常のクリックでは範囲選択をクリア
                     this.triggerCellSelectEvent();
                 }
             }
@@ -585,6 +599,7 @@ export class NinjaTable {
         });
         // マウスドラッグによる範囲選択
         this.canvas.addEventListener('mousedown', (event) => {
+            var _a;
             const rect = this.canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
@@ -593,18 +608,25 @@ export class NinjaTable {
                 const [row, col] = cellPos.split(':').map(Number);
                 if (event.shiftKey) {
                     // Shift+ドラッグで範囲選択を拡張
+                    const currentSelection = this.getSelectedCell();
+                    if (currentSelection && !((_a = this.getSelectionInfo()) === null || _a === void 0 ? void 0 : _a.isRange)) {
+                        this.startRangeSelection(currentSelection.row, currentSelection.col);
+                    }
                     this.updateRangeSelection(row, col);
+                    hasActuallyDragged = true; // Shift+クリックは即座に範囲選択
                 }
                 else {
                     // 通常のドラッグで新しい範囲選択を開始
-                    this.startRangeSelection(row, col);
+                    // 単一セル選択はmousemoveが発生してから行う（純粋なクリックと区別するため）
                     dragStartCell = { row, col };
+                    hasActuallyDragged = false; // リセット
                 }
                 isDragging = true;
                 event.preventDefault();
             }
         });
         this.canvas.addEventListener('mousemove', (event) => {
+            var _a;
             if (isDragging) {
                 const rect = this.canvas.getBoundingClientRect();
                 const x = event.clientX - rect.left;
@@ -612,6 +634,12 @@ export class NinjaTable {
                 const cellPos = this.wasmTable.pixel_to_cell(x, y);
                 if (cellPos) {
                     const [row, col] = cellPos.split(':').map(Number);
+                    // 実際にマウスが移動したことをマーク
+                    hasActuallyDragged = true;
+                    // ドラッグが開始されたが、まだ範囲選択が始まっていない場合
+                    if (dragStartCell && !((_a = this.getSelectionInfo()) === null || _a === void 0 ? void 0 : _a.isRange)) {
+                        this.startRangeSelection(dragStartCell.row, dragStartCell.col);
+                    }
                     this.updateRangeSelection(row, col);
                     this.render();
                 }
@@ -619,17 +647,43 @@ export class NinjaTable {
         });
         this.canvas.addEventListener('mouseup', () => {
             if (isDragging) {
-                this.endRangeSelection();
+                // 実際にドラッグした場合のみ範囲選択を終了
+                if (hasActuallyDragged) {
+                    this.endRangeSelection();
+                    justFinishedDragging = true;
+                    // 少し遅延してフラグをリセット（クリックイベントが先に処理されるように）
+                    setTimeout(() => {
+                        justFinishedDragging = false;
+                    }, 10);
+                }
+                else {
+                    // 単純なクリックの場合は範囲選択をクリア
+                    this.clearSelection();
+                }
                 isDragging = false;
                 dragStartCell = null;
+                hasActuallyDragged = false;
             }
         });
         // マウスがキャンバスから離れた場合
         this.canvas.addEventListener('mouseleave', () => {
             if (isDragging) {
-                this.endRangeSelection();
+                // 実際にドラッグした場合のみ範囲選択を終了
+                if (hasActuallyDragged) {
+                    this.endRangeSelection();
+                    justFinishedDragging = true;
+                    // 少し遅延してフラグをリセット
+                    setTimeout(() => {
+                        justFinishedDragging = false;
+                    }, 10);
+                }
+                else {
+                    // 単純なクリックの場合は範囲選択をクリア
+                    this.clearSelection();
+                }
                 isDragging = false;
                 dragStartCell = null;
+                hasActuallyDragged = false;
             }
         });
         // 統一されたキーボードイベント処理
@@ -1178,8 +1232,13 @@ export class NinjaTable {
      */
     async handleCopy() {
         try {
+            // 選択状態をデバッグ
+            const selectionInfo = this.getSelectionInfo();
+            console.log('📋 [DEBUG] Selection info before copy:', selectionInfo);
             const copiedData = this.copySelection();
             console.log('📋 [DEBUG] Copied data:', copiedData);
+            console.log('📋 [DEBUG] Copied data length:', copiedData.length);
+            console.log('📋 [DEBUG] Copied data lines:', copiedData.split('\n').length);
             if (copiedData) {
                 // モダンブラウザのClipboard APIを使用
                 if (navigator.clipboard && navigator.clipboard.writeText) {
