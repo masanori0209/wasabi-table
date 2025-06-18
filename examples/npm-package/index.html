@@ -4,290 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NinjaTable NPM Package Example</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 2rem 0;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .demo-section {
-            background: white;
-            border-radius: 12px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-
-        .demo-section h2 {
-            color: #667eea;
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-        }
-
-        .formula-bar {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-            padding: 5px;
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-        }
-
-        .cell-reference {
-            font-weight: bold;
-            min-width: 60px;
-            padding: 8px 12px;
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            text-align: center;
-            font-family: 'Monaco', 'Menlo', monospace;
-        }
-
-        .formula-input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 14px;
-        }
-
-        .formula-input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .canvas-container {
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 1rem;
-            background: white;
-        }
-
-        #ninjaCanvas {
-            display: block;
-            cursor: crosshair;
-        }
-
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-
-        .control-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .control-group label {
-            font-weight: 600;
-            color: #495057;
-            font-size: 0.9rem;
-        }
-
-        .control-group input,
-        .control-group select {
-            padding: 8px 12px;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 14px;
-        }
-
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #5a6fd8;
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-        }
-
-        .btn-info {
-            background: #17a2b8;
-            color: white;
-        }
-
-        .btn-info:hover {
-            background: #138496;
-        }
-
-        .stats {
-            background: #f8f9fa;
-            padding: 1rem;
-            border-radius: 6px;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 12px;
-            color: #6c757d;
-            margin-top: 1rem;
-        }
-
-        .validation-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 10px;
-            border: 1px solid #f5c6cb;
-            border-radius: 4px;
-            margin: 10px 0;
-            display: none;
-        }
-
-        .validation-success {
-            background-color: #d4edda;
-            color: #155724;
-            padding: 10px;
-            border: 1px solid #c3e6cb;
-            border-radius: 4px;
-            margin: 10px 0;
-            display: none;
-        }
-
-        .code-section {
-            background: #2d3748;
-            color: #e2e8f0;
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-top: 2rem;
-            overflow-x: auto;
-        }
-
-        .code-section h3 {
-            color: #81e6d9;
-            margin-bottom: 1rem;
-        }
-
-        .code-section pre {
-            margin: 0;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            margin-top: 2rem;
-        }
-
-        .feature-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border-left: 4px solid #667eea;
-        }
-
-        .feature-card h3 {
-            color: #667eea;
-            margin-bottom: 0.5rem;
-        }
-
-        .installation {
-            background: #1a202c;
-            color: #e2e8f0;
-            padding: 1rem;
-            border-radius: 6px;
-            font-family: 'Monaco', 'Menlo', monospace;
-            margin: 1rem 0;
-        }
-
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid #e9ecef;
-            margin-bottom: 1rem;
-        }
-
-        .tab {
-            padding: 10px 20px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            color: #6c757d;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-        }
-
-        .tab.active {
-            color: #667eea;
-            border-bottom-color: #667eea;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="header">
@@ -318,37 +35,46 @@
             </div>
             
             <div class="table-container">
-                <canvas id="myCanvas" width="800" height="400"></canvas>
+                <canvas id="myCanvas"></canvas>
             </div>
 
             <!-- 操作パネル -->
             <div class="controls">
-                <div class="control-group">
-                    <label>行数</label>
-                    <input type="number" id="rowCount" value="50" min="10" max="1000">
+                <div class="controls-section">
+                    <h3>📊 テーブル設定</h3>
+                    <div class="control-row">
+                        <div class="control-group">
+                            <label>行数</label>
+                            <input type="number" id="rowCount" value="50" min="10" max="1000">
+                        </div>
+                        <div class="control-group">
+                            <label>列数</label>
+                            <input type="number" id="colCount" value="20" min="5" max="50">
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <div class="control-group">
+                            <label>列幅</label>
+                            <input type="number" id="colWidth" value="120" min="50" max="300">
+                        </div>
+                        <div class="control-group">
+                            <label>行高</label>
+                            <input type="number" id="rowHeight" value="28" min="20" max="60">
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="updateTableConfig()">設定更新</button>
+                    </div>
                 </div>
-                <div class="control-group">
-                    <label>列数</label>
-                    <input type="number" id="colCount" value="20" min="5" max="50">
+                
+                <div class="controls-section">
+                    <h3>🛠️ データ操作</h3>
+                    <div class="button-group">
+                        <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ</button>
+                        <button class="btn btn-secondary" onclick="clearTable()">クリア</button>
+                        <button class="btn btn-secondary" onclick="exportCSV()">CSV出力</button>
+                    </div>
                 </div>
-                <div class="control-group">
-                    <label>列幅</label>
-                    <input type="number" id="colWidth" value="120" min="50" max="300">
-                </div>
-                <div class="control-group">
-                    <label>行高</label>
-                    <input type="number" id="rowHeight" value="28" min="20" max="60">
-                </div>
-                <button class="btn btn-primary" onclick="updateTableConfig()">設定更新</button>
-                <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ</button>
-                <button class="btn btn-secondary" onclick="clearTable()">クリア</button>
-                <button class="btn btn-secondary" onclick="exportCSV()">CSV出力</button>
-                <button class="btn btn-info" onclick="testHorizontalScroll()">横スクロールテスト</button>
-                <button class="btn btn-info" onclick="testRangeSelection()">範囲選択テスト</button>
-                <button class="btn btn-info" onclick="testCopy()">コピーテスト</button>
-                <button class="btn btn-info" onclick="testPaste()">ペーストテスト</button>
-                <button class="btn btn-info" onclick="testSelectAll()">全選択テスト</button>
-
             </div>
 
             <!-- 統計情報 -->
@@ -632,6 +358,37 @@
             }
         }
 
+        // Canvasサイズを動的に調整
+        function resizeCanvas() {
+            const canvas = document.getElementById('myCanvas');
+            const container = document.querySelector('.table-container');
+            
+            if (!canvas || !container) return;
+            
+            // コンテナの幅を取得（パディングとボーダーを除く）
+            const containerWidth = container.clientWidth - 4; // ボーダー2px * 2
+            const containerHeight = Math.min(600, Math.max(400, window.innerHeight * 0.5)); // 最小400px、最大600px、またはビューポートの50%
+            
+            // Canvasのサイズを設定
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+            
+            // CSSでの表示サイズも調整
+            canvas.style.width = containerWidth + 'px';
+            canvas.style.height = containerHeight + 'px';
+            
+            console.log(`Canvas resized to: ${containerWidth}x${containerHeight}`);
+        }
+
+        // ウィンドウリサイズ時の処理
+        function handleResize() {
+            resizeCanvas();
+            if (table) {
+                table.render();
+                updateStats();
+            }
+        }
+
         // テーブル初期化
         async function initTable() {
             try {
@@ -639,6 +396,9 @@
                 if (!canvas) {
                     throw new Error('Canvas element not found');
                 }
+
+                // Canvasサイズを初期化
+                resizeCanvas();
 
                 table = await NinjaTable.create(canvas, currentConfig);
                 
@@ -857,90 +617,7 @@
             link.click();
         };
 
-        // 横スクロールテスト関数
-        window.testHorizontalScroll = () => {
-            if (!table) return;
-            
-            // 多くの列にデータを設定してスクロールテスト
-            for (let row = 0; row < 10; row++) {
-                for (let col = 0; col < 30; col++) {
-                    const cellValue = `R${row + 1}C${col + 1}`;
-                    table.setCellValue(row, col, cellValue);
-                }
-            }
-            
-            table.render();
-            updateStats();
-            
-            console.log('✅ 横スクロールテスト用データを設定しました');
-            console.log('🔄 マウスホイールで横スクロールをテストしてください');
-            console.log('📊 スクロールバーが表示されているか確認してください');
-        };
 
-        // 範囲選択テスト関数
-        window.testRangeSelection = () => {
-            if (!table) return;
-            
-            // 範囲選択をテスト（A1:C3）
-            table.startRangeSelection(0, 0);
-            table.updateRangeSelection(2, 2);
-            table.endRangeSelection();
-            table.render();
-            
-            const selectionInfo = table.getSelectionInfo();
-            console.log('✅ 範囲選択テスト完了:', selectionInfo);
-            console.log('📋 Ctrl+C でコピー、Ctrl+V でペーストができます');
-            console.log('🔄 Shift+クリック&ドラッグでも範囲選択できます');
-        };
-
-        // コピーテスト関数
-        window.testCopy = () => {
-            if (!table) return;
-            
-            try {
-                const copiedData = table.copySelection();
-                console.log('📋 コピーされたデータ:', copiedData);
-                
-                // クリップボードにもコピー
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(copiedData).then(() => {
-                        console.log('✅ クリップボードにコピーしました');
-                    });
-                }
-            } catch (error) {
-                console.error('❌ コピーに失敗しました:', error);
-            }
-        };
-
-        // ペーストテスト関数
-        window.testPaste = () => {
-            if (!table) return;
-            
-            // テストデータをペースト
-            const testData = "テスト1\tテスト2\tテスト3\nデータA\tデータB\tデータC";
-            
-            try {
-                table.pasteFromClipboard(testData);
-                table.render();
-                console.log('✅ ペーストテスト完了');
-            } catch (error) {
-                console.error('❌ ペーストに失敗しました:', error);
-            }
-        };
-
-        // 全選択テスト関数
-        window.testSelectAll = () => {
-            if (!table) return;
-            
-            const config = table.getConfig();
-            table.startRangeSelection(0, 0);
-            table.updateRangeSelection(config.row_count - 1, config.col_count - 1);
-            table.endRangeSelection();
-            table.render();
-            
-            console.log('✅ 全選択テスト完了');
-            console.log('📋 Ctrl+A でも全選択できます');
-        };
 
         window.showTab = (tabName) => {
             // タブの切り替え
@@ -961,6 +638,9 @@
             }
         }
 
+        // イベントリスナーの設定
+        window.addEventListener('resize', handleResize);
+        
         // ページロード時に実行
         document.addEventListener('DOMContentLoaded', () => {
             initCodeExamples();
