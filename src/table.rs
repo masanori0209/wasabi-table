@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use serde_json;
 use crate::types::*;
 use crate::validation::{Validator, ValidationError};
-use crate::merge::MergedCell;
+
 
 // 高速テーブルレンダラー
 #[wasm_bindgen]
@@ -45,8 +45,7 @@ pub struct WasabiTable {
     pub scroll_x: f64,
     #[wasm_bindgen(skip)]
     pub scroll_y: f64,
-    #[wasm_bindgen(skip)]
-    pub merged_cells: HashMap<String, MergedCell>,
+
     #[wasm_bindgen(skip)]
     pub conditional_formats: HashMap<String, CellFormat>,
     #[wasm_bindgen(skip)]
@@ -112,7 +111,7 @@ impl WasabiTable {
             canvas_height,
             scroll_x: 0.0,
             scroll_y: 0.0,
-            merged_cells: HashMap::new(),
+
             conditional_formats: HashMap::new(),
             visible_rows: (0, 0),
             visible_cols: (0, 0),
@@ -866,17 +865,7 @@ impl WasabiTable {
         Ok(())
     }
 
-    #[wasm_bindgen]
-    pub fn merge_cells(&mut self, start_row: usize, start_col: usize, row_span: usize, col_span: usize) -> Result<(), JsValue> {
-        use crate::merge::Mergeable;
-        Mergeable::merge_cells(self, start_row, start_col, row_span, col_span)
-    }
 
-    #[wasm_bindgen]
-    pub fn unmerge_cells(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
-        use crate::merge::Mergeable;
-        Mergeable::unmerge_cells(self, row, col)
-    }
 
     #[wasm_bindgen]
     pub fn add_conditional_format(&mut self, _row: usize, _col: usize, format_json: &str) -> Result<(), JsValue> {

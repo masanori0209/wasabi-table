@@ -6,7 +6,7 @@ pub mod error;
 pub mod render;
 pub mod events;
 pub mod edit;
-pub mod merge;
+
 pub mod format;
 pub mod validation;
 pub mod tests;
