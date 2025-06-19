@@ -1,7 +1,6 @@
 use wasm_bindgen::prelude::*;
 use web_sys::{MouseEvent, WheelEvent, KeyboardEvent};
-use crate::types::CellData;
-use crate::render::Renderable;
+
 
 pub trait EventHandler {
     fn handle_click(&mut self, event: MouseEvent) -> Result<(), JsValue>;

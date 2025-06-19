@@ -1,10 +1,5 @@
 use wasm_bindgen::prelude::*;
 use crate::types::{CellData, CellFormat, Condition};
-use crate::error::WasabiTableError;
-use crate::wasabi_try;
-use crate::render::Renderable;
-use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 pub trait Formattable {
     fn apply_format(&mut self, row: usize, col: usize, format: CellFormat) -> Result<(), JsValue>;

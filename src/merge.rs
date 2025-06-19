@@ -1,8 +1,4 @@
 use wasm_bindgen::prelude::*;
-use crate::types::{CellData, TableConfig};
-use crate::error::WasabiTableError;
-use crate::wasabi_try;
-use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

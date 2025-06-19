@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
 
 // テーマの色設定
 #[derive(Debug, Clone, Serialize, Deserialize)]

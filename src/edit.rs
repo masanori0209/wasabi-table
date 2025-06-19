@@ -1,7 +1,5 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{HtmlInputElement, KeyboardEvent, FocusEvent};
-use crate::types::CellData;
-use crate::render::Renderable;
+use web_sys::{HtmlInputElement, KeyboardEvent};
 
 pub trait Editable {
     fn start_editing(&mut self, row: usize, col: usize) -> Result<(), JsValue>;

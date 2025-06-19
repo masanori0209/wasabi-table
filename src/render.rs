@@ -1,9 +1,6 @@
 use wasm_bindgen::prelude::*;
-use web_sys::CanvasRenderingContext2d;
-use crate::types::{CellData, TableConfig};
 use crate::error::WasabiTableError;
 use crate::wasabi_try;
-use std::collections::HashMap;
 
 pub trait Renderable {
     fn render(&mut self) -> Result<(), JsValue>;

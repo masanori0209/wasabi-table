@@ -691,19 +691,6 @@ impl WasabiTable {
         self.visible_cols = (start_col, end_col);
     }
     
-    // 指定した列の開始X座標を取得（スクロール考慮なし）
-    fn get_start_x_for_column(&self, col: usize) -> f64 {
-        let mut accumulated_width = 0.0;
-        for prev_col in 0..col {
-            if let Some(header) = self.get_column_header(prev_col) {
-                accumulated_width += header.width;
-            } else {
-                accumulated_width += self.config.default_col_width;
-            }
-        }
-        accumulated_width
-    }
-
     // テーブルの総幅を計算
     fn get_table_width(&self) -> f64 {
         let mut total_width = 0.0;
@@ -892,15 +879,15 @@ impl WasabiTable {
     }
 
     #[wasm_bindgen]
-    pub fn add_conditional_format(&mut self, row: usize, col: usize, format_json: &str) -> Result<(), JsValue> {
-        let format: CellFormat = serde_json::from_str(format_json)
+    pub fn add_conditional_format(&mut self, _row: usize, _col: usize, format_json: &str) -> Result<(), JsValue> {
+        let _format: CellFormat = serde_json::from_str(format_json)
             .map_err(|e| JsValue::from_str(&format!("Invalid format JSON: {}", e)))?;
         // TODO: Implement format application
         Ok(())
     }
 
     #[wasm_bindgen]
-    pub fn remove_conditional_format(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+    pub fn remove_conditional_format(&mut self, _row: usize, _col: usize) -> Result<(), JsValue> {
         // TODO: Implement format removal
         Ok(())
     }
@@ -912,7 +899,7 @@ impl WasabiTable {
         self.ctx.clear_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
         
         // 背景を描画
-        self.ctx.set_fill_style(&JsValue::from_str(&self.config.background_color));
+        self.ctx.set_fill_style_str(&self.config.background_color);
         self.ctx.fill_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
         
         // ヘッダーを描画

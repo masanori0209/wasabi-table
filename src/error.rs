@@ -1,4 +1,3 @@
-use wasm_bindgen::prelude::*;
 use std::fmt;
 use wasm_bindgen::JsValue;
 

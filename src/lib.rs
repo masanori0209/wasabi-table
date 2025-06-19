@@ -1,6 +1,4 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{HtmlCanvasElement, MouseEvent, WheelEvent, KeyboardEvent};
-use serde::{Deserialize, Serialize};
 
 pub mod table;
 pub mod types;
