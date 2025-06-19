@@ -1,20 +1,20 @@
 // このファイルは TypeScript での使用例を示すサンプルコードです（統合版）
-// 実際の使用時は 'ninja-table' パッケージをインストールしてください: npm install ninja-table
+// 実際の使用時は 'wasabi-table' パッケージをインストールしてください: npm install wasabi-table
 
 // import { 
-//   createNinjaTableWithListeners,
-//   NinjaTable, 
-//   NinjaTableListeners,
+//   createWasabiTableWithListeners,
+//   WasabiTable, 
+//   WasabiTableListeners,
 //   TableConfig, 
 //   CellPosition, 
 //   EventHandlers, 
 //   CellData 
-// } from 'ninja-table';
+// } from 'wasabi-table';
 
 /**
- * TypeScript での NinjaTable 使用例（統合版）
+ * TypeScript での WasabiTable 使用例（統合版）
  * 
- * このファイルは、TypeScriptプロジェクトでNinjaTableを使用する方法を示しています。
+ * このファイルは、TypeScriptプロジェクトでWasabiTableを使用する方法を示しています。
  * リスナー機能が統合され、完全な型安全性とIntelliSenseサポートが提供されます。
  */
 
@@ -54,9 +54,9 @@ interface CellData {
   value: string;
 }
 
-// NinjaTable クラスの型定義（実際のパッケージから import されます）
-declare class NinjaTable {
-  static create(canvas: HTMLCanvasElement, config: Partial<TableConfig>): Promise<NinjaTable>;
+// WasabiTable クラスの型定義（実際のパッケージから import されます）
+declare class WasabiTable {
+  static create(canvas: HTMLCanvasElement, config: Partial<TableConfig>): Promise<WasabiTable>;
   static getCellReference(row: number, col: number): string;
   
   setEventHandlers(handlers: EventHandlers): void;
@@ -78,7 +78,7 @@ interface CustomTableConfig extends Partial<TableConfig> {
 
 // アプリケーションクラス
 class SpreadsheetApplication {
-  private table: NinjaTable | null = null;
+  private table: WasabiTable | null = null;
   private canvas: HTMLCanvasElement;
   private config: CustomTableConfig;
 
@@ -145,7 +145,7 @@ class SpreadsheetApplication {
    */
   async initialize(): Promise<void> {
     try {
-      this.table = await NinjaTable.create(this.canvas, this.config);
+      this.table = await WasabiTable.create(this.canvas, this.config);
       
       // イベントハンドラーを設定
       const eventHandlers: EventHandlers = {
@@ -169,7 +169,7 @@ class SpreadsheetApplication {
    * セル選択時のハンドラー
    */
   private handleCellSelect(position: CellPosition): void {
-    const cellRef = NinjaTable.getCellReference(position.row, position.col);
+    const cellRef = WasabiTable.getCellReference(position.row, position.col);
     const value = this.table?.getCellValue(position.row, position.col);
     
     console.log(`📍 Cell selected: ${cellRef}`, { position, value });
@@ -185,7 +185,7 @@ class SpreadsheetApplication {
    * 編集開始時のハンドラー
    */
   private handleEditStart(position: CellPosition, value: string): void {
-    const cellRef = NinjaTable.getCellReference(position.row, position.col);
+    const cellRef = WasabiTable.getCellReference(position.row, position.col);
     console.log(`✏️ Edit started: ${cellRef} = "${value}"`);
     
     this.dispatchCustomEvent('editStart', { position, cellRef, value });
@@ -195,7 +195,7 @@ class SpreadsheetApplication {
    * 編集終了時のハンドラー
    */
   private handleEditEnd(position: CellPosition, value: string): void {
-    const cellRef = NinjaTable.getCellReference(position.row, position.col);
+    const cellRef = WasabiTable.getCellReference(position.row, position.col);
     console.log(`✅ Edit ended: ${cellRef} = "${value}"`);
     
     this.dispatchCustomEvent('editEnd', { position, cellRef, value });
@@ -205,7 +205,7 @@ class SpreadsheetApplication {
    * セル値変更時のハンドラー
    */
   private handleCellChange(position: CellPosition, oldValue: string, newValue: string): void {
-    const cellRef = NinjaTable.getCellReference(position.row, position.col);
+    const cellRef = WasabiTable.getCellReference(position.row, position.col);
     console.log(`🔄 Cell changed: ${cellRef}`, { oldValue, newValue });
     
     this.dispatchCustomEvent('cellChange', { position, cellRef, oldValue, newValue });
@@ -226,7 +226,7 @@ class SpreadsheetApplication {
    * カスタムイベントを発火
    */
   private dispatchCustomEvent(eventType: string, detail: any): void {
-    const event = new CustomEvent(`ninja-table-${eventType}`, { detail });
+    const event = new CustomEvent(`wasabi-table-${eventType}`, { detail });
     this.canvas.dispatchEvent(event);
   }
 
@@ -324,7 +324,7 @@ class SpreadsheetApplication {
   /**
    * CSVファイルをダウンロード
    */
-  downloadCSV(filename: string = 'ninja-table-export.csv'): void {
+  downloadCSV(filename: string = 'wasabi-table-export.csv'): void {
     const csvContent = this.exportToCSV();
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -374,7 +374,7 @@ class SpreadsheetApplication {
   /**
    * テーブルインスタンスを取得（高度な操作用）
    */
-  getTable(): NinjaTable | null {
+  getTable(): WasabiTable | null {
     return this.table;
   }
 }
@@ -402,11 +402,11 @@ export function initializeOnDOMReady(): void {
       // カスタムイベントリスナーを設定
       const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
       
-      canvas.addEventListener('ninja-table-cellSelect', (event: CustomEvent) => {
+      canvas.addEventListener('wasabi-table-cellSelect', (event: CustomEvent) => {
         console.log('Custom cell select event:', event.detail);
       });
 
-      canvas.addEventListener('ninja-table-cellChange', (event: CustomEvent) => {
+      canvas.addEventListener('wasabi-table-cellChange', (event: CustomEvent) => {
         console.log('Custom cell change event:', event.detail);
       });
 
@@ -427,8 +427,8 @@ export function initializeOnDOMReady(): void {
 /*
 import React from 'react';
 
-export function useNinjaTable(canvasRef: React.RefObject<HTMLCanvasElement>, config?: CustomTableConfig) {
-  const [table, setTable] = React.useState<NinjaTable | null>(null);
+export function useWasabiTable(canvasRef: React.RefObject<HTMLCanvasElement>, config?: CustomTableConfig) {
+  const [table, setTable] = React.useState<WasabiTable | null>(null);
   const [selectedCell, setSelectedCell] = React.useState<CellPosition | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -441,16 +441,16 @@ export function useNinjaTable(canvasRef: React.RefObject<HTMLCanvasElement>, con
         setIsLoading(true);
         setError(null);
 
-        const ninjaTable = await NinjaTable.create(canvasRef.current, config || {});
+        const wasabiTable = await WasabiTable.create(canvasRef.current, config || {});
         
-        ninjaTable.setEventHandlers({
+        wasabiTable.setEventHandlers({
           onCellSelect: (position: CellPosition) => {
             setSelectedCell(position);
           }
         });
 
-        ninjaTable.render();
-        setTable(ninjaTable);
+        wasabiTable.render();
+        setTable(wasabiTable);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {

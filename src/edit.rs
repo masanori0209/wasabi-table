@@ -117,7 +117,7 @@ impl crate::table::WasabiTable {
         input.set_attribute("tabindex", "-1")?;
         
         // 追加のイベント阻止設定
-        input.set_attribute("data-ninja-editing", "true")?;
+        input.set_attribute("data-wasabi-editing", "true")?;
         
         Ok(input)
     }

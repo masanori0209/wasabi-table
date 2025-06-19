@@ -1,5 +1,5 @@
 import type { UIElements } from './listeners';
-import type { INinjaTable } from './types';
+import type { IWasabiTable } from './types';
 /**
  * DOM要素を自動的に取得してUIElementsオブジェクトを作成
  */
@@ -13,15 +13,15 @@ export declare function createUIElements(config: {
 /**
  * CSV出力ユーティリティ
  */
-export declare function exportTableToCSV(table: INinjaTable, filename?: string): void;
+export declare function exportTableToCSV(table: IWasabiTable, filename?: string): void;
 /**
  * テーブルをクリアするユーティリティ
  */
-export declare function clearTable(table: INinjaTable): void;
+export declare function clearTable(table: IWasabiTable): void;
 /**
  * サンプルデータを読み込むユーティリティ
  */
-export declare function loadSampleData(table: INinjaTable, data: string[][]): void;
+export declare function loadSampleData(table: IWasabiTable, data: string[][]): void;
 /**
  * デバウンス関数
  */

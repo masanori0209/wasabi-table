@@ -275,7 +275,7 @@ export interface ValidationResult {
     /** エラー情報（検証失敗時のみ） */
     error?: ValidationError;
 }
-export { NinjaTableListeners } from './listeners';
+export { WasabiTableListeners } from './listeners';
 export type { ListenerOptions, UIElements, EventCallbacks } from './listeners';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut } from './utils';
 /**
@@ -348,11 +348,11 @@ export declare class WasabiTable {
     private filterDialogs;
     private constructor();
     /**
-     * NinjaTableインスタンスを作成
+     * WasabiTableインスタンスを作成
      *
      * @param canvas - レンダリング対象のCanvasElement
      * @param config - テーブル設定（オプション）
-     * @returns NinjaTableインスタンス
+     * @returns WasabiTableインスタンス
      */
     static create(canvas: HTMLCanvasElement, config?: Partial<TableConfig>): Promise<WasabiTable>;
     /**
@@ -638,6 +638,10 @@ export declare class WasabiTable {
      * Shift+矢印キーによる範囲選択を処理
      */
     private handleShiftArrowKey;
+    /**
+     * 印刷可能な文字かどうかを判定
+     */
+    private isPrintableCharacterKey;
     /**
      * Shift+Ctrl+矢印キーによる範囲選択（データの端まで）を処理
      */

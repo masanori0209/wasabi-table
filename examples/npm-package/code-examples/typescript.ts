@@ -1,17 +1,17 @@
 import { 
-  createNinjaTableWithListeners,
-  NinjaTable, 
-  NinjaTableListeners,
+  createWasabiTableWithListeners,
+  WasabiTable, 
+  WasabiTableListeners,
   TableConfig, 
   CellPosition, 
   EventHandlers,
   ColumnHeader,
   FieldType 
-} from 'ninja-table';
+} from 'wasabi-table';
 
 class SpreadsheetApp {
-  private table: NinjaTable | null = null;
-  private listeners: NinjaTableListeners | null = null;
+  private table: WasabiTable | null = null;
+  private listeners: WasabiTableListeners | null = null;
 
   async initialize(canvas: HTMLCanvasElement): Promise<void> {
     const config: Partial<TableConfig> = {
@@ -24,7 +24,7 @@ class SpreadsheetApp {
     };
 
     // 統合された初期化
-    const { table, listeners } = await createNinjaTableWithListeners(
+    const { table, listeners } = await createWasabiTableWithListeners(
       canvas,
       config,
       {

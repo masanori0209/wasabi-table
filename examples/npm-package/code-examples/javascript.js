@@ -1,10 +1,10 @@
-import { createNinjaTableWithListeners } from 'ninja-table';
+import { createWasabiTableWithListeners } from 'wasabi-table';
 
 async function initTable() {
   const canvas = document.getElementById('myCanvas');
   
   // テーブルとリスナーを同時に作成
-  const { table, listeners } = await createNinjaTableWithListeners(
+  const { table, listeners } = await createWasabiTableWithListeners(
     canvas,
     {
       row_count: 50,
@@ -79,7 +79,7 @@ async function initTable() {
   // イベントハンドラーを設定
   table.setEventHandlers({
     onCellSelect: (position) => {
-      console.log(`選択: ${NinjaTable.getCellReference(position.row, position.col)}`);
+      console.log(`選択: ${WasabiTable.getCellReference(position.row, position.col)}`);
     }
   });
 

@@ -1,4 +1,4 @@
-import type { ValidationError, INinjaTable } from './types';
+import type { ValidationError, IWasabiTable } from './types';
 /**
  * リスナー設定オプション
  */
@@ -29,16 +29,16 @@ export interface EventCallbacks {
     onCellReferenceUpdate?: (reference: string) => void;
 }
 /**
- * NinjaTableのリスナー管理クラス
+ * WasabiTableのリスナー管理クラス
  */
-export declare class NinjaTableListeners {
+export declare class WasabiTableListeners {
     private table;
     private options;
     private uiElements;
     private callbacks;
     private isComposing;
     private validationTimeout;
-    constructor(table: INinjaTable, uiElements: UIElements, options?: ListenerOptions, callbacks?: EventCallbacks);
+    constructor(table: IWasabiTable, uiElements: UIElements, options?: ListenerOptions, callbacks?: EventCallbacks);
     private initialize;
     /**
      * フォーミュラバーのイベントリスナーを設定

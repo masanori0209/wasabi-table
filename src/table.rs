@@ -226,6 +226,9 @@ impl WasabiTable {
                 self.finish_editing()?;
             }
             
+            // 範囲選択状態をクリア（通常のクリック時）
+            self.clear_range_selection_if_needed(false);
+            
             // 新しいセルを選択
             self.selected_cell = Some((row, col));
             self.render()?;
@@ -345,7 +348,25 @@ impl WasabiTable {
                 }
             }
             "Delete" | "Backspace" => {
-                if let Some((row, col)) = self.selected_cell {
+                // 範囲選択がある場合は、範囲内の全セルをクリア
+                if let Some(range) = self.selected_range {
+                    web_sys::console::log_1(&format!("🗑️ [DEBUG] Clearing range selection ({},{}) to ({},{})", 
+                        range.start_row, range.start_col, range.end_row, range.end_col).into());
+                    
+                    for row in range.start_row..=range.end_row {
+                        for col in range.start_col..=range.end_col {
+                            self.set_cell_data(row, col, String::new())?;
+                        }
+                    }
+                    
+                    // 範囲選択をクリアして単一セル選択に戻す
+                    let active_cell = (range.end_row, range.end_col);
+                    self.clear_range_selection_if_needed(false);
+                    self.selected_cell = Some(active_cell);
+                    
+                    self.render()?;
+                    web_sys::console::log_1(&format!("🗑️ [DEBUG] Cleared range selection and set active cell to ({}, {})", active_cell.0, active_cell.1).into());
+                } else if let Some((row, col)) = self.selected_cell {
                     if self.editing_cell.is_none() {
                         // 編集中でない場合：セルの内容をクリア
                         self.set_cell_data(row, col, String::new())?;
@@ -357,7 +378,16 @@ impl WasabiTable {
             _ => {
                 // 印刷可能な文字の場合
                 if self.is_printable_character(key) {
-                    if let Some((row, col)) = self.selected_cell {
+                    // 範囲選択がある場合は、アクティブセルで編集を開始
+                    if let Some(range) = self.selected_range {
+                        let active_cell = (range.end_row, range.end_col);
+                        self.clear_range_selection_if_needed(false);
+                        self.selected_cell = Some(active_cell);
+                        if self.editing_cell.is_none() {
+                            self.start_editing_with_value(active_cell.0, active_cell.1, key)?;
+                            web_sys::console::log_1(&format!("✏️ [DEBUG] Started editing from range selection with character '{}' at ({}, {})", key, active_cell.0, active_cell.1).into());
+                        }
+                    } else if let Some((row, col)) = self.selected_cell {
                         if self.editing_cell.is_none() {
                             // 編集開始（既存の値をクリアして新しい文字から開始）
                             self.start_editing_with_value(row, col, key)?;
@@ -522,6 +552,11 @@ impl WasabiTable {
             if let Err(e) = self.update_editing_input_position(input, row, col) {
                 web_sys::console::log_1(&format!("⚠️ [DEBUG] Failed to update input position: {:?}", e).into());
             }
+        }
+        
+        // 範囲選択中の場合は描画を更新
+        if self.is_selecting || self.selected_range.is_some() {
+            web_sys::console::log_1(&format!("🔀 [DEBUG] Updating range selection display after scroll").into());
         }
     }
 
@@ -730,6 +765,11 @@ impl WasabiTable {
     #[wasm_bindgen]
     pub fn start_editing(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
         use crate::edit::Editable;
+        
+        // 範囲選択をクリアしてから編集開始
+        self.clear_range_selection_if_needed(false);
+        self.selected_cell = Some((row, col));
+        
         Editable::start_editing(self, row, col)
     }
 
@@ -1483,12 +1523,16 @@ impl WasabiTable {
     /// 指定した値で編集を開始する
     #[wasm_bindgen]
     pub fn start_editing_with_value(&mut self, row: usize, col: usize, initial_value: &str) -> Result<(), JsValue> {
+        // 範囲選択をクリアしてから編集開始
+        self.clear_range_selection_if_needed(false);
+        
         // 既存の編集を終了
         if self.editing_cell.is_some() {
             self.finish_editing()?;
         }
         
         self.editing_cell = Some((row, col));
+        self.selected_cell = Some((row, col));
         
         // 入力要素を作成
         let document = web_sys::window().unwrap().document().unwrap();
@@ -1640,6 +1684,19 @@ impl WasabiTable {
         // 単一セル選択は保持する（clear_selectionは範囲選択のみをクリア）
         web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection cleared").into());
         Ok(())
+    }
+
+    // 範囲選択状態をクリアする統一メソッド
+    fn clear_range_selection_if_needed(&mut self, preserve_single_selection: bool) {
+        if self.selected_range.is_some() || self.is_selecting {
+            web_sys::console::log_1(&format!("🔀 [DEBUG] Clearing range selection state").into());
+            self.selected_range = None;
+            self.is_selecting = false;
+            self.selection_start = None;
+            if !preserve_single_selection {
+                self.selected_cell = None;
+            }
+        }
     }
 
     // 選択された範囲をコピー
@@ -1802,6 +1859,24 @@ impl WasabiTable {
         
         self.filtered_rows = filtered_rows;
         self.is_filtered = !self.filtered_rows.is_empty();
+        
+        // 範囲選択の妥当性をチェック
+        if let Some(range) = &self.selected_range {
+            let is_valid = (range.start_row..=range.end_row)
+                .all(|row| self.filtered_rows.is_empty() || self.filtered_rows.contains(&row));
+            if !is_valid {
+                web_sys::console::log_1(&format!("🔍 [DEBUG] Range selection invalidated by filter, clearing").into());
+                self.clear_range_selection_if_needed(true);
+            }
+        }
+        
+        // 単一セル選択の妥当性もチェック
+        if let Some((row, _)) = self.selected_cell {
+            if self.is_filtered && !self.filtered_rows.contains(&row) {
+                web_sys::console::log_1(&format!("🔍 [DEBUG] Selected cell invalidated by filter, clearing").into());
+                self.selected_cell = None;
+            }
+        }
         
         // 表示範囲を再計算
         self.calculate_visible_range();

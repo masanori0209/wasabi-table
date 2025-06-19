@@ -116,9 +116,9 @@ export declare function getColumnName(col: number): string;
  */
 export declare function getCellReference(row: number, col: number): string;
 /**
- * NinjaTableのインターフェース（循環インポートを避けるため）
+ * WasabiTableのインターフェース（循環インポートを避けるため）
  */
-export interface INinjaTable {
+export interface IWasabiTable {
     getSelectedCell(): CellPosition | undefined;
     setCellValue(row: number, col: number, value: string): void;
     setCellValueWithValidation(row: number, col: number, value: string): ValidationResult;

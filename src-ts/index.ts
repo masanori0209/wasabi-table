@@ -339,7 +339,7 @@ export interface ValidationResult {
 }
 
 // リスナー機能をエクスポート
-export { NinjaTableListeners } from './listeners';
+export { WasabiTableListeners } from './listeners';
 export type { ListenerOptions, UIElements, EventCallbacks } from './listeners';
 export { 
   createUIElements, 
@@ -369,11 +369,11 @@ export async function createWasabiTableWithListeners(
 ): Promise<{ table: WasabiTable; listeners: any }> {
   // 遅延インポートで循環インポートを回避
   const { createUIElements } = await import('./utils');
-  const { NinjaTableListeners } = await import('./listeners');
+  const { WasabiTableListeners } = await import('./listeners');
   
   const table = await WasabiTable.create(canvas, config);
   const uiElements = createUIElements(uiConfig);
-  const listeners = new NinjaTableListeners(table, uiElements, listenerOptions, callbacks);
+  const listeners = new WasabiTableListeners(table, uiElements, listenerOptions, callbacks);
   return { table, listeners };
 }
 
@@ -391,7 +391,7 @@ export interface CellScreenPosition {
   absolute_y: number;
 }
 
-// WasmNinjaTableの型を拡張
+// WasmWasabiTableの型を拡張
 interface ExtendedWasmWasabiTable extends WasmWasabiTable {
   set_cell_data(row: number, col: number, value: string): void;
   get_cell_data(row: number, col: number): string | undefined;
@@ -420,6 +420,8 @@ interface ExtendedWasmWasabiTable extends WasmWasabiTable {
   set_filtered_rows(filtered_rows_json: string): void;
   clear_filter(): void;
   get_filter_info(): string;
+  handle_canvas_click(canvasX: number, canvasY: number): void;
+  handle_canvas_keydown(key: string): void;
 }
 
 /**
@@ -498,11 +500,11 @@ export class WasabiTable {
   }
 
   /**
-   * NinjaTableインスタンスを作成
+   * WasabiTableインスタンスを作成
    * 
    * @param canvas - レンダリング対象のCanvasElement
    * @param config - テーブル設定（オプション）
-   * @returns NinjaTableインスタンス
+   * @returns WasabiTableインスタンス
    */
   public static async create(
     canvas: HTMLCanvasElement,
@@ -1189,9 +1191,9 @@ export class WasabiTable {
         }
       } else {
         // 通常のクリックでは範囲選択をクリアしてから単一セル選択
-        this.clearSelection();
-        const result = this.wasmTable.select_cell(x, y);
-        if (result) {
+        // Rustのhandle_canvas_clickで範囲選択クリアが処理されるため、clearSelectionは不要
+        const result = this.wasmTable.handle_canvas_click(x, y);
+        if (result !== undefined) {
           this.triggerCellSelectEvent();
           
           // MenuFieldまたはCheckFieldセルの特別な処理
@@ -1376,6 +1378,19 @@ export class WasabiTable {
           return; // 入力フィールドのデフォルト動作を許可
         }
         
+        // Delete/Backspaceキーの範囲選択対応
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+          const selectionInfo = this.getSelectionInfo();
+          if (selectionInfo && selectionInfo.isRange) {
+            console.log('🗑️ [DEBUG] Handling Delete/Backspace for range selection');
+            // 範囲選択の全セルをクリア（Rustで処理）
+            this.wasmTable.handle_canvas_keydown(event.key);
+            this.render();
+            event.preventDefault();
+            return;
+          }
+        }
+        
         return;
       }
 
@@ -1444,6 +1459,18 @@ export class WasabiTable {
           console.log('➡️ [DEBUG] Tab navigation from', selectedCell, 'to', { row: selectedCell.row, col: newCol });
           this.selectCell(selectedCell.row, newCol);
           this.render();
+          event.preventDefault();
+          return;
+        }
+      }
+
+      // 印刷可能文字の範囲選択対応
+      if (this.isPrintableCharacterKey(event.key)) {
+        const selectionInfo = this.getSelectionInfo();
+        if (selectionInfo && selectionInfo.isRange) {
+          console.log('✏️ [DEBUG] Starting edit from range selection with character:', event.key);
+          // 範囲選択から編集開始（Rustで処理）
+          this.wasmTable.handle_canvas_keydown(event.key);
           event.preventDefault();
           return;
         }
@@ -1538,13 +1565,13 @@ export class WasabiTable {
 
   private ensureInitialized(): void {
     if (!this.isInitialized) {
-      throw new Error('NinjaTable is not initialized. Use NinjaTable.create() to create an instance.');
+      throw new Error('WasabiTable is not initialized. Use WasabiTable.create() to create an instance.');
     }
   }
 
   private createTooltipElement(): void {
     this.tooltipElement = document.createElement('div');
-    this.tooltipElement.className = 'ninja-table-tooltip';
+    this.tooltipElement.className = 'wasabi-table-tooltip';
     this.tooltipElement.style.position = 'fixed';
     this.tooltipElement.style.zIndex = '1000';
     this.tooltipElement.style.padding = '8px';
@@ -2387,6 +2414,19 @@ export class WasabiTable {
     // 更新後の選択情報を確認
     const updatedSelection = this.getSelectionInfo();
     console.log('🔀 [DEBUG] Updated selection info:', updatedSelection);
+  }
+
+  /**
+   * 印刷可能な文字かどうかを判定
+   */
+  private isPrintableCharacterKey(key: string): boolean {
+    if (key.length !== 1) {
+      return false;
+    }
+    
+    const ch = key.charCodeAt(0);
+    // 英数字、記号、スペースなどの印刷可能文字
+    return (ch >= 32 && ch <= 126) || (ch >= 160); // ASCII印刷可能文字 + 拡張文字
   }
 
   /**

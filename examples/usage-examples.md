@@ -51,11 +51,11 @@ async function initTable() {
   // イベントハンドラーを設定
   table.setEventHandlers({
     onCellSelect: (position) => {
-      console.log(`セル選択: ${NinjaTable.getCellReference(position.row, position.col)}`);
+      console.log(`セル選択: ${WasabiTable.getCellReference(position.row, position.col)}`);
       console.log(`値: ${table.getCellValue(position.row, position.col) || '(空)'}`);
     },
     onCellChange: (position, oldValue, newValue) => {
-      console.log(`セル変更: ${NinjaTable.getCellReference(position.row, position.col)}`);
+      console.log(`セル変更: ${WasabiTable.getCellReference(position.row, position.col)}`);
       console.log(`${oldValue} → ${newValue}`);
     }
   });
@@ -75,17 +75,17 @@ initTable().catch(console.error);
 
 ```typescript
 import { 
-  createNinjaTableWithListeners,
-  NinjaTable, 
-  NinjaTableListeners,
+  createWasabiTableWithListeners,
+  WasabiTable, 
+  WasabiTableListeners,
   TableConfig, 
   CellPosition, 
   EventHandlers 
-} from 'ninja-table';
+} from 'wasabi-table';
 
 class SpreadsheetApp {
-  private table: NinjaTable | null = null;
-  private listeners: NinjaTableListeners | null = null;
+  private table: WasabiTable | null = null;
+  private listeners: WasabiTableListeners | null = null;
   private canvas: HTMLCanvasElement;
 
   constructor(canvasId: string) {
@@ -107,7 +107,7 @@ class SpreadsheetApp {
     };
 
     // 統合された初期化
-    const { table, listeners } = await createNinjaTableWithListeners(
+    const { table, listeners } = await createWasabiTableWithListeners(
       this.canvas,
       config,
       {
@@ -136,7 +136,7 @@ class SpreadsheetApp {
   }
 
   private handleCellSelect(position: CellPosition): void {
-    const cellRef = NinjaTable.getCellReference(position.row, position.col);
+    const cellRef = WasabiTable.getCellReference(position.row, position.col);
     const value = this.table?.getCellValue(position.row, position.col);
     
     console.log(`選択セル: ${cellRef}, 値: ${value || '(空)'}`);
@@ -146,15 +146,15 @@ class SpreadsheetApp {
   }
 
   private handleEditStart(position: CellPosition, value: string): void {
-    console.log(`編集開始: ${NinjaTable.getCellReference(position.row, position.col)}`);
+    console.log(`編集開始: ${WasabiTable.getCellReference(position.row, position.col)}`);
   }
 
   private handleEditEnd(position: CellPosition, value: string): void {
-    console.log(`編集終了: ${NinjaTable.getCellReference(position.row, position.col)} = ${value}`);
+    console.log(`編集終了: ${WasabiTable.getCellReference(position.row, position.col)} = ${value}`);
   }
 
   private handleCellChange(position: CellPosition, oldValue: string, newValue: string): void {
-    console.log(`セル変更: ${NinjaTable.getCellReference(position.row, position.col)}`);
+    console.log(`セル変更: ${WasabiTable.getCellReference(position.row, position.col)}`);
     console.log(`変更: "${oldValue}" → "${newValue}"`);
   }
 
@@ -243,7 +243,7 @@ app.initialize().then(() => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NinjaTable Example</title>
+    <title>WasabiTable Example</title>
     <style>
         .container {
             max-width: 1200px;
@@ -283,7 +283,7 @@ app.initialize().then(() => {
 </head>
 <body>
     <div class="container">
-        <h1>NinjaTable Example</h1>
+        <h1>WasabiTable Example</h1>
         
         <div class="formula-bar">
             <div id="cellReference" class="cell-reference">A1</div>
@@ -302,17 +302,17 @@ app.initialize().then(() => {
     </div>
 
     <script type="module">
-        import { NinjaTable } from 'ninja-table';
+        import { WasabiTable } from 'wasabi-table';
         
         let table = null;
         
         async function init() {
             const canvas = document.getElementById('myCanvas');
-            table = await NinjaTable.create(canvas);
+            table = await WasabiTable.create(canvas);
             
             table.setEventHandlers({
                 onCellSelect: (position) => {
-                    const cellRef = NinjaTable.getCellReference(position.row, position.col);
+                    const cellRef = WasabiTable.getCellReference(position.row, position.col);
                     const value = table.getCellValue(position.row, position.col) || '';
                     
                     document.getElementById('cellReference').textContent = cellRef;
@@ -333,7 +333,7 @@ app.initialize().then(() => {
                     data.push({
                         row,
                         col,
-                        value: `${NinjaTable.getColumnName(col)}${row + 1}`
+                        value: `${WasabiTable.getColumnName(col)}${row + 1}`
                     });
                 }
             }

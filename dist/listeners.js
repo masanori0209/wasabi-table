@@ -1,8 +1,8 @@
 import { getCellReference } from './types.js';
 /**
- * NinjaTableのリスナー管理クラス
+ * WasabiTableのリスナー管理クラス
  */
-export class NinjaTableListeners {
+export class WasabiTableListeners {
     constructor(table, uiElements, options = {}, callbacks = {}) {
         this.isComposing = false;
         this.validationTimeout = null;

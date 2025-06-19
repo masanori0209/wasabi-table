@@ -1,4 +1,4 @@
-import type { CellPosition, ValidationError, ValidationResult, INinjaTable } from './types';
+import type { CellPosition, ValidationError, ValidationResult, IWasabiTable } from './types';
 import { getCellReference } from './types';
 
 /**
@@ -34,10 +34,10 @@ export interface EventCallbacks {
 }
 
 /**
- * NinjaTableのリスナー管理クラス
+ * WasabiTableのリスナー管理クラス
  */
-export class NinjaTableListeners {
-  private table: INinjaTable;
+export class WasabiTableListeners {
+  private table: IWasabiTable;
   private options: Required<ListenerOptions>;
   private uiElements: UIElements;
   private callbacks: EventCallbacks;
@@ -45,7 +45,7 @@ export class NinjaTableListeners {
   private validationTimeout: number | null = null;
 
   constructor(
-    table: INinjaTable,
+    table: IWasabiTable,
     uiElements: UIElements,
     options: ListenerOptions = {},
     callbacks: EventCallbacks = {}

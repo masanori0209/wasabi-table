@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use crate::types::{CellData, CellFormat, Condition};
 use crate::error::WasabiTableError;
-use crate::ninja_try;
+use crate::wasabi_try;
 use crate::render::Renderable;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};

@@ -1,16 +1,16 @@
-// React での NinjaTable 使用例（統合版）
+// React での WasabiTable 使用例（統合版）
 // 実際の使用時は以下のパッケージをインストールしてください:
-// npm install ninja-table react @types/react
+// npm install wasabi-table react @types/react
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 // import { 
-//   createNinjaTableWithListeners,
-//   NinjaTable, 
-//   NinjaTableListeners,
+//   createWasabiTableWithListeners,
+//   WasabiTable, 
+//   WasabiTableListeners,
 //   TableConfig, 
 //   CellPosition, 
 //   EventHandlers 
-// } from 'ninja-table';
+// } from 'wasabi-table';
 
 // 型定義（実際のパッケージから import されます）
 interface TableConfig {
@@ -41,8 +41,8 @@ interface EventHandlers {
   onCellChange?: (position: CellPosition, oldValue: string, newValue: string) => void;
 }
 
-declare class NinjaTable {
-  static create(canvas: HTMLCanvasElement, config: Partial<TableConfig>): Promise<NinjaTable>;
+declare class WasabiTable {
+  static create(canvas: HTMLCanvasElement, config: Partial<TableConfig>): Promise<WasabiTable>;
   static getCellReference(row: number, col: number): string;
   
   setEventHandlers(handlers: EventHandlers): void;
@@ -57,9 +57,9 @@ declare class NinjaTable {
 }
 
 // カスタムフック
-function useNinjaTable(config: Partial<TableConfig> = {}) {
+function useWasabiTable(config: Partial<TableConfig> = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [table, setTable] = useState<NinjaTable | null>(null);
+  const [table, setTable] = useState<WasabiTable | null>(null);
   const [selectedCell, setSelectedCell] = useState<CellPosition | null>(null);
   const [selectedCellRef, setSelectedCellRef] = useState<string>('A1');
   const [cellValue, setCellValue] = useState<string>('');
@@ -80,7 +80,7 @@ function useNinjaTable(config: Partial<TableConfig> = {}) {
 
   const handleCellSelect = useCallback((position: CellPosition) => {
     setSelectedCell(position);
-    const cellRef = NinjaTable.getCellReference(position.row, position.col);
+    const cellRef = WasabiTable.getCellReference(position.row, position.col);
     setSelectedCellRef(cellRef);
     
     if (table) {
@@ -92,7 +92,7 @@ function useNinjaTable(config: Partial<TableConfig> = {}) {
   }, [table, updateStats]);
 
   const handleCellChange = useCallback((position: CellPosition, oldValue: string, newValue: string) => {
-    console.log(`Cell changed: ${NinjaTable.getCellReference(position.row, position.col)} = "${newValue}"`);
+    console.log(`Cell changed: ${WasabiTable.getCellReference(position.row, position.col)} = "${newValue}"`);
     updateStats();
   }, [updateStats]);
 
@@ -121,15 +121,15 @@ function useNinjaTable(config: Partial<TableConfig> = {}) {
           ...config
         };
 
-        const ninjaTable = await NinjaTable.create(canvasRef.current, defaultConfig);
+        const wasabiTable = await WasabiTable.create(canvasRef.current, defaultConfig);
         
-        ninjaTable.setEventHandlers({
+        wasabiTable.setEventHandlers({
           onCellSelect: handleCellSelect,
           onCellChange: handleCellChange
         });
 
-        ninjaTable.render();
-        setTable(ninjaTable);
+        wasabiTable.render();
+        setTable(wasabiTable);
         
         // 初期選択状態を設定
         handleCellSelect({ row: 0, col: 0 });
@@ -181,7 +181,7 @@ function useNinjaTable(config: Partial<TableConfig> = {}) {
 }
 
 // メインコンポーネント
-const NinjaTableComponent: React.FC<{
+const WasabiTableComponent: React.FC<{
   config?: Partial<TableConfig>;
   onCellSelect?: (position: CellPosition, cellRef: string, value: string) => void;
   onCellChange?: (position: CellPosition, cellRef: string, oldValue: string, newValue: string) => void;
@@ -196,7 +196,7 @@ const NinjaTableComponent: React.FC<{
     isLoading,
     error,
     stats
-  } = useNinjaTable(config);
+  } = useWasabiTable(config);
 
   const [formulaValue, setFormulaValue] = useState('');
 
@@ -266,7 +266,7 @@ const NinjaTableComponent: React.FC<{
   if (isLoading) {
     return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
-        <div>NinjaTable を初期化中...</div>
+        <div>WasabiTable を初期化中...</div>
       </div>
     );
   }
@@ -407,14 +407,14 @@ const App: React.FC = () => {
   return (
     <div style={{ padding: '20px', maxWidth: '1400px', margin: '0 auto' }}>
       <h1 style={{ color: '#667eea', marginBottom: '20px' }}>
-        🥷 NinjaTable React Example
+        🥷 WasabiTable React Example
       </h1>
       
       <div style={{ marginBottom: '20px', color: '#666' }}>
         {selectedInfo || 'セルを選択してください'}
       </div>
 
-      <NinjaTableComponent
+      <WasabiTableComponent
         config={{
           row_count: 30,
           col_count: 15,
@@ -443,4 +443,4 @@ const App: React.FC = () => {
 };
 
 export default App;
-export { NinjaTableComponent, useNinjaTable }; 
+export { WasabiTableComponent, useWasabiTable }; 

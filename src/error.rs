@@ -31,7 +31,7 @@ impl From<WasabiTableError> for JsValue {
 
 // エラーハンドリング用のマクロ
 #[macro_export]
-macro_rules! ninja_try {
+macro_rules! wasabi_try {
     ($e:expr) => {
         match $e {
             Ok(_) => (),

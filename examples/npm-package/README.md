@@ -1,6 +1,6 @@
-# 🥷 NinjaTable NPM Package Examples（統合版）
+# 🥷 WasabiTable NPM Package Examples（統合版）
 
-このディレクトリには、統合されたNinjaTable NPMパッケージの使用例が含まれています。リスナー機能が統合され、より簡単に使用できるようになりました。
+このディレクトリには、統合されたWasabiTable NPMパッケージの使用例が含まれています。リスナー機能が統合され、より簡単に使用できるようになりました。
 
 ## 📁 ファイル構成
 
@@ -69,7 +69,7 @@ TypeScriptでの高度な使用例を示します：
 - **テーマシステム**: Light/Dark/Excel テーマ
 - **イベントハンドリング**: カスタムイベントの発火
 - **データ操作**: バッチデータ設定、CSV出力
-- **React Hook**: `useNinjaTable` カスタムフック
+- **React Hook**: `useWasabiTable` カスタムフック
 
 #### 主な機能
 
@@ -96,8 +96,8 @@ app.downloadCSV('my-data.csv');
 
 Reactでの使用例を示します：
 
-- **カスタムフック**: `useNinjaTable`
-- **Reactコンポーネント**: `NinjaTableComponent`
+- **カスタムフック**: `useWasabiTable`
+- **Reactコンポーネント**: `WasabiTableComponent`
 - **状態管理**: React Hooks を使用
 - **イベント処理**: React イベントハンドラー
 - **UI統合**: React スタイルシステム
@@ -105,11 +105,11 @@ Reactでの使用例を示します：
 #### 基本的な使用方法
 
 ```tsx
-import { NinjaTableComponent } from './react-example';
+import { WasabiTableComponent } from './react-example';
 
 function MyApp() {
   return (
-    <NinjaTableComponent
+    <WasabiTableComponent
       config={{
         row_count: 30,
         col_count: 15,
@@ -134,7 +134,7 @@ function MyCustomTable() {
     setCellValue,
     isLoading,
     error
-  } = useNinjaTable({
+  } = useWasabiTable({
     row_count: 50,
     col_count: 20
   });
@@ -158,30 +158,30 @@ function MyCustomTable() {
 ### 基本インストール
 
 ```bash
-npm install ninja-table
+npm install wasabi-table
 ```
 
 ### TypeScript プロジェクト
 
 ```bash
-npm install ninja-table
+npm install wasabi-table
 npm install --save-dev typescript @types/node
 ```
 
 ### React プロジェクト
 
 ```bash
-npm install ninja-table react @types/react
+npm install wasabi-table react @types/react
 ```
 
 ## 🎯 API リファレンス
 
-### NinjaTable クラス
+### WasabiTable クラス
 
 ```typescript
-class NinjaTable {
+class WasabiTable {
   // 静的メソッド
-  static create(canvas: HTMLCanvasElement, config: Partial<TableConfig>): Promise<NinjaTable>
+  static create(canvas: HTMLCanvasElement, config: Partial<TableConfig>): Promise<WasabiTable>
   static getCellReference(row: number, col: number): string
 
   // インスタンスメソッド
@@ -276,7 +276,7 @@ table.setBatchData(batchData);
 
 ## 📋 列ヘッダー設定
 
-NinjaTableでは、各列に詳細な設定を行うことができます。
+WasabiTableでは、各列に詳細な設定を行うことができます。
 
 ### フィールドタイプ
 
@@ -294,7 +294,7 @@ NinjaTableでは、各列に詳細な設定を行うことができます。
 ### 設定例
 
 ```typescript
-import { NinjaTable, ColumnHeader, FieldType } from 'ninja-table';
+import { WasabiTable, ColumnHeader, FieldType } from 'wasabi-table';
 
 const columnHeaders: ColumnHeader[] = [
   {
@@ -352,9 +352,9 @@ table.setColumnHeaders(columnHeaders);
 1. **WebAssembly 初期化エラー**
    ```javascript
    // 解決方法: init() を呼び出してから使用
-   import init from 'ninja-table';
+   import init from 'wasabi-table';
    await init();
-   const table = await NinjaTable.create(canvas, config);
+   const table = await WasabiTable.create(canvas, config);
    ```
 
 2. **Canvas サイズの問題**
@@ -384,7 +384,7 @@ table.setColumnHeaders(columnHeaders);
 
 ## 🤝 コントリビューション
 
-バグ報告や機能要望は [GitHub Issues](https://github.com/your-username/ninja-table/issues) でお願いします。
+バグ報告や機能要望は [GitHub Issues](https://github.com/your-username/wasabi-table/issues) でお願いします。
 
 ## 📄 ライセンス
 

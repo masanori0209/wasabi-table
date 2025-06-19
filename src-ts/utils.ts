@@ -1,5 +1,5 @@
 import type { UIElements } from './listeners';
-import type { INinjaTable } from './types';
+import type { IWasabiTable } from './types';
 
 /**
  * DOM要素を自動的に取得してUIElementsオブジェクトを作成
@@ -50,7 +50,7 @@ export function createUIElements(config: {
 /**
  * CSV出力ユーティリティ
  */
-export function exportTableToCSV(table: INinjaTable, filename: string = 'wasabi-table-export.csv'): void {
+export function exportTableToCSV(table: IWasabiTable, filename: string = 'wasabi-table-export.csv'): void {
   const config = table.getConfig();
   const rows: string[] = [];
   
@@ -82,7 +82,7 @@ export function exportTableToCSV(table: INinjaTable, filename: string = 'wasabi-
 /**
  * テーブルをクリアするユーティリティ
  */
-export function clearTable(table: INinjaTable): void {
+export function clearTable(table: IWasabiTable): void {
   const config = table.getConfig();
   for (let row = 0; row < config.row_count; row++) {
     for (let col = 0; col < config.col_count; col++) {
@@ -95,7 +95,7 @@ export function clearTable(table: INinjaTable): void {
 /**
  * サンプルデータを読み込むユーティリティ
  */
-export function loadSampleData(table: INinjaTable, data: string[][]): void {
+export function loadSampleData(table: IWasabiTable, data: string[][]): void {
   data.forEach((row, rowIndex) => {
     row.forEach((cell, colIndex) => {
       table.setCellValue(rowIndex, colIndex, cell);

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createNinjaTableWithListeners } from 'ninja-table';
+import { createWasabiTableWithListeners } from 'wasabi-table';
 
-const NinjaTableComponent = () => {
+const WasabiTableComponent = () => {
   const canvasRef = useRef(null);
   const [table, setTable] = useState(null);
   const [listeners, setListeners] = useState(null);
@@ -12,7 +12,7 @@ const NinjaTableComponent = () => {
       if (canvasRef.current) {
         // 統合された初期化
         const { table: tableInstance, listeners: listenersInstance } = 
-          await createNinjaTableWithListeners(
+          await createWasabiTableWithListeners(
             canvasRef.current,
             {
               row_count: 50,
@@ -61,4 +61,4 @@ const NinjaTableComponent = () => {
   );
 };
 
-export default NinjaTableComponent; 
+export default WasabiTableComponent; 

@@ -8,7 +8,10 @@
 </head>
 <body>
     <div class="header">
-        <h1>🌶️ WasabiTable</h1>
+        <h1>
+            <img src="images/wasabi.svg" alt="WasabiTable" style="width: 32px; height: 32px; vertical-align: middle; margin-right: 8px;">
+            WasabiTable
+        </h1>
         <p>高性能なExcel風テーブルコンポーネント</p>
     </div>
 
@@ -552,7 +555,25 @@
         window.loadSampleData = () => {
             if (!table) return;
             
-            // 新しいヘッダー設定を定義
+            // Step 1: サンプルデータに合わせてUI設定を更新
+            const newConfig = {
+                row_count: 15,  // サンプルデータ8行 + 統計行 + 余裕
+                col_count: 10,  // サンプルデータの列数に合わせる
+                default_col_width: 100,
+                default_row_height: 25
+            };
+            
+            // UI要素を更新
+            document.getElementById('rowCount').value = newConfig.row_count;
+            document.getElementById('colCount').value = newConfig.col_count;
+            document.getElementById('colWidth').value = newConfig.default_col_width;
+            document.getElementById('rowHeight').value = newConfig.default_row_height;
+            
+            // Step 2: テーブル設定を段階的に更新
+            console.log('🔄 Updating table configuration...');
+            updateTableConfig(); // 既存の設定更新関数を使用
+            
+            // Step 3: 新しいヘッダー設定を定義
             const columnHeaders = [
                 {
                     name: "employee_id",
@@ -657,13 +678,23 @@
                 }
             ];
 
-            // ヘッダー設定を適用
-            try {
-                table.setColumnHeaders(JSON.stringify(columnHeaders));
-                console.log('✅ Column headers set successfully');
-            } catch (error) {
-                console.error('❌ Failed to set column headers:', error);
-            }
+            // Step 4: ヘッダー設定を遅延適用（テーブル再作成完了後）
+            setTimeout(() => {
+                try {
+                    table.setColumnHeaders(JSON.stringify(columnHeaders));
+                    console.log('✅ Column headers set successfully');
+                    
+                    // Step 5: サンプルデータを設定
+                    loadSampleDataContent();
+                    
+                } catch (error) {
+                    console.error('❌ Failed to set column headers:', error);
+                }
+            }, 500); // 500ms遅延でテーブル再作成を待つ
+        };
+        
+        // サンプルデータ設定を別関数に分離
+        function loadSampleDataContent() {
 
             // サンプルデータ
             const sampleData = [
@@ -689,7 +720,19 @@
             table.setCellValue(10, 4, '平均給与: ¥506,250');
 
             table.render();
+            updateCellReference();
             updateStats();
+            
+            // 完了通知
+            setTimeout(() => {
+                alert(`✅ サンプルデータを読み込みました！\n\n` +
+                      `📊 設定を自動調整:\n` +
+                      `• 行数: 15行\n` +
+                      `• 列数: 10列\n` +
+                      `• サンプルデータ: 8行の社員情報\n` +
+                      `• ヘッダー: 適切なフィールドタイプを設定\n\n` +
+                      `🎯 ヘッダーをクリックしてフィルター・ソート機能をお試しください！`);
+            }, 100);
         };
 
         window.clearTable = () => {
@@ -766,90 +809,8 @@
         // 初期化実行
         initTable();
 
-        // MenuField機能のテスト用設定
-        const menuFieldHeaders = [
-            {
-                name: "category",
-                display_name: "カテゴリー",
-                width: 150,
-                required: true,
-                order: 0,
-                is_visible: true,
-                field_type: "MenuField",
-                choices: ["食品", "飲料", "雑貨", "衣類", "電子機器"]
-            },
-            {
-                name: "status",
-                display_name: "ステータス",
-                width: 120,
-                required: false,
-                order: 1,
-                is_visible: true,
-                field_type: "MenuField",
-                menu_config: {
-                    options: [
-                        { label: "新規", value: "new" },
-                        { label: "進行中", value: "in_progress" },
-                        { label: "完了", value: "completed" },
-                        { label: "保留", value: "on_hold", disabled: true }
-                    ],
-                    searchable: true,
-                    placeholder: "ステータスを検索...",
-                    maxDisplayItems: 4
-                }
-            },
-            {
-                name: "priority",
-                display_name: "優先度",
-                width: 100,
-                required: true,
-                order: 2,
-                is_visible: true,
-                field_type: "MenuField",
-                menu_config: {
-                    options: ["低", "中", "高", "緊急"],
-                    searchable: false
-                }
-            },
-            {
-                name: "name",
-                display_name: "商品名",
-                width: 200,
-                required: true,
-                order: 3,
-                is_visible: true,
-                field_type: "CharField",
-                max_length: 50
-            }
-        ];
-
-        // テーブルにMenuFieldヘッダーを設定
-        table.setColumnHeaders(menuFieldHeaders);
-
-        // MenuField用のサンプルデータを設定
-        const menuFieldData = [
-            { row: 0, col: 0, value: "食品" },
-            { row: 0, col: 1, value: "new" },
-            { row: 0, col: 2, value: "高" },
-            { row: 0, col: 3, value: "りんご" },
-            { row: 1, col: 0, value: "飲料" },
-            { row: 1, col: 1, value: "in_progress" },
-            { row: 1, col: 2, value: "中" },
-            { row: 1, col: 3, value: "オレンジジュース" },
-            { row: 2, col: 0, value: "雑貨" },
-            { row: 2, col: 1, value: "completed" },
-            { row: 2, col: 2, value: "低" },
-            { row: 2, col: 3, value: "ノート" }
-        ];
-
-        table.setBatchData(menuFieldData);
-
-        // MenuField機能の追加設定
-        table.setMenuFieldOptions("category", {
-            options: ["食品", "飲料", "雑貨", "衣類", "電子機器", "書籍", "スポーツ用品"],
-            searchable: true,
-            placeholder: "カテゴリーを検索..."
-        });
+        // 初期状態では基本設定のみ
+        console.log('📋 WasabiTable initialized with default settings');
 
         // フィルター・ソート機能のテスト関数
         window.showHeaderButtons = () => {
@@ -913,10 +874,8 @@
                   `表示行数: ${filterResult.filteredCount}/${filterResult.totalRows}行`);
         };
 
-        // 初期状態でヘッダーボタンを表示
-        setTimeout(() => {
-            showHeaderButtons();
-        }, 1000);
+        // 初期状態はクリーンな状態を維持
+        console.log('🎯 Ready! Click "サンプルデータ読み込み" to test dynamic adjustment');
     </script>
 </body>
 </html>

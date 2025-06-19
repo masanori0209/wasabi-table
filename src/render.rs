@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 use web_sys::CanvasRenderingContext2d;
 use crate::types::{CellData, TableConfig};
 use crate::error::WasabiTableError;
-use crate::ninja_try;
+use crate::wasabi_try;
 use std::collections::HashMap;
 
 pub trait Renderable {
@@ -42,7 +42,7 @@ impl Renderable for crate::table::WasabiTable {
         self.ctx.save();
         
         // ヘッダー描画
-        ninja_try!(self.render_header());
+        wasabi_try!(self.render_header());
 
         // 可視セル描画（テーブル範囲内のみ）
         let max_row = self.visible_rows.1.min(self.config.row_count);
@@ -50,13 +50,13 @@ impl Renderable for crate::table::WasabiTable {
         
         for row in self.visible_rows.0..max_row {
             for col in self.visible_cols.0..max_col {
-                ninja_try!(self.render_cell(row, col));
+                wasabi_try!(self.render_cell(row, col));
             }
         }
 
         // グリッド描画
         if self.config.show_grid {
-            ninja_try!(self.render_grid());
+            wasabi_try!(self.render_grid());
         }
 
         self.ctx.restore();
@@ -92,7 +92,7 @@ impl Renderable for crate::table::WasabiTable {
             } else {
                 column_name(col)
             };
-            ninja_try!(self.ctx.fill_text(&header_text, x + self.config.default_col_width / 2.0, self.config.header_height / 2.0));
+            wasabi_try!(self.ctx.fill_text(&header_text, x + self.config.default_col_width / 2.0, self.config.header_height / 2.0));
         }
         
         // 行番号を描画（テーブル範囲内のみ）
@@ -100,7 +100,7 @@ impl Renderable for crate::table::WasabiTable {
         for row in self.visible_rows.0..max_row {
             let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
             let row_number = (row + 1).to_string();
-            ninja_try!(self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0));
+            wasabi_try!(self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0));
         }
         
         self.ctx.set_text_align("left");
@@ -131,7 +131,7 @@ impl Renderable for crate::table::WasabiTable {
             }
 
             // テキストを描画
-            ninja_try!(self.ctx.fill_text(&cell.value, x + 5.0, y + self.config.default_row_height / 2.0));
+            wasabi_try!(self.ctx.fill_text(&cell.value, x + 5.0, y + self.config.default_row_height / 2.0));
         }
         Ok(())
     }
