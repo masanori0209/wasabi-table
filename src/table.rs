@@ -55,6 +55,11 @@ pub struct WasabiTable {
     pub visible_cols: (usize, usize),
     #[wasm_bindgen(skip)]
     pub cells: Vec<Vec<Option<Cell>>>,
+    // フィルター・ソート用フィールドを追加
+    #[wasm_bindgen(skip)]
+    pub filtered_rows: Vec<usize>,
+    #[wasm_bindgen(skip)]
+    pub is_filtered: bool,
 }
 
 #[wasm_bindgen]
@@ -112,6 +117,8 @@ impl WasabiTable {
             visible_rows: (0, 0),
             visible_cols: (0, 0),
             cells,
+            filtered_rows: Vec::new(),
+            is_filtered: false,
         };
 
         // 表示範囲を計算
@@ -616,58 +623,36 @@ impl WasabiTable {
 
     // 表示範囲を計算
     fn calculate_visible_range(&mut self) {
-        // 列の表示範囲を計算（カスタム幅対応）
-        let mut start_col = 0;
-        let mut accumulated_width = 0.0;
-        
-        // 開始列を見つける
-        for col in 0..self.config.col_count {
-            let column_width = if let Some(header) = self.get_column_header(col) {
-                header.width
-            } else {
-                self.config.default_col_width
-            };
-            
-            if accumulated_width + column_width > self.scroll_x {
-                start_col = col;
-                break;
-            }
-            accumulated_width += column_width;
-        }
-        
-        // 終了列を見つける
-        let mut end_col = start_col;
-        let visible_area_width = self.canvas_width - self.config.row_header_width;
-        let mut current_width = 0.0;
-        
-        // 開始列の位置を取得
-        let start_x = self.get_start_x_for_column(start_col);
-        
-        for col in start_col..self.config.col_count {
-            let column_width = if let Some(header) = self.get_column_header(col) {
-                header.width
-            } else {
-                self.config.default_col_width
-            };
-            
-            current_width += column_width;
-            
-            // 表示領域を超えた場合
-            if current_width > visible_area_width + self.scroll_x - start_x {
-                end_col = col + 1;
-                break;
-            }
-            end_col = col + 1;
-        }
-        
-        end_col = end_col.min(self.config.col_count);
+        let header_height = self.config.header_height;
+        let row_header_width = self.config.row_header_width;
+        let default_row_height = self.config.default_row_height;
+        let default_col_width = self.config.default_col_width;
 
-        // 行の表示範囲を計算
-        let start_row = (self.scroll_y / self.config.default_row_height) as usize;
-        let end_row = ((self.scroll_y + self.canvas_height - self.config.header_height) / self.config.default_row_height) as usize + 1;
-        let end_row = end_row.min(self.config.row_count);
+        // 表示可能な行数を計算（フィルターを考慮）
+        let available_height = self.canvas_height - header_height;
+        let max_visible_rows = (available_height / default_row_height).floor() as usize + 2; // バッファを含む
 
-        self.visible_rows = (start_row, end_row);
+        // 表示可能な列数を計算
+        let available_width = self.canvas_width - row_header_width;
+        let max_visible_cols = (available_width / default_col_width).floor() as usize + 2; // バッファを含む
+
+        // スクロール位置から表示開始行を計算
+        let start_row_offset = (self.scroll_y / default_row_height).floor() as usize;
+        
+        // フィルターが適用されている場合
+        if self.is_filtered && !self.filtered_rows.is_empty() {
+            // フィルターされた行の中での表示範囲を計算
+            let end_row_offset = std::cmp::min(start_row_offset + max_visible_rows, self.filtered_rows.len());
+            self.visible_rows = (start_row_offset, end_row_offset);
+        } else {
+            // 通常の表示範囲計算
+            let end_row = std::cmp::min(start_row_offset + max_visible_rows, self.config.row_count);
+            self.visible_rows = (start_row_offset, end_row);
+        }
+
+        // 列の表示範囲計算
+        let start_col = (self.scroll_x / default_col_width).floor() as usize;
+        let end_col = std::cmp::min(start_col + max_visible_cols, self.config.col_count);
         self.visible_cols = (start_col, end_col);
     }
     
@@ -883,41 +868,54 @@ impl WasabiTable {
     // レンダリングメソッドの更新
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
-        // キャンバスをクリア（フィールドの値を使用）
+        // キャンバスをクリア
         self.ctx.clear_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
         
-        // 背景を描画（フィールドの値を使用）
-        self.ctx.set_fill_style_str(&self.config.background_color);
+        // 背景を描画
+        self.ctx.set_fill_style(&JsValue::from_str(&self.config.background_color));
         self.ctx.fill_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
         
-        // すべての可視セルを描画（空のセルも含む）
-        // テーブルの範囲内でのみ描画
-        let max_row = self.visible_rows.1.min(self.config.row_count);
-        let max_col = self.visible_cols.1.min(self.config.col_count);
+        // ヘッダーを描画
+        self.render_header()?;
         
-        for row in self.visible_rows.0..max_row {
-            for col in self.visible_cols.0..max_col {
-                self.render_cell(row, col)?;
+        // セルを描画（フィルターを考慮）
+        if self.is_filtered && !self.filtered_rows.is_empty() {
+            // フィルターされた行のみを描画
+            for display_row in self.visible_rows.0..self.visible_rows.1 {
+                if display_row < self.filtered_rows.len() {
+                    let actual_row = self.filtered_rows[display_row];
+                    for col in self.visible_cols.0..self.visible_cols.1 {
+                        self.render_cell_at_position(actual_row, col, display_row)?;
+                    }
+                }
+            }
+        } else {
+            // 通常の描画
+            for row in self.visible_rows.0..self.visible_rows.1 {
+                for col in self.visible_cols.0..self.visible_cols.1 {
+                    self.render_cell(row, col)?;
+                }
             }
         }
         
-        // グリッドと選択セルを描画
+        // グリッドを描画
         self.render_grid()?;
-        
-        // ヘッダーを最後に描画（常に最前面に表示）
-        self.render_header()?;
         
         Ok(())
     }
 
     fn render_cell(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        self.render_cell_at_position(row, col, row)
+    }
+
+    fn render_cell_at_position(&mut self, data_row: usize, col: usize, display_row: usize) -> Result<(), JsValue> {
         // 行・列が範囲外の場合は描画しない
-        if row >= self.config.row_count || col >= self.config.col_count {
+        if data_row >= self.config.row_count || col >= self.config.col_count {
             return Ok(());
         }
         
         let x = self.get_column_x_position(col);
-        let y = (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64 - self.scroll_y;
+        let y = (display_row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64 - self.scroll_y;
         let width = self.get_column_width(col);
         let height = self.config.default_row_height as f64;
 
@@ -934,13 +932,13 @@ impl WasabiTable {
         self.ctx.fill_rect(x, y, width, height);
 
         // セルの値を取得
-        let key = format!("{}:{}", row, col);
+        let key = format!("{}:{}", data_row, col);
         let cell_value = self.data.get(&key).map(|data| data.value.clone()).unwrap_or_default();
         let has_validation_error = self.data.get(&key).and_then(|data| data.validation_error.as_ref()).is_some();
 
         // 選択されたセルの場合は境界線を描画
         if let Some((selected_row, selected_col)) = self.selected_cell {
-            if selected_row == row && selected_col == col {
+            if selected_row == data_row && selected_col == col {
                 self.ctx.set_stroke_style_str(&self.config.selected_cell_color);
                 self.ctx.set_line_width(2.0);
                 self.ctx.stroke_rect(x, y, width, height);
@@ -1788,19 +1786,59 @@ impl WasabiTable {
     /// Canvasサイズを更新し、表示範囲を再計算
     #[wasm_bindgen]
     pub fn update_canvas_size(&mut self, width: f64, height: f64) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("🔧 [RUST DEBUG] Updating canvas size to: {}x{}", width, height).into());
-        
-        // キャンバスサイズを更新
         self.canvas_width = width;
         self.canvas_height = height;
+        self.calculate_visible_range();
+        Ok(())
+    }
+    
+    // フィルター・ソート結果を設定
+    #[wasm_bindgen]
+    pub fn set_filtered_rows(&mut self, filtered_rows_json: &str) -> Result<(), JsValue> {
+        let filtered_rows: Vec<usize> = serde_json::from_str(filtered_rows_json)
+            .map_err(|e| JsValue::from_str(&format!("Failed to parse filtered rows: {}", e)))?;
+        
+        web_sys::console::log_1(&format!("🔍 [DEBUG] Setting filtered rows: {:?}", filtered_rows).into());
+        
+        self.filtered_rows = filtered_rows;
+        self.is_filtered = !self.filtered_rows.is_empty();
         
         // 表示範囲を再計算
         self.calculate_visible_range();
         
-        web_sys::console::log_1(&format!("🔧 [RUST DEBUG] Visible range updated: rows({}-{}), cols({}-{})", 
-            self.visible_rows.0, self.visible_rows.1, 
-            self.visible_cols.0, self.visible_cols.1).into());
+        // 再描画を実行
+        self.render()?;
+        
+        web_sys::console::log_1(&format!("🔍 [DEBUG] Filter applied and rendered. Filtered: {}, Row count: {}", 
+            self.is_filtered, self.filtered_rows.len()).into());
         
         Ok(())
+    }
+    
+    // フィルターをクリア
+    #[wasm_bindgen]
+    pub fn clear_filter(&mut self) -> Result<(), JsValue> {
+        web_sys::console::log_1(&format!("🔍 [DEBUG] Clearing filter").into());
+        
+        self.filtered_rows.clear();
+        self.is_filtered = false;
+        self.calculate_visible_range();
+        
+        // 再描画を実行
+        self.render()?;
+        
+        web_sys::console::log_1(&format!("🔍 [DEBUG] Filter cleared and rendered").into());
+        
+        Ok(())
+    }
+    
+    // フィルター状態を取得
+    #[wasm_bindgen]
+    pub fn get_filter_info(&self) -> String {
+        serde_json::to_string(&serde_json::json!({
+            "isFiltered": self.is_filtered,
+            "filteredRowCount": self.filtered_rows.len(),
+            "totalRowCount": self.config.row_count
+        })).unwrap_or_else(|_| "{}".to_string())
     }
 } 

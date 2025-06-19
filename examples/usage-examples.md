@@ -385,4 +385,4 @@ app.initialize().then(() => {
 - Safari 14+
 - Edge 80+
 
-WebAssemblyをサポートするモダンブラウザで動作します。 
+WebAssemblyをサポートするモダンブラウザで動作します。

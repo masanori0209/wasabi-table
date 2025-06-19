@@ -64,6 +64,26 @@ export var FieldType;
     FieldType["ButtonField"] = "ButtonField";
     FieldType["MenuField"] = "MenuField";
 })(FieldType || (FieldType = {}));
+/**
+ * フィルター条件の種類
+ */
+export var FilterOperator;
+(function (FilterOperator) {
+    // 文字列系
+    FilterOperator["Contains"] = "contains";
+    FilterOperator["StartsWith"] = "startsWith";
+    FilterOperator["EndsWith"] = "endsWith";
+    FilterOperator["Equals"] = "equals";
+    FilterOperator["NotEquals"] = "notEquals";
+    // 数値系
+    FilterOperator["GreaterThan"] = "greaterThan";
+    FilterOperator["GreaterThanOrEqual"] = "greaterThanOrEqual";
+    FilterOperator["LessThan"] = "lessThan";
+    FilterOperator["LessThanOrEqual"] = "lessThanOrEqual";
+    // その他
+    FilterOperator["IsEmpty"] = "isEmpty";
+    FilterOperator["IsNotEmpty"] = "isNotEmpty";
+})(FilterOperator || (FilterOperator = {}));
 // リスナー機能をエクスポート
 export { NinjaTableListeners } from './listeners.js';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut } from './utils.js';
@@ -113,10 +133,16 @@ export class WasabiTable {
         this.verticalThumb = null;
         // リサイズ監視
         this.resizeObserver = null;
-        // MenuField SelectBox関連
+        // MenuField関連
         this.selectBoxElement = null;
         this.currentMenuFieldCell = null;
         this.menuFieldOptions = new Map();
+        // フィルター・ソート関連
+        this.filterConditions = [];
+        this.sortCondition = null;
+        this.filteredRows = [];
+        this.isFiltered = false;
+        this.filterDialogs = new Map();
         /**
          * SelectBoxのキーダウンハンドラー
          */
@@ -124,6 +150,17 @@ export class WasabiTable {
             if (event.key === 'Escape') {
                 event.preventDefault();
                 this.hideMenuFieldSelectBox();
+            }
+        };
+        /**
+         * フィルターダイアログ外クリックハンドラー
+         */
+        this.handleFilterDialogOutsideClick = (event) => {
+            const target = event.target;
+            const isInsideDialog = target.closest('.wasabi-filter-dialog, .wasabi-header-dialog');
+            const isHeaderClick = target.closest('.wasabi-header-filter-btn');
+            if (!isInsideDialog && !isHeaderClick) {
+                this.hideAllFilterDialogs();
             }
         };
         this.wasmTable = wasmTable;
@@ -799,6 +836,24 @@ export class WasabiTable {
             const rect = this.canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
+            // ヘッダー領域のクリックかチェック
+            console.log('🎯 [DEBUG] Mouse click at:', { x, y, headerHeight: this.config.header_height, rowHeaderWidth: this.config.row_header_width });
+            if (y <= this.config.header_height && x > this.config.row_header_width) {
+                console.log('🎯 [DEBUG] Click is in header area');
+                const columnIndex = this.getColumnIndexFromX(x);
+                console.log('🎯 [DEBUG] Column index from X:', columnIndex);
+                if (columnIndex !== -1) {
+                    console.log('🎯 [DEBUG] Calling handleHeaderClick for column:', columnIndex);
+                    this.handleHeaderClick(columnIndex, event);
+                    return;
+                }
+                else {
+                    console.log('🎯 [DEBUG] No valid column found for header click');
+                }
+            }
+            else {
+                console.log('🎯 [DEBUG] Click is not in header area');
+            }
             const cellPos = this.wasmTable.pixel_to_cell(x, y);
             if (cellPos) {
                 const [row, col] = cellPos.split(':').map(Number);
@@ -2488,6 +2543,930 @@ export class WasabiTable {
      * 利用可能なテーマ一覧を取得
      */
     static getAvailableThemes() {
-        return Object.keys(PREDEFINED_THEMES);
+        return ['light', 'dark'];
+    }
+    // ========================================
+    // フィルター・ソート機能
+    // ========================================
+    /**
+     * フィルター条件を追加
+     */
+    addFilterCondition(condition) {
+        // 同じ列の既存フィルターを削除
+        this.filterConditions = this.filterConditions.filter(c => c.columnIndex !== condition.columnIndex);
+        this.filterConditions.push(condition);
+        this.applyFilters();
+    }
+    /**
+     * フィルター条件を削除
+     */
+    removeFilterCondition(columnIndex) {
+        this.filterConditions = this.filterConditions.filter(c => c.columnIndex !== columnIndex);
+        this.applyFilters();
+    }
+    /**
+     * 全フィルターをクリア
+     */
+    clearAllFilters() {
+        this.filterConditions = [];
+        this.isFiltered = false;
+        this.filteredRows = [];
+        this.render();
+    }
+    /**
+     * ソート条件を設定
+     */
+    setSortCondition(condition) {
+        console.log('🔄 [DEBUG] setSortCondition called with:', condition);
+        this.sortCondition = condition;
+        console.log('🔄 [DEBUG] Sort condition set, applying filters...');
+        this.applyFilters(); // ソートもフィルター適用と一緒に実行
+    }
+    /**
+     * フィルター・ソートを適用
+     */
+    applyFilters() {
+        const config = this.getConfig();
+        let rows = [];
+        // 全行のインデックスを作成
+        for (let i = 0; i < config.row_count; i++) {
+            rows.push(i);
+        }
+        console.log('🔍 [DEBUG] Applying filters:', {
+            filterConditions: this.filterConditions,
+            sortCondition: this.sortCondition,
+            totalRows: rows.length
+        });
+        // フィルター適用
+        if (this.filterConditions.length > 0) {
+            rows = rows.filter(row => this.passesAllFilters(row));
+            this.isFiltered = true;
+            console.log('🔍 [DEBUG] After filtering:', rows.length, 'rows remain');
+        }
+        else {
+            this.isFiltered = false;
+            console.log('🔍 [DEBUG] No filters applied, showing all rows');
+        }
+        // ソート適用
+        if (this.sortCondition) {
+            rows = this.sortRows(rows, this.sortCondition);
+            console.log('🔍 [DEBUG] After sorting:', rows.length, 'rows');
+        }
+        this.filteredRows = rows;
+        // Rust側にフィルター結果を送信
+        try {
+            if (this.isFiltered || this.sortCondition) {
+                console.log('🔍 [DEBUG] Sending filtered/sorted rows to Rust:', rows.length, 'rows');
+                console.log('🔍 [DEBUG] First 10 rows:', rows.slice(0, 10));
+                this.wasmTable.set_filtered_rows(JSON.stringify(rows));
+            }
+            else {
+                console.log('🔍 [DEBUG] Clearing filter in Rust');
+                this.wasmTable.clear_filter();
+            }
+        }
+        catch (error) {
+            console.error('🔍 [ERROR] Failed to update filter in Rust:', error);
+        }
+        // TypeScript側の追加レンダリングは不要（Rust側で実行済み）
+        console.log('🔍 [DEBUG] Filter/sort processing completed');
+    }
+    /**
+     * 行が全フィルター条件を満たすかチェック
+     */
+    passesAllFilters(row) {
+        return this.filterConditions.every(condition => {
+            if (!condition.isActive)
+                return true;
+            return this.passesFilter(row, condition);
+        });
+    }
+    /**
+     * 行が特定のフィルター条件を満たすかチェック
+     */
+    passesFilter(row, condition) {
+        const cellValue = this.getCellValue(row, condition.columnIndex) || '';
+        const filterValue = condition.value.toLowerCase();
+        const cellValueLower = cellValue.toLowerCase();
+        console.log('🔍 [DEBUG] passesFilter:', {
+            row,
+            columnIndex: condition.columnIndex,
+            cellValue,
+            filterValue: condition.value,
+            operator: condition.operator,
+            fieldType: condition.fieldType
+        });
+        let result = false;
+        switch (condition.operator) {
+            case FilterOperator.Contains:
+                result = cellValueLower.includes(filterValue);
+                break;
+            case FilterOperator.StartsWith:
+                result = cellValueLower.startsWith(filterValue);
+                break;
+            case FilterOperator.EndsWith:
+                result = cellValueLower.endsWith(filterValue);
+                break;
+            case FilterOperator.Equals:
+                if (condition.fieldType === FieldType.IntegerField || condition.fieldType === FieldType.DecimalField) {
+                    result = parseFloat(cellValue) === parseFloat(condition.value);
+                }
+                else if (condition.fieldType === FieldType.MenuField && condition.value.includes('|')) {
+                    // MenuFieldの複数値選択の場合
+                    const selectedValues = condition.value.split('|');
+                    result = selectedValues.includes(cellValue);
+                }
+                else {
+                    result = cellValueLower === filterValue;
+                }
+                break;
+            case FilterOperator.NotEquals:
+                if (condition.fieldType === FieldType.IntegerField || condition.fieldType === FieldType.DecimalField) {
+                    result = parseFloat(cellValue) !== parseFloat(condition.value);
+                }
+                else {
+                    result = cellValueLower !== filterValue;
+                }
+                break;
+            case FilterOperator.GreaterThan:
+                result = parseFloat(cellValue) > parseFloat(condition.value);
+                break;
+            case FilterOperator.GreaterThanOrEqual:
+                result = parseFloat(cellValue) >= parseFloat(condition.value);
+                break;
+            case FilterOperator.LessThan:
+                result = parseFloat(cellValue) < parseFloat(condition.value);
+                break;
+            case FilterOperator.LessThanOrEqual:
+                result = parseFloat(cellValue) <= parseFloat(condition.value);
+                break;
+            case FilterOperator.IsEmpty:
+                result = cellValue.trim() === '';
+                break;
+            case FilterOperator.IsNotEmpty:
+                result = cellValue.trim() !== '';
+                break;
+            default:
+                result = true;
+        }
+        console.log('🔍 [DEBUG] Filter result:', result);
+        return result;
+    }
+    /**
+     * 行をソート
+     */
+    sortRows(rows, sortCondition) {
+        console.log('🔄 [DEBUG] sortRows called with:', {
+            rowCount: rows.length,
+            sortCondition,
+            firstFewRows: rows.slice(0, 5)
+        });
+        const sortedRows = rows.sort((a, b) => {
+            const aValue = this.getCellValue(a, sortCondition.columnIndex) || '';
+            const bValue = this.getCellValue(b, sortCondition.columnIndex) || '';
+            let comparison = 0;
+            if (sortCondition.fieldType === FieldType.IntegerField ||
+                sortCondition.fieldType === FieldType.DecimalField) {
+                // 数値比較
+                const aNum = parseFloat(aValue) || 0;
+                const bNum = parseFloat(bValue) || 0;
+                comparison = aNum - bNum;
+            }
+            else if (sortCondition.fieldType === FieldType.DateField) {
+                // 日付比較
+                const aDate = new Date(aValue);
+                const bDate = new Date(bValue);
+                comparison = aDate.getTime() - bDate.getTime();
+            }
+            else {
+                // 文字列比較
+                comparison = aValue.localeCompare(bValue);
+            }
+            const result = sortCondition.direction === 'desc' ? -comparison : comparison;
+            return result;
+        });
+        console.log('🔄 [DEBUG] Sort completed:', {
+            originalFirst5: rows.slice(0, 5),
+            sortedFirst5: sortedRows.slice(0, 5)
+        });
+        return sortedRows;
+    }
+    /**
+     * 統合ヘッダーダイアログを表示
+     */
+    showHeaderDialog(columnIndex) {
+        // 既存のダイアログを閉じる
+        this.hideAllFilterDialogs();
+        const headers = this.getColumnHeadersAsArray();
+        if (columnIndex >= headers.length)
+            return;
+        const header = headers[columnIndex];
+        const dialog = this.createHeaderDialog(columnIndex, header);
+        // ヘッダーの位置を取得してダイアログを配置
+        const headerPosition = this.getHeaderPosition(columnIndex);
+        dialog.style.position = 'fixed';
+        dialog.style.left = `${headerPosition.x}px`;
+        dialog.style.top = `${headerPosition.y + headerPosition.height}px`;
+        dialog.style.zIndex = '10000';
+        document.body.appendChild(dialog);
+        this.filterDialogs.set(columnIndex, dialog);
+        // 外側クリックで閉じる
+        setTimeout(() => {
+            document.addEventListener('click', this.handleFilterDialogOutsideClick);
+        }, 100);
+    }
+    /**
+     * フィルターダイアログを表示（後方互換性のため）
+     */
+    showFilterDialog(columnIndex) {
+        this.showHeaderDialog(columnIndex);
+    }
+    /**
+     * 統合ヘッダーダイアログを作成
+     */
+    createHeaderDialog(columnIndex, header) {
+        const dialog = document.createElement('div');
+        dialog.className = 'wasabi-header-dialog';
+        dialog.style.cssText = `
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 16px;
+      min-width: 300px;
+      max-width: 400px;
+    `;
+        // タイトル
+        const title = document.createElement('div');
+        title.textContent = `列操作: ${header.display_name}`;
+        title.style.cssText = `
+      font-weight: bold;
+      margin-bottom: 16px;
+      color: #333;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    `;
+        dialog.appendChild(title);
+        // タブ切り替え
+        const tabContainer = document.createElement('div');
+        tabContainer.style.cssText = `
+      display: flex;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #ddd;
+    `;
+        const sortTab = document.createElement('button');
+        sortTab.textContent = 'ソート';
+        sortTab.className = 'header-dialog-tab active';
+        sortTab.style.cssText = `
+      padding: 8px 16px;
+      border: none;
+      background: #f8f9fa;
+      cursor: pointer;
+      border-bottom: 2px solid #007bff;
+      margin-right: 4px;
+    `;
+        const filterTab = document.createElement('button');
+        filterTab.textContent = 'フィルター';
+        filterTab.className = 'header-dialog-tab';
+        filterTab.style.cssText = `
+      padding: 8px 16px;
+      border: none;
+      background: #f8f9fa;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    `;
+        tabContainer.appendChild(sortTab);
+        tabContainer.appendChild(filterTab);
+        dialog.appendChild(tabContainer);
+        // コンテンツエリア
+        const contentArea = document.createElement('div');
+        contentArea.className = 'header-dialog-content';
+        dialog.appendChild(contentArea);
+        // ソートコンテンツを初期表示
+        this.createSortContent(contentArea, columnIndex, header);
+        // タブ切り替えイベント
+        sortTab.addEventListener('click', () => {
+            this.switchTab(sortTab, filterTab, contentArea, columnIndex, header, 'sort');
+        });
+        filterTab.addEventListener('click', () => {
+            this.switchTab(filterTab, sortTab, contentArea, columnIndex, header, 'filter');
+        });
+        return dialog;
+    }
+    /**
+     * フィルターダイアログを作成（後方互換性のため）
+     */
+    createFilterDialog(columnIndex, header) {
+        const dialog = document.createElement('div');
+        dialog.className = 'wasabi-filter-dialog';
+        dialog.style.cssText = `
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 16px;
+      min-width: 250px;
+      max-width: 350px;
+    `;
+        // タイトル
+        const title = document.createElement('div');
+        title.textContent = `フィルター: ${header.display_name}`;
+        title.style.cssText = `
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: #333;
+    `;
+        dialog.appendChild(title);
+        // 既存のフィルター条件を取得
+        const existingCondition = this.filterConditions.find(c => c.columnIndex === columnIndex);
+        // フィールドタイプに応じたフィルターUIを作成
+        if (header.field_type === FieldType.MenuField && header.menu_config) {
+            this.createMenuFieldFilter(dialog, columnIndex, header, existingCondition);
+        }
+        else if (header.field_type === FieldType.IntegerField || header.field_type === FieldType.DecimalField) {
+            this.createNumericFieldFilter(dialog, columnIndex, header, existingCondition);
+        }
+        else {
+            this.createTextFieldFilter(dialog, columnIndex, header, existingCondition);
+        }
+        // ボタン
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      justify-content: flex-end;
+    `;
+        const applyBtn = document.createElement('button');
+        applyBtn.textContent = '適用';
+        applyBtn.style.cssText = `
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+        const clearBtn = document.createElement('button');
+        clearBtn.textContent = 'クリア';
+        clearBtn.style.cssText = `
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'キャンセル';
+        cancelBtn.style.cssText = `
+      background: #f8f9fa;
+      color: #333;
+      border: 1px solid #ccc;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+        applyBtn.addEventListener('click', () => {
+            this.applyFilterFromDialog(dialog, columnIndex, header.field_type);
+        });
+        clearBtn.addEventListener('click', () => {
+            this.removeFilterCondition(columnIndex);
+            this.hideFilterDialog(columnIndex);
+        });
+        cancelBtn.addEventListener('click', () => {
+            this.hideFilterDialog(columnIndex);
+        });
+        buttonContainer.appendChild(applyBtn);
+        buttonContainer.appendChild(clearBtn);
+        buttonContainer.appendChild(cancelBtn);
+        dialog.appendChild(buttonContainer);
+        return dialog;
+    }
+    /**
+     * MenuFieldのフィルターUI作成
+     */
+    createMenuFieldFilter(dialog, columnIndex, header, existingCondition) {
+        var _a;
+        const container = document.createElement('div');
+        // 選択肢を取得
+        const options = ((_a = header.menu_config) === null || _a === void 0 ? void 0 : _a.options) || [];
+        const menuOptions = options.map(opt => typeof opt === 'string' ? { label: opt, value: opt } : opt);
+        // チェックボックスリスト
+        const checkboxContainer = document.createElement('div');
+        checkboxContainer.style.cssText = `
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+    `;
+        menuOptions.forEach(option => {
+            const label = document.createElement('label');
+            label.style.cssText = `
+        display: block;
+        margin-bottom: 4px;
+        cursor: pointer;
+      `;
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = option.value;
+            checkbox.style.marginRight = '8px';
+            // 既存条件があれば選択状態を復元
+            if (existingCondition && existingCondition.value.includes(option.value)) {
+                checkbox.checked = true;
+            }
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(option.label));
+            checkboxContainer.appendChild(label);
+        });
+        container.appendChild(checkboxContainer);
+        dialog.appendChild(container);
+    }
+    /**
+     * 数値フィールドのフィルターUI作成
+     */
+    createNumericFieldFilter(dialog, columnIndex, header, existingCondition) {
+        const container = document.createElement('div');
+        // 演算子選択
+        const operatorSelect = document.createElement('select');
+        operatorSelect.style.cssText = `
+      width: 100%;
+      padding: 6px;
+      margin-bottom: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    `;
+        const numericOperators = [
+            { value: FilterOperator.Equals, label: '等しい (=)' },
+            { value: FilterOperator.NotEquals, label: '等しくない (≠)' },
+            { value: FilterOperator.GreaterThan, label: 'より大きい (>)' },
+            { value: FilterOperator.GreaterThanOrEqual, label: '以上 (≥)' },
+            { value: FilterOperator.LessThan, label: 'より小さい (<)' },
+            { value: FilterOperator.LessThanOrEqual, label: '以下 (≤)' },
+            { value: FilterOperator.IsEmpty, label: '空' },
+            { value: FilterOperator.IsNotEmpty, label: '空でない' }
+        ];
+        numericOperators.forEach(op => {
+            const option = document.createElement('option');
+            option.value = op.value;
+            option.textContent = op.label;
+            if (existingCondition && existingCondition.operator === op.value) {
+                option.selected = true;
+            }
+            operatorSelect.appendChild(option);
+        });
+        // 値入力
+        const valueInput = document.createElement('input');
+        valueInput.type = 'number';
+        valueInput.placeholder = '値を入力';
+        valueInput.style.cssText = `
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    `;
+        if (existingCondition) {
+            valueInput.value = existingCondition.value;
+        }
+        // 空・空でない の場合は値入力を無効化
+        operatorSelect.addEventListener('change', () => {
+            const needsValue = ![FilterOperator.IsEmpty, FilterOperator.IsNotEmpty].includes(operatorSelect.value);
+            valueInput.disabled = !needsValue;
+            valueInput.style.opacity = needsValue ? '1' : '0.5';
+        });
+        container.appendChild(operatorSelect);
+        container.appendChild(valueInput);
+        dialog.appendChild(container);
+        // 初期状態の設定
+        operatorSelect.dispatchEvent(new Event('change'));
+    }
+    /**
+     * テキストフィールドのフィルターUI作成
+     */
+    createTextFieldFilter(dialog, columnIndex, header, existingCondition) {
+        const container = document.createElement('div');
+        // 演算子選択
+        const operatorSelect = document.createElement('select');
+        operatorSelect.style.cssText = `
+      width: 100%;
+      padding: 6px;
+      margin-bottom: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    `;
+        const textOperators = [
+            { value: FilterOperator.Contains, label: '含む' },
+            { value: FilterOperator.StartsWith, label: '～で始まる' },
+            { value: FilterOperator.EndsWith, label: '～で終わる' },
+            { value: FilterOperator.Equals, label: '等しい' },
+            { value: FilterOperator.NotEquals, label: '等しくない' },
+            { value: FilterOperator.IsEmpty, label: '空' },
+            { value: FilterOperator.IsNotEmpty, label: '空でない' }
+        ];
+        textOperators.forEach(op => {
+            const option = document.createElement('option');
+            option.value = op.value;
+            option.textContent = op.label;
+            if (existingCondition && existingCondition.operator === op.value) {
+                option.selected = true;
+            }
+            operatorSelect.appendChild(option);
+        });
+        // 値入力
+        const valueInput = document.createElement('input');
+        valueInput.type = 'text';
+        valueInput.placeholder = '検索文字列を入力';
+        valueInput.style.cssText = `
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    `;
+        if (existingCondition) {
+            valueInput.value = existingCondition.value;
+        }
+        // 空・空でない の場合は値入力を無効化
+        operatorSelect.addEventListener('change', () => {
+            const needsValue = ![FilterOperator.IsEmpty, FilterOperator.IsNotEmpty].includes(operatorSelect.value);
+            valueInput.disabled = !needsValue;
+            valueInput.style.opacity = needsValue ? '1' : '0.5';
+        });
+        container.appendChild(operatorSelect);
+        container.appendChild(valueInput);
+        dialog.appendChild(container);
+        // 初期状態の設定
+        operatorSelect.dispatchEvent(new Event('change'));
+    }
+    /**
+     * フィルターダイアログから条件を適用
+     */
+    applyFilterFromDialog(dialog, columnIndex, fieldType) {
+        if (fieldType === FieldType.MenuField) {
+            // MenuFieldの場合：選択されたチェックボックスの値を取得
+            const checkboxes = dialog.querySelectorAll('input[type="checkbox"]:checked');
+            const selectedValues = Array.from(checkboxes).map(cb => cb.value);
+            if (selectedValues.length > 0) {
+                const condition = {
+                    columnIndex,
+                    fieldType,
+                    operator: FilterOperator.Equals,
+                    value: selectedValues.join('|'), // 複数値は|で区切る
+                    isActive: true
+                };
+                this.addFilterCondition(condition);
+            }
+        }
+        else {
+            // その他のフィールド：演算子と値を取得
+            const operatorSelect = dialog.querySelector('select');
+            const valueInput = dialog.querySelector('input[type="text"], input[type="number"]');
+            const operator = operatorSelect.value;
+            const value = (valueInput === null || valueInput === void 0 ? void 0 : valueInput.value) || '';
+            // 空・空でない以外で値が空の場合はスキップ
+            if (![FilterOperator.IsEmpty, FilterOperator.IsNotEmpty].includes(operator) && !value.trim()) {
+                return;
+            }
+            const condition = {
+                columnIndex,
+                fieldType,
+                operator,
+                value,
+                isActive: true
+            };
+            this.addFilterCondition(condition);
+        }
+        this.hideFilterDialog(columnIndex);
+    }
+    /**
+     * ヘッダーの位置を取得
+     */
+    getHeaderPosition(columnIndex) {
+        const canvasRect = this.canvas.getBoundingClientRect();
+        const config = this.getConfig();
+        const stats = this.getStats();
+        // 列の開始位置を計算（スクロール位置を考慮）
+        let x = config.row_header_width;
+        const headers = this.getColumnHeadersAsArray();
+        for (let i = 0; i < columnIndex && i < headers.length; i++) {
+            x += headers[i].width;
+        }
+        // スクロール位置を引いて実際の表示位置を計算
+        x -= stats.scrollX;
+        const width = columnIndex < headers.length ? headers[columnIndex].width : config.default_col_width;
+        return {
+            x: canvasRect.left + x,
+            y: canvasRect.top,
+            width,
+            height: config.header_height
+        };
+    }
+    /**
+     * フィルターダイアログを非表示
+     */
+    hideFilterDialog(columnIndex) {
+        const dialog = this.filterDialogs.get(columnIndex);
+        if (dialog && dialog.parentNode) {
+            dialog.parentNode.removeChild(dialog);
+            this.filterDialogs.delete(columnIndex);
+        }
+    }
+    /**
+     * 全フィルターダイアログを非表示
+     */
+    hideAllFilterDialogs() {
+        this.filterDialogs.forEach((dialog, columnIndex) => {
+            if (dialog.parentNode) {
+                dialog.parentNode.removeChild(dialog);
+            }
+        });
+        this.filterDialogs.clear();
+        document.removeEventListener('click', this.handleFilterDialogOutsideClick);
+    }
+    /**
+     * フィルター状態を取得
+     */
+    getFilterState() {
+        return {
+            conditions: [...this.filterConditions],
+            sortCondition: this.sortCondition,
+            isFiltered: this.isFiltered
+        };
+    }
+    /**
+     * フィルター結果を取得
+     */
+    getFilterResult() {
+        const config = this.getConfig();
+        return {
+            filteredRows: [...this.filteredRows],
+            totalRows: config.row_count,
+            filteredCount: this.filteredRows.length
+        };
+    }
+    /**
+     * X座標から列インデックスを取得
+     */
+    getColumnIndexFromX(canvasX) {
+        // スクロール位置を考慮した座標計算
+        const stats = this.getStats();
+        const adjustedX = canvasX + stats.scrollX - this.config.row_header_width;
+        let currentX = 0;
+        const headers = this.getColumnHeadersAsArray();
+        console.log('🎯 [DEBUG] getColumnIndexFromX - canvasX:', canvasX, 'scrollX:', stats.scrollX, 'adjustedX:', adjustedX);
+        for (let col = 0; col < headers.length; col++) {
+            const colWidth = headers[col].width;
+            console.log('🎯 [DEBUG] Column', col, 'range:', currentX, '-', currentX + colWidth);
+            if (adjustedX >= currentX && adjustedX < currentX + colWidth) {
+                console.log('🎯 [DEBUG] Found column:', col);
+                return col;
+            }
+            currentX += colWidth;
+        }
+        console.log('🎯 [DEBUG] No column found for X position');
+        return -1;
+    }
+    /**
+     * ヘッダークリック処理
+     */
+    handleHeaderClick(columnIndex, event) {
+        console.log('🎯 [DEBUG] Header clicked:', columnIndex);
+        const headers = this.getColumnHeadersAsArray();
+        if (columnIndex >= headers.length)
+            return;
+        // ヘッダークリックで統合ダイアログを表示
+        this.showHeaderDialog(columnIndex);
+        event.preventDefault();
+    }
+    /**
+     * ヘッダーソート処理
+     */
+    handleHeaderSort(columnIndex) {
+        const headers = this.getColumnHeadersAsArray();
+        if (columnIndex >= headers.length)
+            return;
+        const header = headers[columnIndex];
+        const currentSort = this.sortCondition;
+        let newDirection = 'asc';
+        // 同じ列の場合は方向を切り替え
+        if (currentSort && currentSort.columnIndex === columnIndex) {
+            newDirection = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        }
+        const sortCondition = {
+            columnIndex,
+            fieldType: header.field_type,
+            direction: newDirection
+        };
+        this.setSortCondition(sortCondition);
+        console.log('🔄 [DEBUG] Sort applied:', sortCondition);
+    }
+    /**
+     * タブを切り替え
+     */
+    switchTab(activeTab, inactiveTab, contentArea, columnIndex, header, tabType) {
+        // タブの見た目を更新
+        activeTab.style.borderBottom = '2px solid #007bff';
+        activeTab.style.backgroundColor = '#f8f9fa';
+        inactiveTab.style.borderBottom = '2px solid transparent';
+        inactiveTab.style.backgroundColor = '#f8f9fa';
+        // コンテンツを更新
+        contentArea.innerHTML = '';
+        if (tabType === 'sort') {
+            this.createSortContent(contentArea, columnIndex, header);
+        }
+        else {
+            this.createFilterContent(contentArea, columnIndex, header);
+        }
+    }
+    /**
+     * ソートコンテンツを作成
+     */
+    createSortContent(container, columnIndex, header) {
+        const currentSort = this.sortCondition;
+        const isCurrentColumn = currentSort && currentSort.columnIndex === columnIndex;
+        // ソート状態表示
+        const statusDiv = document.createElement('div');
+        statusDiv.style.cssText = `
+      margin-bottom: 16px;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-size: 14px;
+    `;
+        if (isCurrentColumn) {
+            statusDiv.textContent = `現在のソート: ${currentSort.direction === 'asc' ? '昇順' : '降順'}`;
+            statusDiv.style.backgroundColor = '#d4edda';
+            statusDiv.style.color = '#155724';
+        }
+        else {
+            statusDiv.textContent = 'ソートなし';
+        }
+        container.appendChild(statusDiv);
+        // ソートボタン
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    `;
+        const ascBtn = document.createElement('button');
+        ascBtn.textContent = '昇順でソート';
+        ascBtn.style.cssText = `
+      padding: 10px;
+      border: 1px solid #007bff;
+      background: ${isCurrentColumn && currentSort.direction === 'asc' ? '#007bff' : 'white'};
+      color: ${isCurrentColumn && currentSort.direction === 'asc' ? 'white' : '#007bff'};
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+        const descBtn = document.createElement('button');
+        descBtn.textContent = '降順でソート';
+        descBtn.style.cssText = `
+      padding: 10px;
+      border: 1px solid #007bff;
+      background: ${isCurrentColumn && currentSort.direction === 'desc' ? '#007bff' : 'white'};
+      color: ${isCurrentColumn && currentSort.direction === 'desc' ? 'white' : '#007bff'};
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+        const clearBtn = document.createElement('button');
+        clearBtn.textContent = 'ソートをクリア';
+        clearBtn.style.cssText = `
+      padding: 10px;
+      border: 1px solid #6c757d;
+      background: white;
+      color: #6c757d;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+        // イベントリスナー
+        ascBtn.addEventListener('click', () => {
+            console.log('🔄 [DEBUG] Ascending sort button clicked for column:', columnIndex);
+            this.setSortCondition({
+                columnIndex,
+                fieldType: header.field_type,
+                direction: 'asc'
+            });
+            this.hideAllFilterDialogs();
+        });
+        descBtn.addEventListener('click', () => {
+            console.log('🔄 [DEBUG] Descending sort button clicked for column:', columnIndex);
+            this.setSortCondition({
+                columnIndex,
+                fieldType: header.field_type,
+                direction: 'desc'
+            });
+            this.hideAllFilterDialogs();
+        });
+        clearBtn.addEventListener('click', () => {
+            console.log('🔄 [DEBUG] Clear sort button clicked');
+            this.setSortCondition(null);
+            this.hideAllFilterDialogs();
+        });
+        buttonContainer.appendChild(ascBtn);
+        buttonContainer.appendChild(descBtn);
+        buttonContainer.appendChild(clearBtn);
+        container.appendChild(buttonContainer);
+    }
+    /**
+     * フィルターコンテンツを作成
+     */
+    createFilterContent(container, columnIndex, header) {
+        // 既存のフィルター条件を取得
+        const existingCondition = this.filterConditions.find(c => c.columnIndex === columnIndex);
+        // フィルター状態表示
+        const statusDiv = document.createElement('div');
+        statusDiv.style.cssText = `
+      margin-bottom: 16px;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      font-size: 14px;
+    `;
+        if (existingCondition && existingCondition.isActive) {
+            statusDiv.textContent = `フィルター適用中: ${existingCondition.operator} "${existingCondition.value}"`;
+            statusDiv.style.backgroundColor = '#d4edda';
+            statusDiv.style.color = '#155724';
+        }
+        else {
+            statusDiv.textContent = 'フィルターなし';
+        }
+        container.appendChild(statusDiv);
+        // フィールドタイプに応じたフィルターUIを作成
+        if (header.field_type === FieldType.MenuField && header.menu_config) {
+            this.createMenuFieldFilter(container, columnIndex, header, existingCondition);
+        }
+        else if (header.field_type === FieldType.IntegerField || header.field_type === FieldType.DecimalField) {
+            this.createNumericFieldFilter(container, columnIndex, header, existingCondition);
+        }
+        else {
+            this.createTextFieldFilter(container, columnIndex, header, existingCondition);
+        }
+        // ボタン
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.cssText = `
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      justify-content: flex-end;
+    `;
+        const applyBtn = document.createElement('button');
+        applyBtn.textContent = '適用';
+        applyBtn.style.cssText = `
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+        const clearBtn = document.createElement('button');
+        clearBtn.textContent = 'クリア';
+        clearBtn.style.cssText = `
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'キャンセル';
+        cancelBtn.style.cssText = `
+      background: #f8f9fa;
+      color: #333;
+      border: 1px solid #ccc;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    `;
+        applyBtn.addEventListener('click', () => {
+            this.applyFilterFromDialog(container, columnIndex, header.field_type);
+        });
+        clearBtn.addEventListener('click', () => {
+            this.removeFilterCondition(columnIndex);
+            this.hideAllFilterDialogs();
+        });
+        cancelBtn.addEventListener('click', () => {
+            this.hideAllFilterDialogs();
+        });
+        buttonContainer.appendChild(applyBtn);
+        buttonContainer.appendChild(clearBtn);
+        buttonContainer.appendChild(cancelBtn);
+        container.appendChild(buttonContainer);
+    }
+    /**
+     * ヘッダーボタンを削除
+     */
+    removeHeaderButtons() {
+        const buttons = document.querySelectorAll('.wasabi-header-btn');
+        buttons.forEach(btn => btn.remove());
+    }
+    /**
+     * ヘッダーボタンの位置を更新
+     */
+    updateHeaderButtonPositions() {
+        // ヘッダーボタンは使用しないため、何もしない
     }
 }

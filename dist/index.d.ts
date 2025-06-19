@@ -146,6 +146,59 @@ export declare enum FieldType {
     MenuField = "MenuField"
 }
 /**
+ * フィルター条件の種類
+ */
+export declare enum FilterOperator {
+    Contains = "contains",
+    StartsWith = "startsWith",
+    EndsWith = "endsWith",
+    Equals = "equals",
+    NotEquals = "notEquals",
+    GreaterThan = "greaterThan",
+    GreaterThanOrEqual = "greaterThanOrEqual",
+    LessThan = "lessThan",
+    LessThanOrEqual = "lessThanOrEqual",
+    IsEmpty = "isEmpty",
+    IsNotEmpty = "isNotEmpty"
+}
+/**
+ * フィルター条件
+ */
+export interface FilterCondition {
+    /** 列インデックス */
+    columnIndex: number;
+    /** フィールドタイプ */
+    fieldType: FieldType;
+    /** 演算子 */
+    operator: FilterOperator;
+    /** 検索値 */
+    value: string;
+    /** アクティブかどうか */
+    isActive: boolean;
+}
+/**
+ * ソート条件
+ */
+export interface SortCondition {
+    /** 列インデックス */
+    columnIndex: number;
+    /** フィールドタイプ */
+    fieldType: FieldType;
+    /** ソート方向 */
+    direction: 'asc' | 'desc';
+}
+/**
+ * フィルター結果
+ */
+export interface FilterResult {
+    /** フィルター後の行インデックス配列 */
+    filteredRows: number[];
+    /** 総行数 */
+    totalRows: number;
+    /** フィルター後の行数 */
+    filteredCount: number;
+}
+/**
  * MenuFieldの選択肢設定
  */
 export interface MenuFieldOption {
@@ -288,6 +341,11 @@ export declare class WasabiTable {
     private selectBoxElement;
     private currentMenuFieldCell;
     private menuFieldOptions;
+    private filterConditions;
+    private sortCondition;
+    private filteredRows;
+    private isFiltered;
+    private filterDialogs;
     private constructor();
     /**
      * NinjaTableインスタンスを作成
@@ -677,4 +735,128 @@ export declare class WasabiTable {
      * 利用可能なテーマ一覧を取得
      */
     static getAvailableThemes(): PredefinedTheme[];
+    /**
+     * フィルター条件を追加
+     */
+    addFilterCondition(condition: FilterCondition): void;
+    /**
+     * フィルター条件を削除
+     */
+    removeFilterCondition(columnIndex: number): void;
+    /**
+     * 全フィルターをクリア
+     */
+    clearAllFilters(): void;
+    /**
+     * ソート条件を設定
+     */
+    setSortCondition(condition: SortCondition | null): void;
+    /**
+     * フィルター・ソートを適用
+     */
+    private applyFilters;
+    /**
+     * 行が全フィルター条件を満たすかチェック
+     */
+    private passesAllFilters;
+    /**
+     * 行が特定のフィルター条件を満たすかチェック
+     */
+    private passesFilter;
+    /**
+     * 行をソート
+     */
+    private sortRows;
+    /**
+     * 統合ヘッダーダイアログを表示
+     */
+    showHeaderDialog(columnIndex: number): void;
+    /**
+     * フィルターダイアログを表示（後方互換性のため）
+     */
+    showFilterDialog(columnIndex: number): void;
+    /**
+     * 統合ヘッダーダイアログを作成
+     */
+    private createHeaderDialog;
+    /**
+     * フィルターダイアログを作成（後方互換性のため）
+     */
+    private createFilterDialog;
+    /**
+     * MenuFieldのフィルターUI作成
+     */
+    private createMenuFieldFilter;
+    /**
+     * 数値フィールドのフィルターUI作成
+     */
+    private createNumericFieldFilter;
+    /**
+     * テキストフィールドのフィルターUI作成
+     */
+    private createTextFieldFilter;
+    /**
+     * フィルターダイアログから条件を適用
+     */
+    private applyFilterFromDialog;
+    /**
+     * ヘッダーの位置を取得
+     */
+    private getHeaderPosition;
+    /**
+     * フィルターダイアログを非表示
+     */
+    private hideFilterDialog;
+    /**
+     * 全フィルターダイアログを非表示
+     */
+    private hideAllFilterDialogs;
+    /**
+     * フィルターダイアログ外クリックハンドラー
+     */
+    private handleFilterDialogOutsideClick;
+    /**
+     * フィルター状態を取得
+     */
+    getFilterState(): {
+        conditions: FilterCondition[];
+        sortCondition: SortCondition | null;
+        isFiltered: boolean;
+    };
+    /**
+     * フィルター結果を取得
+     */
+    getFilterResult(): FilterResult;
+    /**
+     * X座標から列インデックスを取得
+     */
+    private getColumnIndexFromX;
+    /**
+     * ヘッダークリック処理
+     */
+    private handleHeaderClick;
+    /**
+     * ヘッダーソート処理
+     */
+    private handleHeaderSort;
+    /**
+     * タブを切り替え
+     */
+    private switchTab;
+    /**
+     * ソートコンテンツを作成
+     */
+    private createSortContent;
+    /**
+     * フィルターコンテンツを作成
+     */
+    private createFilterContent;
+    /**
+     * ヘッダーボタンを削除
+     */
+    removeHeaderButtons(): void;
+    /**
+     * ヘッダーボタンの位置を更新
+     */
+    updateHeaderButtonPositions(): void;
 }

@@ -9,7 +9,7 @@
 <body>
     <div class="header">
         <h1>🌶️ WasabiTable</h1>
-        <p>高性能なExcel風テーブルコンポーネント - NPMパッケージ使用例</p>
+        <p>高性能なExcel風テーブルコンポーネント</p>
     </div>
 
     <div class="container">
@@ -19,7 +19,7 @@
             <div class="installation">
                 npm install wasabi-table
             </div>
-            <p>TypeScript/JavaScript両方で利用可能な高性能テーブルライブラリです。リスナー機能も統合されています。</p>
+            <p>TypeScript/JavaScript両方で利用可能な高性能テーブルライブラリです。</p>
         </div>
 
         <!-- ライブデモ -->
@@ -69,6 +69,21 @@
                             <button class="btn btn-primary" onclick="updateTableConfig()">設定更新</button>
                             <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ読み込み</button>
                         </div>
+                    </div>
+                </div>
+
+                <div class="controls-section">
+                    <h3>🔍 フィルター・ソート機能</h3>
+                    <div class="control-row">
+                        <div class="button-group">
+                            <button class="btn btn-info" onclick="showHeaderButtons()">ヘッダーボタン表示</button>
+                            <button class="btn btn-warning" onclick="hideHeaderButtons()">ヘッダーボタン非表示</button>
+                            <button class="btn btn-secondary" onclick="clearAllFilters()">全フィルタークリア</button>
+                            <button class="btn btn-primary" onclick="testFilterSort()">フィルター・ソートテスト</button>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <small>ヘッダーをクリック: ソート | 右クリック: フィルター</small>
                     </div>
                 </div>
 
@@ -835,6 +850,73 @@
             searchable: true,
             placeholder: "カテゴリーを検索..."
         });
+
+        // フィルター・ソート機能のテスト関数
+        window.showHeaderButtons = () => {
+            if (table) {
+                table.createHeaderButtons();
+                console.log('✅ Header buttons shown');
+            }
+        };
+
+        window.hideHeaderButtons = () => {
+            if (table) {
+                table.removeHeaderButtons();
+                console.log('✅ Header buttons hidden');
+            }
+        };
+
+        window.clearAllFilters = () => {
+            if (table) {
+                table.clearAllFilters();
+                console.log('✅ All filters cleared');
+            }
+        };
+
+        window.testFilterSort = () => {
+            if (!table) return;
+            
+            console.log('🧪 Testing filter and sort functionality...');
+            
+            // フィルター条件をテスト
+            const filterCondition = {
+                columnIndex: 0, // カテゴリー列
+                fieldType: 'MenuField',
+                operator: 'equals',
+                value: '食品|飲料', // 複数値選択
+                isActive: true
+            };
+            
+            table.addFilterCondition(filterCondition);
+            console.log('✅ Filter applied:', filterCondition);
+            
+            // ソート条件をテスト
+            const sortCondition = {
+                columnIndex: 3, // 商品名列
+                fieldType: 'CharField',
+                direction: 'asc'
+            };
+            
+            table.setSortCondition(sortCondition);
+            console.log('✅ Sort applied:', sortCondition);
+            
+            // フィルター・ソート状態を確認
+            const filterState = table.getFilterState();
+            const filterResult = table.getFilterResult();
+            
+            console.log('📊 Filter state:', filterState);
+            console.log('📊 Filter result:', filterResult);
+            
+            alert(`フィルター・ソートテスト完了！\n\n` +
+                  `フィルター条件: ${filterState.conditions.length}件\n` +
+                  `ソート: ${filterState.sortCondition ? filterState.sortCondition.direction : 'なし'}\n` +
+                  `表示行数: ${filterResult.filteredCount}/${filterResult.totalRows}行`);
+        };
+
+        // 初期状態でヘッダーボタンを表示
+        setTimeout(() => {
+            showHeaderButtons();
+        }, 1000);
     </script>
 </body>
 </html>
