@@ -226,10 +226,12 @@ impl WasabiTable {
             }
             
             // 範囲選択状態をクリア（通常のクリック時）
+            // 注意：Shift+クリックの場合は、TypeScript側で処理されるため、ここではクリアしない
             self.clear_range_selection_if_needed(false);
             
             // 新しいセルを選択
             self.selected_cell = Some((row, col));
+            web_sys::console::log_1(&format!("🎯 [DEBUG] Selected cell updated to ({}, {})", row, col).into());
             self.render()?;
             
             // グローバル関数でレンダリングをトリガー
@@ -252,9 +254,33 @@ impl WasabiTable {
         web_sys::console::log_1(&format!("🔄 [DEBUG] Processing wheel delta: ({}, {})", delta_x, delta_y).into());
 
         // スクロール量を調整（より滑らかなスクロール）
-        let scroll_factor = 0.5;
-        self.scroll(delta_x * scroll_factor, delta_y * scroll_factor);
-        self.render()?;
+        let scroll_factor = 0.3; // さらに滑らかに調整
+        let adjusted_delta_x = delta_x * scroll_factor;
+        let adjusted_delta_y = delta_y * scroll_factor;
+        
+        // スクロール前の位置を保存
+        let old_scroll_x = self.scroll_x;
+        let old_scroll_y = self.scroll_y;
+        
+        self.scroll(adjusted_delta_x, adjusted_delta_y);
+        
+        // スクロール位置が実際に変更された場合のみレンダリング
+        if (self.scroll_x - old_scroll_x).abs() > 0.1 || (self.scroll_y - old_scroll_y).abs() > 0.1 {
+            // requestAnimationFrameを使用して次のフレームでレンダリング
+            if let Some(window) = web_sys::window() {
+                let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                    // この時点でrenderを呼び出す
+                    // JavaScriptのrequestAnimationFrameコールバック内で実行される
+                }) as Box<dyn FnMut()>);
+                
+                window.request_animation_frame(closure.as_ref().unchecked_ref())?;
+                closure.forget(); // メモリリークを防ぐため、一度だけ使用
+            }
+            
+            // 即座にレンダリング（フォールバック）
+            self.render()?;
+        }
+        
         Ok(())
     }
 
@@ -884,15 +910,20 @@ impl WasabiTable {
     // レンダリングメソッドの更新
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
-        // キャンバスをクリア
-        self.ctx.clear_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
+        // 前回の描画領域を保存（部分更新用）
+        let needs_full_render = true; // 後で最適化可能
         
-        // 背景を描画
-        self.ctx.set_fill_style_str(&self.config.background_color);
-        self.ctx.fill_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
+        if needs_full_render {
+            // キャンバスをクリア（最小限に）
+            self.ctx.clear_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
+            
+            // 背景を描画
+            self.ctx.set_fill_style_str(&self.config.background_color);
+            self.ctx.fill_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
+        }
         
-        // ヘッダーを描画
-        self.render_header()?;
+        // ===== ヘッダーの固定部分を先に描画 =====
+        self.render_fixed_headers()?;
         
         // セルを描画（フィルターを考慮）
         if self.is_filtered && !self.filtered_rows.is_empty() {
@@ -917,7 +948,128 @@ impl WasabiTable {
         // グリッドを描画
         self.render_grid()?;
         
+        // スクロール可能なヘッダー部分を最後に描画（セルとグリッドの上に重ねる）
+        self.render_scrollable_headers()?;
+        
         Ok(())
+    }
+
+    // 固定ヘッダー部分の描画（スクロールに影響されない）
+    fn render_fixed_headers(&mut self) -> Result<(), JsValue> {
+        // ヘッダー背景（固定領域）
+        self.ctx.set_fill_style_str(&self.config.header_background_color);
+        
+        // 左上角の背景（常に固定）
+        self.ctx.fill_rect(0.0, 0.0, self.config.row_header_width, self.config.header_height);
+        
+        // 行ヘッダー背景（左側の固定領域）
+        self.ctx.fill_rect(0.0, self.config.header_height, self.config.row_header_width, self.canvas_height - self.config.header_height);
+        
+        // 左上角の境界線とアイコン
+        self.ctx.set_stroke_style_str(&self.config.grid_color);
+        self.ctx.set_line_width(2.0);
+        self.ctx.stroke_rect(0.0, 0.0, self.config.row_header_width, self.config.header_height);
+        
+        // 全選択ボタン
+        self.ctx.set_fill_style_str(&self.config.text_color);
+        let corner_size = 8.0;
+        let corner_x = self.config.row_header_width / 2.0 - corner_size / 2.0;
+        let corner_y = self.config.header_height / 2.0 - corner_size / 2.0;
+        self.ctx.set_line_width(1.0);
+        self.ctx.stroke_rect(corner_x, corner_y, corner_size, corner_size);
+        
+        // 固定境界線
+        self.ctx.set_stroke_style_str(&self.config.grid_color);
+        self.ctx.set_line_width(1.0);
+        
+        // 行ヘッダーと列ヘッダーの境界線
+        self.ctx.begin_path();
+        self.ctx.move_to(self.config.row_header_width, 0.0);
+        self.ctx.line_to(self.config.row_header_width, self.canvas_height);
+        self.ctx.stroke();
+
+        self.ctx.begin_path();
+        self.ctx.move_to(0.0, self.config.header_height);
+        self.ctx.line_to(self.canvas_width, self.config.header_height);
+        self.ctx.stroke();
+        
+        Ok(())
+    }
+
+    // スクロール可能なヘッダー部分の描画
+    fn render_scrollable_headers(&mut self) -> Result<(), JsValue> {
+        // 列ヘッダー背景（上部の可変領域）
+        self.ctx.set_fill_style_str(&self.config.header_background_color);
+        self.ctx.fill_rect(self.config.row_header_width, 0.0, self.canvas_width - self.config.row_header_width, self.config.header_height);
+        
+        // テキスト描画設定
+        self.ctx.set_fill_style_str(&self.config.text_color);
+        self.ctx.set_font(&format!("bold {}px {}", self.config.font_size, self.config.font_family));
+        self.ctx.set_text_align("center");
+        self.ctx.set_text_baseline("middle");
+        
+        // 列ヘッダーテキストを描画（スクロール対応）
+        let max_col = self.visible_cols.1.min(self.config.col_count);
+        for col in self.visible_cols.0..max_col {
+            let column_width = if let Some(header) = self.get_column_header(col) {
+                header.width
+            } else {
+                self.config.default_col_width
+            };
+            
+            let x = if col == 0 {
+                self.config.row_header_width
+            } else {
+                // 前の列までの幅を累積計算
+                let mut accumulated_width = self.config.row_header_width;
+                for prev_col in 0..col {
+                    if let Some(prev_header) = self.get_column_header(prev_col) {
+                        accumulated_width += prev_header.width;
+                    } else {
+                        accumulated_width += self.config.default_col_width;
+                    }
+                }
+                accumulated_width - self.scroll_x
+            };
+            
+            // 列ヘッダーは画面内に表示される場合のみ描画
+            if x + column_width > self.config.row_header_width && x < self.canvas_width {
+                let display_name = if let Some(header) = self.get_column_header(col) {
+                    if header.is_visible {
+                        header.display_name.clone()
+                    } else {
+                        continue; // 非表示の列はスキップ
+                    }
+                } else {
+                    self.get_column_name(col)
+                };
+                
+                self.ctx.fill_text(&display_name, x + column_width / 2.0, self.config.header_height / 2.0)?;
+            }
+        }
+        
+        // 行番号を描画（スクロール対応）
+        let max_row = self.visible_rows.1.min(self.config.row_count);
+        for row in self.visible_rows.0..max_row {
+            let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+            // 行ヘッダーは画面内に表示される場合のみ描画
+            if y + self.config.default_row_height > self.config.header_height && y < self.canvas_height {
+                let row_number = (row + 1).to_string();
+                self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0)?;
+            }
+        }
+        
+        // テキスト設定をリセット
+        self.ctx.set_text_align("left");
+        self.ctx.set_text_baseline("alphabetic");
+        
+        Ok(())
+    }
+
+    fn render_header(&mut self) -> Result<(), JsValue> {
+        // 互換性のため残しているが、新しいメソッドにリダイレクト
+        self.render_fixed_headers()?;
+        self.render_scrollable_headers()
     }
 
     fn render_cell(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
@@ -1136,135 +1288,6 @@ impl WasabiTable {
         }
         
         Ok(())
-    }
-
-    fn render_header(&mut self) -> Result<(), JsValue> {
-        // ヘッダー背景を描画（固定位置）
-        self.ctx.set_fill_style_str(&self.config.header_background_color);
-        self.ctx.set_stroke_style_str(&self.config.grid_color);
-        
-        // 列ヘッダー背景（上部の固定領域）
-        self.ctx.fill_rect(self.config.row_header_width, 0.0, self.canvas_width - self.config.row_header_width, self.config.header_height);
-        
-        // 行ヘッダー背景（左側の固定領域）
-        self.ctx.fill_rect(0.0, self.config.header_height, self.config.row_header_width, self.canvas_height - self.config.header_height);
-
-        // テキスト描画設定
-        self.ctx.set_fill_style_str(&self.config.text_color);
-        self.ctx.set_font(&format!("bold {}px {}", self.config.font_size, self.config.font_family));
-        self.ctx.set_text_align("center");
-        self.ctx.set_text_baseline("middle");
-        
-        // 列ヘッダーテキストを描画（スクロールに影響されない固定位置）
-        let max_col = self.visible_cols.1.min(self.config.col_count);
-        for col in self.visible_cols.0..max_col {
-            let column_width = if let Some(header) = self.get_column_header(col) {
-                header.width
-            } else {
-                self.config.default_col_width
-            };
-            
-            let x = if col == 0 {
-                self.config.row_header_width
-            } else {
-                // 前の列までの幅を累積計算
-                let mut accumulated_width = self.config.row_header_width;
-                for prev_col in 0..col {
-                    if let Some(prev_header) = self.get_column_header(prev_col) {
-                        accumulated_width += prev_header.width;
-                    } else {
-                        accumulated_width += self.config.default_col_width;
-                    }
-                }
-                accumulated_width - self.scroll_x
-            };
-            
-            // 列ヘッダーは画面内に表示される場合のみ描画
-            if x + column_width > self.config.row_header_width && x < self.canvas_width {
-                let display_name = if let Some(header) = self.get_column_header(col) {
-                    if header.is_visible {
-                        header.display_name.clone()
-                    } else {
-                        continue; // 非表示の列はスキップ
-                    }
-                } else {
-                    self.get_column_name(col)
-                };
-                
-                self.ctx.fill_text(&display_name, x + column_width / 2.0, self.config.header_height / 2.0)?;
-            }
-        }
-        
-        // 行番号を描画（スクロールに影響されない固定位置）
-        let max_row = self.visible_rows.1.min(self.config.row_count);
-        for row in self.visible_rows.0..max_row {
-            let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
-            // 行ヘッダーは画面内に表示される場合のみ描画
-            if y + self.config.default_row_height > self.config.header_height && y < self.canvas_height {
-                let row_number = (row + 1).to_string();
-                self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0)?;
-            }
-        }
-        
-        // 境界線を描画
-        self.ctx.set_stroke_style_str(&self.config.grid_color);
-        self.ctx.set_line_width(1.0);
-        
-        // 行ヘッダーと列ヘッダーの境界線
-        self.ctx.begin_path();
-        self.ctx.move_to(self.config.row_header_width, 0.0);
-        self.ctx.line_to(self.config.row_header_width, self.canvas_height);
-        self.ctx.stroke();
-
-        self.ctx.begin_path();
-        self.ctx.move_to(0.0, self.config.header_height);
-        self.ctx.line_to(self.canvas_width, self.config.header_height);
-        self.ctx.stroke();
-        
-        // 左上角の背景を最後に描画（他の要素の上に重ねる）
-        self.ctx.set_fill_style_str(&self.config.header_background_color);
-        self.ctx.fill_rect(0.0, 0.0, self.config.row_header_width, self.config.header_height);
-        
-        // 左上角の境界線を強調
-        self.ctx.set_stroke_style_str(&self.config.grid_color);
-        self.ctx.set_line_width(2.0);
-        self.ctx.stroke_rect(0.0, 0.0, self.config.row_header_width, self.config.header_height);
-        
-        // 左上角の全選択ボタンを再描画
-        self.ctx.set_fill_style_str(&self.config.text_color);
-        self.ctx.set_font(&format!("{}px {}", self.config.font_size - 2.0, self.config.font_family));
-        self.ctx.set_text_align("center");
-        self.ctx.set_text_baseline("middle");
-        
-        let corner_size = 8.0;
-        let corner_x = self.config.row_header_width / 2.0 - corner_size / 2.0;
-        let corner_y = self.config.header_height / 2.0 - corner_size / 2.0;
-        
-        self.ctx.set_stroke_style_str(&self.config.text_color);
-        self.ctx.set_line_width(1.0);
-        self.ctx.stroke_rect(corner_x, corner_y, corner_size, corner_size);
-        
-        // テキスト設定をリセット
-        self.ctx.set_text_align("left");
-        self.ctx.set_text_baseline("alphabetic");
-        
-        Ok(())
-    }
-    
-    // 列名を生成する関数 (A, B, C, ..., Z, AA, AB, ...)
-    fn get_column_name(&self, col: usize) -> String {
-        let mut result = String::new();
-        let mut n = col;
-        
-        loop {
-            result = format!("{}{}", (b'A' + (n % 26) as u8) as char, result);
-            if n < 26 {
-                break;
-            }
-            n = n / 26 - 1;
-        }
-        
-        result
     }
 
     fn render_grid(&mut self) -> Result<(), JsValue> {
@@ -1624,8 +1647,8 @@ impl WasabiTable {
         self.is_selecting = true;
         self.selection_start = Some((row, col));
         self.selected_range = Some(crate::types::CellRange::new(row, col, row, col));
-        // 範囲選択中もselected_cellを保持（現在のアクティブセル）
-        self.selected_cell = Some((row, col));
+        // selected_cellは現在の選択を保持（開始位置に固定しない）
+        // 範囲選択中は終端位置がアクティブセルとなる
         web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection started: {:?}", self.selected_range).into());
         Ok(())
     }
@@ -1636,9 +1659,11 @@ impl WasabiTable {
         web_sys::console::log_1(&format!("🔀 [DEBUG] update_range_selection: ({},{})", row, col).into());
         if let Some((start_row, start_col)) = self.selection_start {
             self.selected_range = Some(crate::types::CellRange::new(start_row, start_col, row, col));
-            // 現在のアクティブセル位置を更新
+            // 現在のアクティブセル位置を更新（範囲選択の終端位置）
             self.selected_cell = Some((row, col));
-            web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection updated: {:?}", self.selected_range).into());
+            web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection updated: {:?}, active cell: ({}, {})", self.selected_range, row, col).into());
+        } else {
+            web_sys::console::log_1(&"⚠️ [DEBUG] update_range_selection called without selection_start".into());
         }
         Ok(())
     }
@@ -1646,7 +1671,10 @@ impl WasabiTable {
     // 範囲選択終了
     #[wasm_bindgen]
     pub fn end_range_selection(&mut self) -> Result<(), JsValue> {
+        web_sys::console::log_1(&"🔀 [DEBUG] end_range_selection called".into());
         self.is_selecting = false;
+        // selection_startとselected_rangeは保持（範囲選択状態を維持）
+        // selected_cellも現在の終端位置を保持
         Ok(())
     }
 
@@ -1891,5 +1919,21 @@ impl WasabiTable {
             "filteredRowCount": self.filtered_rows.len(),
             "totalRowCount": self.config.row_count
         })).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    // 列名を生成する関数 (A, B, C, ..., Z, AA, AB, ...)
+    fn get_column_name(&self, col: usize) -> String {
+        let mut result = String::new();
+        let mut n = col;
+        
+        loop {
+            result = format!("{}{}", (b'A' + (n % 26) as u8) as char, result);
+            if n < 26 {
+                break;
+            }
+            n = n / 26 - 1;
+        }
+        
+        result
     }
 } 

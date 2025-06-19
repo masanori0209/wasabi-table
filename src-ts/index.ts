@@ -586,9 +586,18 @@ export class WasabiTable {
    */
   public render(): void {
     this.ensureInitialized();
-    this.wasmTable.render();
-    // レンダリング後にスクロールバーを更新
-    this.updateScrollbars();
+    
+    // レンダリング最適化: requestAnimationFrameを使用
+    if ('requestAnimationFrame' in window) {
+      requestAnimationFrame(() => {
+        this.wasmTable.render();
+        this.updateScrollbars();
+      });
+    } else {
+      // フォールバック
+      this.wasmTable.render();
+      this.updateScrollbars();
+    }
   }
 
   /**
@@ -1175,19 +1184,31 @@ export class WasabiTable {
       console.log('🖱️ [DEBUG] Focus set, activeElement:', document.activeElement?.tagName);
       
       if (event.shiftKey) {
-        // Shift+クリックで範囲選択（mousedownで既に処理済みの場合はスキップ）
+        // Shift+クリックで範囲選択（mousedownでの処理を統合）
+        console.log('🔀 [DEBUG] Processing Shift+click for range selection');
         const cellPos = this.wasmTable.pixel_to_cell(x, y);
         if (cellPos) {
           const [row, col] = cellPos.split(':').map(Number);
           
           // 現在選択されているセルがある場合は、そこから範囲選択を開始
           const currentSelection = this.getSelectedCell();
-          if (currentSelection && !this.getSelectionInfo()?.isRange) {
+          const selectionInfo = this.getSelectionInfo();
+          
+          if (currentSelection && !selectionInfo?.isRange) {
+            // 単一セル選択から範囲選択に移行
+            console.log('🔀 [DEBUG] Starting range selection from current cell:', currentSelection);
             this.startRangeSelection(currentSelection.row, currentSelection.col);
+          } else if (!currentSelection) {
+            // 何も選択されていない場合は、クリックしたセルから開始
+            console.log('🔀 [DEBUG] Starting range selection from clicked cell:', { row, col });
+            this.startRangeSelection(row, col);
           }
           
+          // 範囲選択を更新
           this.updateRangeSelection(row, col);
+          this.endRangeSelection(); // 即座に範囲選択を確定
           this.render();
+          console.log('🔀 [DEBUG] Shift+click range selection completed');
         }
       } else {
         // 通常のクリックでは範囲選択をクリアしてから単一セル選択
@@ -1269,22 +1290,18 @@ export class WasabiTable {
         const [row, col] = cellPos.split(':').map(Number);
         
         if (event.shiftKey) {
-          // Shift+ドラッグで範囲選択を拡張
-          const currentSelection = this.getSelectedCell();
-          if (currentSelection && !this.getSelectionInfo()?.isRange) {
-            this.startRangeSelection(currentSelection.row, currentSelection.col);
-          }
-          this.updateRangeSelection(row, col);
-          hasActuallyDragged = true; // Shift+クリックは即座に範囲選択
+          // Shift+mousedownは範囲選択の準備のみ、実際の処理はclickイベントで行う
+          console.log('🔀 [DEBUG] Shift+mousedown detected, deferring to click event');
+          isDragging = false; // Shift+クリック時はドラッグモードにしない
+          hasActuallyDragged = false;
         } else {
           // 通常のドラッグで新しい範囲選択を開始
           // 単一セル選択はmousemoveが発生してから行う（純粋なクリックと区別するため）
           dragStartCell = { row, col };
           hasActuallyDragged = false; // リセット
+          isDragging = true;
+          event.preventDefault();
         }
-        
-        isDragging = true;
-        event.preventDefault();
       }
     });
 
@@ -1790,8 +1807,13 @@ export class WasabiTable {
     const deltaX = x - stats.scrollX;
     const deltaY = y - stats.scrollY;
     
-    this.wasmTable.handle_canvas_wheel(deltaX, deltaY);
-    this.updateScrollbars();
+    // スムーズスクロール処理
+    if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
+      requestAnimationFrame(() => {
+        this.wasmTable.handle_canvas_wheel(deltaX, deltaY);
+        this.updateScrollbars();
+      });
+    }
   }
 
   /**
@@ -1801,31 +1823,34 @@ export class WasabiTable {
     if (!this.horizontalScrollbar || !this.verticalScrollbar || 
         !this.horizontalThumb || !this.verticalThumb) return;
 
-    const stats = this.getStats();
-    const maxScrollX = this.calculateMaxScrollX();
-    const maxScrollY = this.calculateMaxScrollY();
+    // requestAnimationFrameを使用してスムーズに更新
+    requestAnimationFrame(() => {
+      const stats = this.getStats();
+      const maxScrollX = this.calculateMaxScrollX();
+      const maxScrollY = this.calculateMaxScrollY();
 
-    // 水平スクロールバーの更新
-    const scrollbarWidth = this.horizontalScrollbar.offsetWidth;
-    const canvasDisplayWidth = parseFloat(this.canvas.style.width) || this.canvas.width;
-    const contentWidth = maxScrollX + canvasDisplayWidth;
-    const thumbWidth = Math.max(20, (canvasDisplayWidth / contentWidth) * scrollbarWidth);
-    const thumbLeft = maxScrollX > 0 ? (stats.scrollX / maxScrollX) * (scrollbarWidth - thumbWidth) : 0;
+      // 水平スクロールバーの更新
+      const scrollbarWidth = this.horizontalScrollbar!.offsetWidth;
+      const canvasDisplayWidth = parseFloat(this.canvas.style.width) || this.canvas.width;
+      const contentWidth = maxScrollX + canvasDisplayWidth;
+      const thumbWidth = Math.max(20, (canvasDisplayWidth / contentWidth) * scrollbarWidth);
+      const thumbLeft = maxScrollX > 0 ? (stats.scrollX / maxScrollX) * (scrollbarWidth - thumbWidth) : 0;
 
-    this.horizontalThumb.style.width = `${thumbWidth}px`;
-    this.horizontalThumb.style.left = `${thumbLeft}px`;
-    this.horizontalScrollbar.style.display = maxScrollX > 0 ? 'block' : 'none';
+      this.horizontalThumb!.style.width = `${thumbWidth}px`;
+      this.horizontalThumb!.style.left = `${thumbLeft}px`;
+      this.horizontalScrollbar!.style.display = maxScrollX > 0 ? 'block' : 'none';
 
-    // 垂直スクロールバーの更新
-    const scrollbarHeight = this.verticalScrollbar.offsetHeight;
-    const canvasDisplayHeight = parseFloat(this.canvas.style.height) || this.canvas.height;
-    const contentHeight = maxScrollY + canvasDisplayHeight;
-    const thumbHeight = Math.max(20, (canvasDisplayHeight / contentHeight) * scrollbarHeight);
-    const thumbTop = maxScrollY > 0 ? (stats.scrollY / maxScrollY) * (scrollbarHeight - thumbHeight) : 0;
+      // 垂直スクロールバーの更新
+      const scrollbarHeight = this.verticalScrollbar!.offsetHeight;
+      const canvasDisplayHeight = parseFloat(this.canvas.style.height) || this.canvas.height;
+      const contentHeight = maxScrollY + canvasDisplayHeight;
+      const thumbHeight = Math.max(20, (canvasDisplayHeight / contentHeight) * scrollbarHeight);
+      const thumbTop = maxScrollY > 0 ? (stats.scrollY / maxScrollY) * (scrollbarHeight - thumbHeight) : 0;
 
-    this.verticalThumb.style.height = `${thumbHeight}px`;
-    this.verticalThumb.style.top = `${thumbTop}px`;
-    this.verticalScrollbar.style.display = maxScrollY > 0 ? 'block' : 'none';
+      this.verticalThumb!.style.height = `${thumbHeight}px`;
+      this.verticalThumb!.style.top = `${thumbTop}px`;
+      this.verticalScrollbar!.style.display = maxScrollY > 0 ? 'block' : 'none';
+    });
   }
 
   /**
@@ -2022,7 +2047,13 @@ export class WasabiTable {
    */
   public startRangeSelection(row: number, col: number): void {
     this.ensureInitialized();
-    this.wasmTable.start_range_selection(row, col);
+    console.log('🔀 [DEBUG] TypeScript startRangeSelection called:', { row, col });
+    try {
+      this.wasmTable.start_range_selection(row, col);
+      console.log('🔀 [DEBUG] Range selection started successfully');
+    } catch (error) {
+      console.error('❌ [DEBUG] Failed to start range selection:', error);
+    }
   }
 
   /**
@@ -2030,7 +2061,13 @@ export class WasabiTable {
    */
   public updateRangeSelection(row: number, col: number): void {
     this.ensureInitialized();
-    this.wasmTable.update_range_selection(row, col);
+    console.log('🔀 [DEBUG] TypeScript updateRangeSelection called:', { row, col });
+    try {
+      this.wasmTable.update_range_selection(row, col);
+      console.log('🔀 [DEBUG] Range selection updated successfully');
+    } catch (error) {
+      console.error('❌ [DEBUG] Failed to update range selection:', error);
+    }
   }
 
   /**
@@ -2038,7 +2075,13 @@ export class WasabiTable {
    */
   public endRangeSelection(): void {
     this.ensureInitialized();
-    this.wasmTable.end_range_selection();
+    console.log('🔀 [DEBUG] TypeScript endRangeSelection called');
+    try {
+      this.wasmTable.end_range_selection();
+      console.log('🔀 [DEBUG] Range selection ended successfully');
+    } catch (error) {
+      console.error('❌ [DEBUG] Failed to end range selection:', error);
+    }
   }
 
   /**
@@ -2046,7 +2089,13 @@ export class WasabiTable {
    */
   public clearSelection(): void {
     this.ensureInitialized();
-    this.wasmTable.clear_selection();
+    console.log('🔀 [DEBUG] TypeScript clearSelection called');
+    try {
+      this.wasmTable.clear_selection();
+      console.log('🔀 [DEBUG] Selection cleared successfully');
+    } catch (error) {
+      console.error('❌ [DEBUG] Failed to clear selection:', error);
+    }
   }
 
   /**
@@ -2380,33 +2429,32 @@ export class WasabiTable {
       this.startRangeSelection(selectedCell.row, selectedCell.col);
     }
 
-    // 現在の選択セル位置から移動
-    let newRow = selectedCell.row;
-    let newCol = selectedCell.col;
+    // 範囲選択中は、現在のアクティブセル（終端位置）から移動
+    const currentActiveCell = this.getSelectedCell();
+    let newRow = currentActiveCell ? currentActiveCell.row : selectedCell.row;
+    let newCol = currentActiveCell ? currentActiveCell.col : selectedCell.col;
 
     switch (key) {
       case 'ArrowUp':
-        newRow = Math.max(0, selectedCell.row - 1);
+        newRow = Math.max(0, newRow - 1);
         break;
       case 'ArrowDown':
-        newRow = Math.min(this.config.row_count - 1, selectedCell.row + 1);
+        newRow = Math.min(this.config.row_count - 1, newRow + 1);
         break;
       case 'ArrowLeft':
-        newCol = Math.max(0, selectedCell.col - 1);
+        newCol = Math.max(0, newCol - 1);
         break;
       case 'ArrowRight':
-        newCol = Math.min(this.config.col_count - 1, selectedCell.col + 1);
+        newCol = Math.min(this.config.col_count - 1, newCol + 1);
         break;
     }
 
-    console.log('🔀 [DEBUG] Range selection extending from', selectedCell, 'to', { row: newRow, col: newCol });
+    console.log('🔀 [DEBUG] Range selection extending from', { row: newRow, col: newCol }, 'previous active cell:', currentActiveCell);
 
     // 範囲選択を更新（終端位置を移動）
     this.updateRangeSelection(newRow, newCol);
     
     // 新しい終端セルが見えるように自動スクロール
-    // まず現在のselected_cellを更新してからスクロール
-    this.wasmTable.select_cell_by_position(newRow, newCol);
     this.scrollToSelectedCell();
     
     this.render();
