@@ -118,6 +118,7 @@ WASM を変更した場合は `npm run build:wasm` または `npm run build` を
 
 - [Getting Started](./docs/getting-started.md)
 - [Core API](./docs/api-core.md)
+- [npm 公開チェックリスト](./docs/publishing-checklist.md)
 - [使用例](./examples/usage-examples.md)
 
 ## セキュリティ
