@@ -1,355 +1,95 @@
 import init, { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
+import type {
+  CellData,
+  CellPosition,
+  CellScreenPosition,
+  ColumnHeader,
+  CreateWasabiTableUIConfig,
+  EventCallbacks,
+  EventHandlers,
+  FilterCondition,
+  FilterResult,
+  ListenerOptions,
+  MenuFieldConfig,
+  MenuFieldOption,
+  NotificationType,
+  PredefinedTheme,
+  SelectionInfo,
+  SortCondition,
+  TableConfig,
+  TableStats,
+  ThemeColors,
+  ValidationError,
+  ValidationResult,
+} from './types';
+import {
+  DEFAULT_CONFIG,
+  FieldType,
+  FilterOperator,
+  PREDEFINED_THEMES,
+  getCellReference as cellReferenceFn,
+  getColumnName as columnNameFn,
+} from './types';
 
-/**
- * テーマの色設定
- */
-export interface ThemeColors {
-  /** 背景色 */
-  background_color: string;
-  /** テキスト色 */
-  text_color: string;
-  /** グリッド色 */
-  grid_color: string;
-  /** ヘッダー背景色 */
-  header_background_color: string;
-  /** 選択セル色 */
-  selected_cell_color: string;
-  /** 範囲選択色（オプション） */
-  range_selection_color?: string;
-  /** エラーセル色（オプション） */
-  error_cell_color?: string;
-  /** 編集セル色（オプション） */
-  editing_cell_color?: string;
-}
+export type {
+  CellData,
+  CellPosition,
+  CellScreenPosition,
+  ColumnHeader,
+  CreateWasabiTableUIConfig,
+  EventCallbacks,
+  EventHandlers,
+  FilterCondition,
+  FilterOperator,
+  FilterResult,
+  ListenerOptions,
+  MenuFieldConfig,
+  MenuFieldOption,
+  PredefinedTheme,
+  SelectionInfo,
+  SortCondition,
+  TableConfig,
+  TableStats,
+  ThemeColors,
+  UIElements,
+  ValidationError,
+  ValidationResult,
+} from './types';
+export {
+  DEFAULT_CONFIG,
+  FieldType,
+  PREDEFINED_THEMES,
+  getCellReference,
+  getColumnName,
+} from './types';
+export { getSelectionReference } from './types';
 
-/**
- * 事前定義されたテーマ
- */
-export type PredefinedTheme = 'light' | 'dark';
+// --- 型定義は types.ts に集約 ---
 
-/**
- * 事前定義されたテーマ定義
- */
-export const PREDEFINED_THEMES: Record<PredefinedTheme, ThemeColors> = {
-  light: {
-    background_color: '#ffffff',
-    text_color: '#000000',
-    grid_color: '#e0e0e0',
-    header_background_color: '#f5f5f5',
-    selected_cell_color: '#3498db',
-    range_selection_color: 'rgba(52, 152, 219, 0.2)',
-    error_cell_color: '#e74c3c',
-    editing_cell_color: '#f39c12'
-  },
-  dark: {
-    background_color: '#2d3748',
-    text_color: '#e2e8f0',
-    grid_color: '#4a5568',
-    header_background_color: '#1a202c',
-    selected_cell_color: '#667eea',
-    range_selection_color: 'rgba(102, 126, 234, 0.2)',
-    error_cell_color: '#fc8181',
-    editing_cell_color: '#f6ad55'
-  }
-};
-
-/**
- * テーブル設定のインターface
- */
-export interface TableConfig {
-  /** 行数 */
-  row_count: number;
-  /** 列数 */
-  col_count: number;
-  /** デフォルト列幅 */
-  default_col_width: number;
-  /** デフォルト行高 */
-  default_row_height: number;
-  /** ヘッダー高 */
-  header_height: number;
-  /** 行ヘッダー幅 */
-  row_header_width: number;
-  /** フォントファミリー */
-  font_family: string;
-  /** フォントサイズ */
-  font_size: number;
-  /** フォントスタイル */
-  font_style: string;
-  /** フォント太さ */
-  font_weight: string;
-  /** 背景色 */
-  background_color: string;
-  /** テキスト色 */
-  text_color: string;
-  /** グリッド色 */
-  grid_color: string;
-  /** ヘッダー背景色 */
-  header_background_color: string;
-  /** 選択セル色 */
-  selected_cell_color: string;
-  /** グリッド表示フラグ */
-  show_grid: boolean;
-  /** 列ヘッダー設定 */
-  column_headers: ColumnHeader[];
-}
-
-/**
- * セルデータのインターface
- */
-export interface CellData {
-  /** セルの値 */
-  value: string;
-  /** 行インデックス */
-  row: number;
-  /** 列インデックス */
-  col: number;
-}
-
-/**
- * セル位置のインターface
- */
-export interface CellPosition {
-  /** 行インデックス */
-  row: number;
-  /** 列インデックス */
-  col: number;
-}
-
-/**
- * テーブル統計情報のインターface
- */
-export interface TableStats {
-  /** 総セル数 */
-  totalCells: number;
-  /** 表示セル数 */
-  visibleCells: number;
-  /** データセル数 */
-  dataCells: number;
-  /** 水平スクロール位置 */
-  scrollX: number;
-  /** 垂直スクロール位置 */
-  scrollY: number;
-  /** 表示行範囲 */
-  visibleRows: {
-    start: number;
-    end: number;
-  };
-  /** 表示列範囲 */
-  visibleCols: {
-    start: number;
-    end: number;
-  };
-}
-
-/**
- * イベントハンドラーの型定義
- */
-export interface EventHandlers {
-  /** セル選択時のコールバック */
-  onCellSelect?: (position: CellPosition) => void;
-  /** セル編集開始時のコールバック */
-  onEditStart?: (position: CellPosition, value: string) => void;
-  /** セル編集終了時のコールバック */
-  onEditEnd?: (position: CellPosition, value: string) => void;
-  /** セル値変更時のコールバック */
-  onCellChange?: (position: CellPosition, oldValue: string, newValue: string) => void;
-}
-
-/**
- * デフォルトのテーブル設定
- */
-export const DEFAULT_CONFIG: TableConfig = {
-  row_count: 100,
-  col_count: 26,
-  default_col_width: 100,
-  default_row_height: 25,
-  header_height: 30,
-  row_header_width: 50,
-  font_family: "Arial, sans-serif",
-  font_size: 12,
-  font_style: "normal",
-  font_weight: "normal",
-  background_color: "#ffffff",
-  text_color: "#000000",
-  grid_color: "#cccccc",
-  header_background_color: "#f0f0f0",
-  selected_cell_color: "#3498db",
-  show_grid: true,
-  column_headers: []
-};
-
-/**
- * フィールドタイプの列挙型
- */
-export enum FieldType {
-  CharField = "CharField",
-  EmailField = "EmailField", 
-  TextareaField = "TextareaField",
-  IntegerField = "IntegerField",
-  DecimalField = "DecimalField",
-  DecimalWithNullField = "DecimalWithNullField",
-  DateField = "DateField",
-  TimeField = "TimeField",
-  CheckField = "CheckField",
-  BooleanField = "BooleanField",
-  ButtonField = "ButtonField",
-  MenuField = "MenuField"
-}
-
-/**
- * フィルター条件の種類
- */
-export enum FilterOperator {
-  // 文字列系
-  Contains = "contains",
-  StartsWith = "startsWith", 
-  EndsWith = "endsWith",
-  Equals = "equals",
-  NotEquals = "notEquals",
-  // 数値系
-  GreaterThan = "greaterThan",
-  GreaterThanOrEqual = "greaterThanOrEqual",
-  LessThan = "lessThan",
-  LessThanOrEqual = "lessThanOrEqual",
-  // その他
-  IsEmpty = "isEmpty",
-  IsNotEmpty = "isNotEmpty"
-}
-
-/**
- * フィルター条件
- */
-export interface FilterCondition {
-  /** 列インデックス */
-  columnIndex: number;
-  /** フィールドタイプ */
-  fieldType: FieldType;
-  /** 演算子 */
-  operator: FilterOperator;
-  /** 検索値 */
-  value: string;
-  /** アクティブかどうか */
-  isActive: boolean;
-}
-
-/**
- * ソート条件
- */
-export interface SortCondition {
-  /** 列インデックス */
-  columnIndex: number;
-  /** フィールドタイプ */
-  fieldType: FieldType;
-  /** ソート方向 */
-  direction: 'asc' | 'desc';
-}
-
-/**
- * フィルター結果
- */
-export interface FilterResult {
-  /** フィルター後の行インデックス配列 */
-  filteredRows: number[];
-  /** 総行数 */
-  totalRows: number;
-  /** フィルター後の行数 */
-  filteredCount: number;
-}
-
-/**
- * MenuFieldの選択肢設定
- */
-export interface MenuFieldOption {
-  /** 表示値 */
-  label: string;
-  /** 内部値 */
-  value: string;
-  /** 無効化フラグ */
-  disabled?: boolean;
-}
-
-/**
- * MenuFieldの設定（KeyValueまたはリスト形式）
- */
-export interface MenuFieldConfig {
-  /** 選択肢（KeyValue形式またはリスト形式） */
-  options: MenuFieldOption[] | string[];
-  /** 検索可能フラグ */
-  searchable?: boolean;
-  /** プレースホルダーテキスト */
-  placeholder?: string;
-  /** 最大表示項目数 */
-  maxDisplayItems?: number;
-}
-
-/**
- * 列ヘッダー設定のインターface
- */
-export interface ColumnHeader {
-  /** プロパティ名（内部識別用） */
-  name: string;
-  /** 表示名（ヘッダーに表示される名前） */
-  display_name: string;
-  /** 列の幅（ピクセル） */
-  width: number;
-  /** 必須入力項目かどうか */
-  required: boolean;
-  /** 表示順序 */
-  order: number;
-  /** 表示/非表示フラグ */
-  is_visible: boolean;
-  /** フィールドタイプ */
-  field_type: FieldType | string;
-  /** 最大文字数（文字列フィールド用） */
-  max_length?: number;
-  /** 整数桁数（数値フィールド用） */
-  max_digits?: number;
-  /** 小数点桁数（小数フィールド用） */
-  decimal_places?: number;
-  /** 最小値（数値フィールド用） */
-  min_number?: number;
-  /** 最大値（数値フィールド用） */
-  max_number?: number;
-  /** 選択肢（メニューフィールド用） */
-  choices?: string[];
-  /** MenuField設定（新しい設定） */
-  menu_config?: MenuFieldConfig;
-}
-
-/**
- * 入力検証エラーのインターface
- */
-export interface ValidationError {
-  /** フィールド名 */
-  field_name: string;
-  /** エラーメッセージ */
-  message: string;
-  /** エラータイプ */
-  error_type: string;
-}
-
-/**
- * 検証結果のインターface
- */
-export interface ValidationResult {
-  /** 検証が成功したかどうか */
-  isValid: boolean;
-  /** エラー情報（検証失敗時のみ） */
-  error?: ValidationError;
-}
-
-// リスナー機能をエクスポート
 export { WasabiTableListeners } from './listeners';
-export type { ListenerOptions, UIElements, EventCallbacks } from './listeners';
-export { 
-  createUIElements, 
-  exportTableToCSV, 
-  clearTable, 
-  loadSampleData, 
-  debounce, 
-  parseCellReference, 
-  isKeyboardShortcut 
+export {
+  createUIElements,
+  exportTableToCSV,
+  clearTable,
+  loadSampleData,
+  debounce,
+  parseCellReference,
+  isKeyboardShortcut,
 } from './utils';
+import {
+  applyFilters as runFilterSort,
+  createFilterSortState,
+  getFilterResult as buildFilterResult,
+} from './filter-sort';
+import { HeaderDialogController } from './header-dialog';
+import { UndoStack, type CellChange } from './undo-stack';
+export {
+  applyFilters as applyFilterSort,
+  createFilterSortState,
+  getFilterResult as buildFilterResult,
+  passesFilter,
+  sortRows as sortRowsByCondition,
+} from './filter-sort';
 
 /**
  * WasabiTableとリスナーを簡単に初期化する関数
@@ -357,39 +97,19 @@ export {
 export async function createWasabiTableWithListeners(
   canvas: HTMLCanvasElement,
   config: Partial<TableConfig> = {},
-  uiConfig: {
-    cellReferenceSelector: string;
-    formulaInputSelector: string;
-    statsElementSelector?: string;
-    validationErrorSelector?: string;
-    validationSuccessSelector?: string;
-  },
-  listenerOptions?: any,
-  callbacks?: any
-): Promise<{ table: WasabiTable; listeners: any }> {
-  // 遅延インポートで循環インポートを回避
+  uiConfig: CreateWasabiTableUIConfig,
+  listenerOptions?: ListenerOptions,
+  callbacks?: EventCallbacks
+): Promise<{ table: WasabiTable; listeners: import('./listeners').WasabiTableListeners }> {
   const { createUIElements } = await import('./utils');
   const { WasabiTableListeners } = await import('./listeners');
-  
+
   const table = await WasabiTable.create(canvas, config);
   const uiElements = createUIElements(uiConfig);
   const listeners = new WasabiTableListeners(table, uiElements, listenerOptions, callbacks);
   return { table, listeners };
 }
 
-/**
- * セルの画面位置情報
- */
-export interface CellScreenPosition {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  centerX: number;
-  centerY: number;
-  absolute_x: number;
-  absolute_y: number;
-}
 
 // WasmWasabiTableの型を拡張
 interface ExtendedWasmWasabiTable extends WasmWasabiTable {
@@ -469,11 +189,11 @@ export class WasabiTable {
   private menuFieldOptions: Map<string, MenuFieldConfig> = new Map();
 
   // フィルター・ソート関連
-  private filterConditions: FilterCondition[] = [];
-  private sortCondition: SortCondition | null = null;
-  private filteredRows: number[] = [];
-  private isFiltered = false;
-  private filterDialogs: Map<number, HTMLElement> = new Map();
+  private filterSortState = createFilterSortState();
+  private keyboardShortcutsEnabled = true;
+  private activeTheme: PredefinedTheme = 'light';
+  private undoStack = new UndoStack();
+  private applyingHistory = false;
 
   private constructor(
     wasmTable: ExtendedWasmWasabiTable,
@@ -536,14 +256,125 @@ export class WasabiTable {
    * @param col 列番号（0から開始）
    * @param value 設定する値
    */
-  public setCellValue(row: number, col: number, value: string): void {
+  public setCellValue(row: number, col: number, value: string, options?: { recordUndo?: boolean }): void {
     this.ensureInitialized();
+    const recordUndo = options?.recordUndo ?? true;
+    if (recordUndo && !this.applyingHistory) {
+      const oldValue = this.getCellValue(row, col) ?? '';
+      if (oldValue !== value) {
+        this.undoStack.push({
+          changes: [{ row, col, oldValue, newValue: value }],
+        });
+      }
+    }
     this.wasmTable.set_cell_data(row, col, value);
-    
-    // 値変更後に検証エラーを更新
+
     setTimeout(() => {
       this.updateValidationTooltip();
     }, 100);
+  }
+
+  public canUndo(): boolean {
+    return this.undoStack.canUndo();
+  }
+
+  public canRedo(): boolean {
+    return this.undoStack.canRedo();
+  }
+
+  public undo(): boolean {
+    const batch = this.undoStack.popUndo();
+    if (!batch) return false;
+    this.applyHistoryChanges(batch.changes, false);
+    this.undoStack.pushRedo(batch);
+    this.notifyUser(
+      `変更を元に戻しました（${batch.changes.length}件）`,
+      'info'
+    );
+    return true;
+  }
+
+  public redo(): boolean {
+    const batch = this.undoStack.popRedo();
+    if (!batch) return false;
+    this.applyHistoryChanges(batch.changes, true);
+    this.undoStack.pushUndo(batch);
+    this.notifyUser(
+      `やり直しました（${batch.changes.length}件）`,
+      'redo'
+    );
+    return true;
+  }
+
+  private notifyUser(message: string, type: NotificationType = 'info'): void {
+    this.eventHandlers.onNotification?.(message, type);
+  }
+
+  private applyHistoryChanges(changes: CellChange[], useNewValues: boolean): void {
+    this.applyingHistory = true;
+    try {
+      for (const change of changes) {
+        const value = useNewValues ? change.newValue : change.oldValue;
+        this.wasmTable.set_cell_data(change.row, change.col, value);
+      }
+      this.render();
+      this.triggerCellSelectEvent();
+      const triggerRender = (window as { triggerRender?: () => void }).triggerRender;
+      if (typeof triggerRender === 'function') {
+        triggerRender();
+      }
+    } finally {
+      this.applyingHistory = false;
+    }
+  }
+
+  private pushUndoChanges(changes: CellChange[]): void {
+    if (this.applyingHistory || changes.length === 0) return;
+    this.undoStack.push({ changes });
+  }
+
+  private collectRangeChanges(
+    startRow: number,
+    startCol: number,
+    values: string[][]
+  ): CellChange[] {
+    const changes: CellChange[] = [];
+    for (let rowOffset = 0; rowOffset < values.length; rowOffset++) {
+      for (let colOffset = 0; colOffset < values[rowOffset].length; colOffset++) {
+        const row = startRow + rowOffset;
+        const col = startCol + colOffset;
+        if (row >= this.config.row_count || col >= this.config.col_count) continue;
+        const newValue = values[rowOffset][colOffset];
+        const oldValue = this.getCellValue(row, col) ?? '';
+        if (oldValue !== newValue) {
+          changes.push({ row, col, oldValue, newValue });
+        }
+      }
+    }
+    return changes;
+  }
+
+  private parseTsv(tsvData: string): string[][] {
+    return tsvData
+      .split('\n')
+      .filter((row) => row.trim().length > 0)
+      .map((row) => row.split('\t'));
+  }
+
+  private getPasteStartPosition(): { row: number; col: number } {
+    const selectionInfo = this.getSelectionInfo();
+    if (
+      selectionInfo.isRange &&
+      selectionInfo.start_row !== undefined &&
+      selectionInfo.start_col !== undefined
+    ) {
+      return { row: selectionInfo.start_row, col: selectionInfo.start_col };
+    }
+    const selectedCell = this.getSelectedCell();
+    if (selectedCell) {
+      return { row: selectedCell.row, col: selectedCell.col };
+    }
+    return { row: 0, col: 0 };
   }
 
   /**
@@ -578,6 +409,17 @@ export class WasabiTable {
       text_decoration: null,
       format: null
     })));
+    if (!this.applyingHistory) {
+      const changes: CellChange[] = data
+        .map((cell) => ({
+          row: cell.row,
+          col: cell.col,
+          oldValue: this.getCellValue(cell.row, cell.col) ?? '',
+          newValue: cell.value,
+        }))
+        .filter((change) => change.oldValue !== change.newValue);
+      this.pushUndoChanges(changes);
+    }
     this.wasmTable.set_batch_data(jsonData);
   }
 
@@ -609,16 +451,13 @@ export class WasabiTable {
    */
   public selectCell(row: number, col: number, autoScroll: boolean = true): void {
     this.ensureInitialized();
-    console.log('🎯 [DEBUG] selectCell called with row:', row, 'col:', col, 'autoScroll:', autoScroll);
     
     // 直接行・列番号でセルを選択する方法を使用
     // 座標計算に依存せず、Rust側のselect_cell_by_positionメソッドを使用
     const result = this.wasmTable.select_cell_by_position(row, col);
-    console.log('🎯 [DEBUG] selectCell result:', result);
     
     // 結果を検証
     const selectedAfter = this.getSelectedCell();
-    console.log('🎯 [DEBUG] Selected cell after operation:', selectedAfter);
     
     // 自動スクロールが有効な場合、選択されたセルが見えるようにスクロール
     if (autoScroll && selectedAfter) {
@@ -635,21 +474,17 @@ export class WasabiTable {
     
     const selectedCell = this.getSelectedCell();
     if (!selectedCell) {
-      console.log('🎯 [DEBUG] No selected cell to scroll to');
       return;
     }
     
-    console.log('🎯 [DEBUG] scrollToSelectedCell called for cell:', selectedCell);
     
     // セルの画面位置を取得
     const cellPosition = this.getCellScreenPosition(selectedCell.row, selectedCell.col);
-    console.log('🎯 [DEBUG] Current cell screen position:', cellPosition);
     
     // 現在のスクロール位置を取得
     const stats = this.getStats();
     const currentScrollX = stats.scrollX;
     const currentScrollY = stats.scrollY;
-    console.log('🎯 [DEBUG] Current scroll position:', { scrollX: currentScrollX, scrollY: currentScrollY });
     
     // 表示領域の計算
     const headerHeight = this.config.header_height;
@@ -662,23 +497,11 @@ export class WasabiTable {
     const viewportWidth = canvasDisplayWidth - rowHeaderWidth - scrollbarWidth;
     const viewportHeight = canvasDisplayHeight - headerHeight - scrollbarWidth;
     
-    console.log('🎯 [DEBUG] Viewport dimensions:', { 
-      viewportWidth, 
-      viewportHeight, 
-      headerHeight, 
-      rowHeaderWidth 
-    });
     
     // セルの絶対位置を取得（Rustから返される値を使用）
     const absoluteCellX = cellPosition.absolute_x;
     const absoluteCellY = cellPosition.absolute_y;
     
-    console.log('🎯 [DEBUG] Absolute cell position:', { 
-      absoluteCellX, 
-      absoluteCellY,
-      cellWidth: cellPosition.width,
-      cellHeight: cellPosition.height
-    });
     
     // 必要なスクロール量を計算
     let newScrollX = currentScrollX;
@@ -693,11 +516,9 @@ export class WasabiTable {
     if (cellLeft < viewportLeft) {
       // セルが左側に隠れている場合
       newScrollX = cellLeft;
-      console.log('🎯 [DEBUG] Cell is hidden on the left, scrolling to:', newScrollX);
     } else if (cellRight > viewportRight) {
       // セルが右側に隠れている場合
       newScrollX = cellRight - viewportWidth;
-      console.log('🎯 [DEBUG] Cell is hidden on the right, scrolling to:', newScrollX);
     }
     
     // 垂直スクロールの調整
@@ -709,11 +530,9 @@ export class WasabiTable {
     if (cellTop < viewportTop) {
       // セルが上側に隠れている場合
       newScrollY = cellTop;
-      console.log('🎯 [DEBUG] Cell is hidden on the top, scrolling to:', newScrollY);
     } else if (cellBottom > viewportBottom) {
       // セルが下側に隠れている場合
       newScrollY = cellBottom - viewportHeight;
-      console.log('🎯 [DEBUG] Cell is hidden on the bottom, scrolling to:', newScrollY);
     }
     
     // スクロール範囲の制限
@@ -722,16 +541,9 @@ export class WasabiTable {
     newScrollX = Math.max(0, Math.min(newScrollX, maxScrollX));
     newScrollY = Math.max(0, Math.min(newScrollY, maxScrollY));
     
-    console.log('🎯 [DEBUG] Final scroll position (after bounds check):', { 
-      newScrollX, 
-      newScrollY, 
-      maxScrollX, 
-      maxScrollY 
-    });
     
     // スクロールが必要な場合のみ実行
     if (Math.abs(newScrollX - currentScrollX) > 0.1 || Math.abs(newScrollY - currentScrollY) > 0.1) {
-      console.log('🎯 [DEBUG] Scrolling from', { currentScrollX, currentScrollY }, 'to', { newScrollX, newScrollY });
       
       // スクロール実行
       const deltaX = newScrollX - currentScrollX;
@@ -740,9 +552,7 @@ export class WasabiTable {
       this.wasmTable.scroll(deltaX, deltaY);
       this.updateScrollbars();
       
-      console.log('🎯 [DEBUG] Auto-scroll completed');
     } else {
-      console.log('🎯 [DEBUG] Cell is already visible, no scroll needed');
     }
   }
 
@@ -1111,18 +921,7 @@ export class WasabiTable {
    * @returns 列名
    */
   public static getColumnName(col: number): string {
-    let result = '';
-    let n = col;
-    
-    while (true) {
-      result = String.fromCharCode(65 + (n % 26)) + result;
-      if (n < 26) {
-        break;
-      }
-      n = Math.floor(n / 26) - 1;
-    }
-    
-    return result;
+    return columnNameFn(col);
   }
 
   /**
@@ -1133,14 +932,15 @@ export class WasabiTable {
    * @returns セル参照文字列
    */
   public static getCellReference(row: number, col: number): string {
-    return `${WasabiTable.getColumnName(col)}${row + 1}`;
+    return cellReferenceFn(row, col);
   }
 
   private setupEventHandlers(): void {
     let isDragging = false;
     let dragStartCell: { row: number; col: number } | null = null;
-    let justFinishedDragging = false;
+    let dragEndedAt = 0;
     let hasActuallyDragged = false; // 実際にマウスが移動したかを追跡
+    const suppressClickAfterDragMs = 400;
     
     // グローバルハンドラー関数を設定
     (window as any).handleTableClick = (x: number, y: number) => {
@@ -1152,10 +952,17 @@ export class WasabiTable {
       this.wasmTable.handle_canvas_wheel(deltaX, deltaY);
       // スクロール時は吹き出しを一時的に非表示
       this.hideValidationTooltip();
-      
+
       // スクロールバーの表示を更新
       this.updateScrollbars();
-      
+
+      const triggerRender = (window as any).triggerRender;
+      if (typeof triggerRender === 'function') {
+        triggerRender();
+      } else {
+        this.render();
+      }
+
       // スクロール完了後に再表示
       setTimeout(() => {
         this.updateValidationTooltip();
@@ -1167,10 +974,8 @@ export class WasabiTable {
 
     // 基本的なマウスクリック
     this.canvas.addEventListener('click', (event) => {
-      // 実際にドラッグした後のクリックイベントは無視
-      if (justFinishedDragging) {
-        console.log('🖱️ [DEBUG] Ignoring click event after actual drag');
-        justFinishedDragging = false;
+      // ドラッグ直後に発火する click は範囲選択を壊すため無視
+      if (Date.now() - dragEndedAt < suppressClickAfterDragMs) {
         return;
       }
       
@@ -1179,13 +984,10 @@ export class WasabiTable {
       const y = event.clientY - rect.top;
       
       // キャンバスにフォーカスを設定
-      console.log('🖱️ [DEBUG] Canvas clicked, setting focus');
       this.canvas.focus();
-      console.log('🖱️ [DEBUG] Focus set, activeElement:', document.activeElement?.tagName);
       
       if (event.shiftKey) {
         // Shift+クリックで範囲選択（mousedownでの処理を統合）
-        console.log('🔀 [DEBUG] Processing Shift+click for range selection');
         const cellPos = this.wasmTable.pixel_to_cell(x, y);
         if (cellPos) {
           const [row, col] = cellPos.split(':').map(Number);
@@ -1196,11 +998,9 @@ export class WasabiTable {
           
           if (currentSelection && !selectionInfo?.isRange) {
             // 単一セル選択から範囲選択に移行
-            console.log('🔀 [DEBUG] Starting range selection from current cell:', currentSelection);
             this.startRangeSelection(currentSelection.row, currentSelection.col);
           } else if (!currentSelection) {
             // 何も選択されていない場合は、クリックしたセルから開始
-            console.log('🔀 [DEBUG] Starting range selection from clicked cell:', { row, col });
             this.startRangeSelection(row, col);
           }
           
@@ -1208,7 +1008,6 @@ export class WasabiTable {
           this.updateRangeSelection(row, col);
           this.endRangeSelection(); // 即座に範囲選択を確定
           this.render();
-          console.log('🔀 [DEBUG] Shift+click range selection completed');
         }
       } else {
         // 通常のクリックでは範囲選択をクリアしてから単一セル選択
@@ -1261,116 +1060,88 @@ export class WasabiTable {
     });
 
     // マウスドラッグによる範囲選択
-    this.canvas.addEventListener('mousedown', (event) => {
+    const updateDragSelectionAt = (clientX: number, clientY: number): void => {
       const rect = this.canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      
-      // ヘッダー領域のクリックかチェック
-      console.log('🎯 [DEBUG] Mouse click at:', { x, y, headerHeight: this.config.header_height, rowHeaderWidth: this.config.row_header_width });
-      
-      if (y <= this.config.header_height && x > this.config.row_header_width) {
-        console.log('🎯 [DEBUG] Click is in header area');
-        const columnIndex = this.getColumnIndexFromX(x);
-        console.log('🎯 [DEBUG] Column index from X:', columnIndex);
-        
-        if (columnIndex !== -1) {
-          console.log('🎯 [DEBUG] Calling handleHeaderClick for column:', columnIndex);
-          this.handleHeaderClick(columnIndex, event);
-          return;
-        } else {
-          console.log('🎯 [DEBUG] No valid column found for header click');
-        }
-      } else {
-        console.log('🎯 [DEBUG] Click is not in header area');
-      }
-      
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
       const cellPos = this.wasmTable.pixel_to_cell(x, y);
-      if (cellPos) {
-        const [row, col] = cellPos.split(':').map(Number);
-        
-        if (event.shiftKey) {
-          // Shift+mousedownは範囲選択の準備のみ、実際の処理はclickイベントで行う
-          console.log('🔀 [DEBUG] Shift+mousedown detected, deferring to click event');
-          isDragging = false; // Shift+クリック時はドラッグモードにしない
-          hasActuallyDragged = false;
-        } else {
-          // 通常のドラッグで新しい範囲選択を開始
-          // 単一セル選択はmousemoveが発生してから行う（純粋なクリックと区別するため）
-          dragStartCell = { row, col };
-          hasActuallyDragged = false; // リセット
-          isDragging = true;
-          event.preventDefault();
-        }
+      if (!cellPos) return;
+
+      const [row, col] = cellPos.split(':').map(Number);
+      hasActuallyDragged = true;
+
+      this.updateRangeSelection(row, col);
+      this.render();
+    };
+
+    const finishDragSelection = (): void => {
+      if (!isDragging) return;
+
+      document.removeEventListener('mousemove', onDocumentMouseMove);
+      document.removeEventListener('mouseup', onDocumentMouseUp);
+
+      if (hasActuallyDragged) {
+        this.endRangeSelection();
+        this.triggerCellSelectEvent();
+        dragEndedAt = Date.now();
+      } else {
+        this.clearSelection();
       }
-    });
+
+      isDragging = false;
+      dragStartCell = null;
+      hasActuallyDragged = false;
+    };
+
+    const onDocumentMouseMove = (event: MouseEvent): void => {
+      if (!isDragging) return;
+      updateDragSelectionAt(event.clientX, event.clientY);
+    };
+
+    const onDocumentMouseUp = (): void => {
+      finishDragSelection();
+    };
 
     this.canvas.addEventListener('mousemove', (event) => {
       if (isDragging) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        
-        const cellPos = this.wasmTable.pixel_to_cell(x, y);
-        if (cellPos) {
-          const [row, col] = cellPos.split(':').map(Number);
-          
-          // 実際にマウスが移動したことをマーク
-          hasActuallyDragged = true;
-          
-          // ドラッグが開始されたが、まだ範囲選択が始まっていない場合
-          if (dragStartCell && !this.getSelectionInfo()?.isRange) {
-            this.startRangeSelection(dragStartCell.row, dragStartCell.col);
-          }
-          
-          this.updateRangeSelection(row, col);
-          this.render();
-        }
+        updateDragSelectionAt(event.clientX, event.clientY);
       }
     });
 
     this.canvas.addEventListener('mouseup', () => {
-      if (isDragging) {
-        // 実際にドラッグした場合のみ範囲選択を終了
-        if (hasActuallyDragged) {
-          this.endRangeSelection();
-          justFinishedDragging = true;
-          
-          // 少し遅延してフラグをリセット（クリックイベントが先に処理されるように）
-          setTimeout(() => {
-            justFinishedDragging = false;
-          }, 10);
-        } else {
-          // 単純なクリックの場合は範囲選択をクリア
-          this.clearSelection();
-        }
-        
-        isDragging = false;
-        dragStartCell = null;
-        hasActuallyDragged = false;
-      }
+      finishDragSelection();
     });
 
-    // マウスがキャンバスから離れた場合
-    this.canvas.addEventListener('mouseleave', () => {
-      if (isDragging) {
-        // 実際にドラッグした場合のみ範囲選択を終了
-        if (hasActuallyDragged) {
-          this.endRangeSelection();
-          justFinishedDragging = true;
-          
-          // 少し遅延してフラグをリセット
-          setTimeout(() => {
-            justFinishedDragging = false;
-          }, 10);
-        } else {
-          // 単純なクリックの場合は範囲選択をクリア
-          this.clearSelection();
+    this.canvas.addEventListener('mousedown', (event) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      if (y <= this.config.header_height && x > this.config.row_header_width) {
+        const columnIndex = this.getColumnIndexFromX(x);
+
+        if (columnIndex !== -1) {
+          this.handleHeaderClick(columnIndex, event);
+          return;
         }
-        
-        isDragging = false;
-        dragStartCell = null;
-        hasActuallyDragged = false;
+      }
+
+      const cellPos = this.wasmTable.pixel_to_cell(x, y);
+      if (cellPos) {
+        const [row, col] = cellPos.split(':').map(Number);
+
+        if (event.shiftKey) {
+          isDragging = false;
+          hasActuallyDragged = false;
+        } else {
+          dragStartCell = { row, col };
+          hasActuallyDragged = false;
+          isDragging = true;
+          this.startRangeSelection(row, col);
+          document.addEventListener('mousemove', onDocumentMouseMove);
+          document.addEventListener('mouseup', onDocumentMouseUp);
+          event.preventDefault();
+        }
       }
     });
 
@@ -1378,20 +1149,17 @@ export class WasabiTable {
     document.addEventListener('keydown', (event) => {
       // 編集中の場合は通常のキーイベントを無視（編集フィールドが処理する）
       if (this.isEditing()) {
-        console.log('📝 [DEBUG] Editing in progress, ignoring document keydown for key:', event.key);
         
         // 編集中のTabキーは特別に処理（ブラウザのデフォルト動作を完全に阻止）
         if (event.key === 'Tab') {
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
-          console.log('🚫 [DEBUG] Tab key completely blocked during editing');
         }
         
         // 編集中の矢印キーは入力フィールド内でのカーソル移動として処理
         // ドキュメントレベルでは何もしない（入力フィールドが処理する）
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-          console.log('⬅️➡️ [DEBUG] Arrow key in editing mode - allowing input field to handle cursor movement');
           return; // 入力フィールドのデフォルト動作を許可
         }
         
@@ -1399,7 +1167,6 @@ export class WasabiTable {
         if (event.key === 'Delete' || event.key === 'Backspace') {
           const selectionInfo = this.getSelectionInfo();
           if (selectionInfo && selectionInfo.isRange) {
-            console.log('🗑️ [DEBUG] Handling Delete/Backspace for range selection');
             // 範囲選択の全セルをクリア（Rustで処理）
             this.wasmTable.handle_canvas_keydown(event.key);
             this.render();
@@ -1412,21 +1179,15 @@ export class WasabiTable {
       }
 
       // フォーカス状態の詳細デバッグ
-      console.log('🔍 [DEBUG] Focus check - activeElement:', document.activeElement?.tagName, 'canvas:', this.canvas.tagName);
-      console.log('🔍 [DEBUG] Focus match:', this.canvas === document.activeElement);
       
       // キャンバスがフォーカスされていない場合は無視
       if (this.canvas !== document.activeElement) {
-        console.log('❌ [DEBUG] Canvas not focused, ignoring keydown');
         return;
       }
 
       if (this.isComposing) {
-        console.log('🈴 [DEBUG] Ignoring keydown during IME composition');
         return;
       }
-
-      console.log('🔑 [DEBUG] Key pressed:', event.key, 'Shift:', event.shiftKey);
 
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdKey = isMac ? event.metaKey : event.ctrlKey;
@@ -1441,15 +1202,12 @@ export class WasabiTable {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
         if (event.shiftKey && cmdKey) {
           // Shift+Ctrl+矢印キーによる範囲選択（データの端まで）
-          console.log('🔀🚀 [DEBUG] Handling Shift+Ctrl+Arrow:', event.key);
           this.handleShiftCtrlArrowKey(event.key);
         } else if (event.shiftKey) {
           // Shift+矢印キーによる範囲選択
-          console.log('🔀 [DEBUG] Handling Shift+Arrow:', event.key);
           this.handleShiftArrowKey(event.key);
         } else {
           // 通常の矢印キーによるセル移動
-          console.log('➡️ [DEBUG] Handling Arrow:', event.key);
           this.clearSelection(); // 範囲選択をクリア
           this.handleArrowKey(event.key);
         }
@@ -1461,7 +1219,6 @@ export class WasabiTable {
       if (event.key === 'Enter' && !this.isEditing()) {
         const selectedCell = this.getSelectedCell();
         if (selectedCell) {
-          console.log('📝 [DEBUG] Starting edit with Enter');
           this.startEditing(selectedCell.row, selectedCell.col);
           event.preventDefault();
           return;
@@ -1473,9 +1230,9 @@ export class WasabiTable {
         const selectedCell = this.getSelectedCell();
         if (selectedCell) {
           const newCol = Math.min(this.config.col_count - 1, selectedCell.col + 1);
-          console.log('➡️ [DEBUG] Tab navigation from', selectedCell, 'to', { row: selectedCell.row, col: newCol });
           this.selectCell(selectedCell.row, newCol);
           this.render();
+          this.triggerCellSelectEvent();
           event.preventDefault();
           return;
         }
@@ -1485,7 +1242,6 @@ export class WasabiTable {
       if (this.isPrintableCharacterKey(event.key)) {
         const selectionInfo = this.getSelectionInfo();
         if (selectionInfo && selectionInfo.isRange) {
-          console.log('✏️ [DEBUG] Starting edit from range selection with character:', event.key);
           // 範囲選択から編集開始（Rustで処理）
           this.wasmTable.handle_canvas_keydown(event.key);
           event.preventDefault();
@@ -1496,7 +1252,6 @@ export class WasabiTable {
       // 矢印キー以外のキーは従来のハンドラーに委譲（矢印キーは完全にTypeScriptで処理）
       // ただし、Rustのkeydownリスナーを無効化したため、直接Rustのメソッドを呼び出す
       if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Tab'].includes(event.key)) {
-        console.log('🔄 [DEBUG] Delegating key to Rust handler:', event.key);
         try {
           this.wasmTable.handle_canvas_keydown(event.key);
           this.triggerCellSelectEvent();
@@ -1509,24 +1264,20 @@ export class WasabiTable {
     // IME状態を監視
     document.addEventListener('compositionstart', () => {
       this.isComposing = true;
-      console.log('🈴 [DEBUG] IME composition started');
     });
 
     document.addEventListener('compositionend', () => {
       this.isComposing = false;
-      console.log('🈴 [DEBUG] IME composition ended');
     });
 
     // 編集中のキーイベントハンドラー（改善版）
     (window as any).handleEditingEnter = () => {
-      console.log('📝 [DEBUG] Handling editing Enter');
       try {
         this.wasmTable.handle_editing_enter();
         // レンダリングはRust側で実行されるため削除
         // キャンバスにフォーカスを確実に戻す
         setTimeout(() => {
           this.canvas.focus();
-          console.log('🎯 [DEBUG] Focus returned to canvas after Enter');
         }, 10);
         this.triggerCellSelectEvent();
       } catch (error) {
@@ -1535,14 +1286,12 @@ export class WasabiTable {
     };
 
     (window as any).handleEditingTab = () => {
-      console.log('➡️ [DEBUG] Handling editing Tab');
       try {
         this.wasmTable.handle_editing_tab();
         // レンダリングはRust側で実行されるため削除
         // キャンバスにフォーカスを確実に戻す
         setTimeout(() => {
           this.canvas.focus();
-          console.log('🎯 [DEBUG] Focus returned to canvas after Tab');
         }, 10);
         this.triggerCellSelectEvent();
       } catch (error) {
@@ -1551,7 +1300,6 @@ export class WasabiTable {
     };
 
     (window as any).handleEditingEscape = () => {
-      console.log('❌ [DEBUG] Handling editing Escape');
       try {
         // handle_editing_escapeを呼び出す（cancel_editingではなく）
         this.wasmTable.handle_editing_escape();
@@ -1559,7 +1307,6 @@ export class WasabiTable {
         // キャンバスにフォーカスを確実に戻す
         setTimeout(() => {
           this.canvas.focus();
-          console.log('🎯 [DEBUG] Focus returned to canvas after Escape');
         }, 10);
         this.triggerCellSelectEvent();
       } catch (error) {
@@ -1696,6 +1443,7 @@ export class WasabiTable {
 
     // スクロールバーのイベントリスナーを設定
     this.setupScrollbarEvents();
+    this.updateScrollbarAppearance();
   }
 
   /**
@@ -1857,7 +1605,6 @@ export class WasabiTable {
    * Canvasのサイズを更新
    */
   public updateCanvasSize(width?: number, height?: number): void {
-    console.log('🔧 [DEBUG] updateCanvasSize called with:', { width, height });
     
     let actualWidth: number;
     let actualHeight: number;
@@ -1866,7 +1613,6 @@ export class WasabiTable {
       // 明示的なサイズが指定された場合
       actualWidth = width;
       actualHeight = height;
-      console.log('🔧 [DEBUG] Using explicit size:', { actualWidth, actualHeight });
     } else {
       // 親要素のサイズに合わせる
       const parent = this.canvas.parentElement;
@@ -1874,9 +1620,7 @@ export class WasabiTable {
         const rect = parent.getBoundingClientRect();
         actualWidth = Math.floor(rect.width);
         actualHeight = Math.floor(rect.height);
-        console.log('🔧 [DEBUG] Using parent size:', { actualWidth, actualHeight, parentRect: rect });
       } else {
-        console.warn('🔧 [DEBUG] No parent element found, using current canvas size');
         actualWidth = this.canvas.width;
         actualHeight = this.canvas.height;
       }
@@ -1888,7 +1632,6 @@ export class WasabiTable {
     
     // devicePixelRatioを取得（高解像度ディスプレイ対応）
     const devicePixelRatio = window.devicePixelRatio || 1;
-    console.log('🔧 [DEBUG] Device pixel ratio:', devicePixelRatio);
     
     // Canvas内部の解像度を物理ピクセルに合わせる
     const canvasWidth = actualWidth * devicePixelRatio;
@@ -1905,15 +1648,8 @@ export class WasabiTable {
     const ctx = this.canvas.getContext('2d');
     if (ctx && devicePixelRatio !== 1) {
       ctx.scale(devicePixelRatio, devicePixelRatio);
-      console.log('🔧 [DEBUG] Canvas context scaled by:', devicePixelRatio);
     }
     
-    console.log('🔧 [DEBUG] Canvas size updated:', { 
-      oldSize: { width: oldWidth, height: oldHeight },
-      newSize: { width: canvasWidth, height: canvasHeight },
-      displaySize: { width: actualWidth, height: actualHeight },
-      devicePixelRatio
-    });
 
     // スクロールコンテナのサイズも更新
     if (this.scrollContainer) {
@@ -1924,15 +1660,12 @@ export class WasabiTable {
       if (this.horizontalScrollbar) {
         const scrollbarWidth = Math.max(0, actualWidth - 17);
         this.horizontalScrollbar.style.width = `${scrollbarWidth}px`;
-        console.log('🔧 [DEBUG] Horizontal scrollbar width updated:', scrollbarWidth);
       }
       if (this.verticalScrollbar) {
         const scrollbarHeight = Math.max(0, actualHeight - 17);
         this.verticalScrollbar.style.height = `${scrollbarHeight}px`;
-        console.log('🔧 [DEBUG] Vertical scrollbar height updated:', scrollbarHeight);
       }
       
-      console.log('🔧 [DEBUG] Scroll container size updated:', { width: actualWidth, height: actualHeight });
     }
 
         // Rust側のキャンバスサイズも更新（論理ピクセルで渡す）
@@ -1940,29 +1673,25 @@ export class WasabiTable {
       try {
         // Rust側には論理ピクセルサイズを渡す（描画座標系の一貫性を保つため）
         this.wasmTable.update_canvas_size(actualWidth, actualHeight);
-        console.log('🔧 [DEBUG] WASM canvas size updated via update_canvas_size:', { width: actualWidth, height: actualHeight });
       } catch (error) {
-        console.error('🔧 [DEBUG] Error updating WASM canvas size:', error);
+        console.error('🔧 Error updating WASM canvas size:', error);
         
         // フォールバック: 直接プロパティを更新
         try {
           if ('canvas_width' in this.wasmTable && 'canvas_height' in this.wasmTable) {
             (this.wasmTable as any).canvas_width = actualWidth;
             (this.wasmTable as any).canvas_height = actualHeight;
-            console.log('🔧 [DEBUG] WASM canvas size updated via direct property access:', { width: actualWidth, height: actualHeight });
           }
         } catch (fallbackError) {
-          console.error('🔧 [DEBUG] Fallback canvas size update also failed:', fallbackError);
+          console.error('🔧 Fallback canvas size update also failed:', fallbackError);
         }
       }
     }
 
     // スクロールバーとテーブルを再描画
-    console.log('🔧 [DEBUG] Updating scrollbars and rendering...');
     this.updateScrollbars();
     this.render();
     
-    console.log('🔧 [DEBUG] updateCanvasSize completed');
   }
 
   /**
@@ -2006,12 +1735,6 @@ export class WasabiTable {
     const visibleWidth = canvasDisplayWidth - (config.row_header_width || 50);
     const maxScroll = Math.max(0, totalWidth - visibleWidth + 50);
     
-    console.log('🔧 [DEBUG] calculateMaxScrollX:', {
-      totalWidth,
-      canvasDisplayWidth,
-      visibleWidth,
-      maxScroll
-    });
     
     return maxScroll;
   }
@@ -2032,12 +1755,6 @@ export class WasabiTable {
     const margin = 10; // 余白
     const maxScroll = Math.max(0, totalHeight - visibleHeight + margin);
     
-    console.log('🔧 [DEBUG] calculateMaxScrollY:', {
-      totalHeight,
-      canvasDisplayHeight,
-      visibleHeight,
-      maxScroll
-    });
     
     return maxScroll;
   }
@@ -2047,12 +1764,10 @@ export class WasabiTable {
    */
   public startRangeSelection(row: number, col: number): void {
     this.ensureInitialized();
-    console.log('🔀 [DEBUG] TypeScript startRangeSelection called:', { row, col });
     try {
       this.wasmTable.start_range_selection(row, col);
-      console.log('🔀 [DEBUG] Range selection started successfully');
     } catch (error) {
-      console.error('❌ [DEBUG] Failed to start range selection:', error);
+      console.error('❌ Failed to start range selection:', error);
     }
   }
 
@@ -2061,12 +1776,10 @@ export class WasabiTable {
    */
   public updateRangeSelection(row: number, col: number): void {
     this.ensureInitialized();
-    console.log('🔀 [DEBUG] TypeScript updateRangeSelection called:', { row, col });
     try {
       this.wasmTable.update_range_selection(row, col);
-      console.log('🔀 [DEBUG] Range selection updated successfully');
     } catch (error) {
-      console.error('❌ [DEBUG] Failed to update range selection:', error);
+      console.error('❌ Failed to update range selection:', error);
     }
   }
 
@@ -2075,12 +1788,10 @@ export class WasabiTable {
    */
   public endRangeSelection(): void {
     this.ensureInitialized();
-    console.log('🔀 [DEBUG] TypeScript endRangeSelection called');
     try {
       this.wasmTable.end_range_selection();
-      console.log('🔀 [DEBUG] Range selection ended successfully');
     } catch (error) {
-      console.error('❌ [DEBUG] Failed to end range selection:', error);
+      console.error('❌ Failed to end range selection:', error);
     }
   }
 
@@ -2089,12 +1800,10 @@ export class WasabiTable {
    */
   public clearSelection(): void {
     this.ensureInitialized();
-    console.log('🔀 [DEBUG] TypeScript clearSelection called');
     try {
       this.wasmTable.clear_selection();
-      console.log('🔀 [DEBUG] Selection cleared successfully');
     } catch (error) {
-      console.error('❌ [DEBUG] Failed to clear selection:', error);
+      console.error('❌ Failed to clear selection:', error);
     }
   }
 
@@ -2117,10 +1826,10 @@ export class WasabiTable {
   /**
    * 選択情報を取得
    */
-  public getSelectionInfo(): any {
+  public getSelectionInfo(): SelectionInfo {
     this.ensureInitialized();
     const info = this.wasmTable.get_selection_info();
-    return JSON.parse(info);
+    return JSON.parse(info) as SelectionInfo;
   }
 
   /**
@@ -2134,8 +1843,16 @@ export class WasabiTable {
   /**
    * キーボードショートカットを処理
    */
+  public setKeyboardShortcutsEnabled(enabled: boolean): void {
+    this.keyboardShortcutsEnabled = enabled;
+  }
+
+  public isKeyboardShortcutsEnabled(): boolean {
+    return this.keyboardShortcutsEnabled;
+  }
+
   public handleKeyboardShortcut(event: KeyboardEvent): boolean {
-    if (!this.wasmTable) return false;
+    if (!this.wasmTable || !this.keyboardShortcutsEnabled) return false;
 
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const cmdKey = isMac ? event.metaKey : event.ctrlKey;
@@ -2166,6 +1883,20 @@ export class WasabiTable {
           this.handleSelectAll();
           return true;
 
+        case 'z':
+          event.preventDefault();
+          if (event.shiftKey) {
+            this.redo();
+          } else {
+            this.undo();
+          }
+          return true;
+
+        case 'y':
+          event.preventDefault();
+          this.redo();
+          return true;
+
         case 'arrowup':
         case 'arrowdown':
         case 'arrowleft':
@@ -2191,18 +1922,13 @@ export class WasabiTable {
     try {
       // 選択状態をデバッグ
       const selectionInfo = this.getSelectionInfo();
-      console.log('📋 [DEBUG] Selection info before copy:', selectionInfo);
       
       const copiedData = this.copySelection();
-      console.log('📋 [DEBUG] Copied data:', copiedData);
-      console.log('📋 [DEBUG] Copied data length:', copiedData.length);
-      console.log('📋 [DEBUG] Copied data lines:', copiedData.split('\n').length);
       
       if (copiedData) {
         // モダンブラウザのClipboard APIを使用
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(copiedData);
-          console.log('✅ [DEBUG] Data copied to clipboard using Clipboard API');
         } else {
           // フォールバック: 古いブラウザ対応
           this.fallbackCopyToClipboard(copiedData);
@@ -2212,7 +1938,7 @@ export class WasabiTable {
         this.showCopyFeedback();
       }
     } catch (error) {
-      console.error('❌ [DEBUG] Copy failed:', error);
+      console.error('❌ Copy failed:', error);
       // エラー時はフォールバックを試行
       try {
         const copiedData = this.copySelection();
@@ -2220,7 +1946,7 @@ export class WasabiTable {
           this.fallbackCopyToClipboard(copiedData);
         }
       } catch (fallbackError) {
-        console.error('❌ [DEBUG] Fallback copy also failed:', fallbackError);
+        console.error('❌ Fallback copy also failed:', fallbackError);
       }
     }
   }
@@ -2235,36 +1961,36 @@ export class WasabiTable {
       // モダンブラウザのClipboard APIを使用
       if (navigator.clipboard && navigator.clipboard.readText) {
         pasteData = await navigator.clipboard.readText();
-        console.log('📋 [DEBUG] Pasted data from Clipboard API:', pasteData);
       } else {
         // フォールバック: 古いブラウザ対応
         pasteData = this.fallbackReadFromClipboard();
-        console.log('📋 [DEBUG] Pasted data from fallback:', pasteData);
       }
       
       if (pasteData) {
-        // 選択範囲の開始位置を取得
         const selectedCell = this.getSelectedCell();
-        const selectionInfo = this.getSelectionInfo();
-        
-        console.log('📋 [DEBUG] Paste target - Selected cell:', selectedCell, 'Selection info:', selectionInfo);
-        
-        // データをペースト
+        const { row: startRow, col: startCol } = this.getPasteStartPosition();
+        const parsed = this.parseTsv(pasteData);
+        const changes = this.collectRangeChanges(startRow, startCol, parsed);
+        this.pushUndoChanges(changes);
+
         this.pasteFromClipboard(pasteData);
-        
+
         // レンダリングを更新
         this.render();
-        
+        this.triggerCellSelectEvent();
+
+        const triggerRender = (window as { triggerRender?: () => void }).triggerRender;
+        if (typeof triggerRender === 'function') {
+          triggerRender();
+        }
+
         // ペーストイベントを通知
         if (this.eventHandlers.onCellChange && selectedCell) {
-          // 簡単な通知（実際には複数セルが変更される可能性がある）
           this.eventHandlers.onCellChange(selectedCell, '', pasteData);
         }
-        
-        console.log('✅ [DEBUG] Paste completed successfully');
       }
     } catch (error) {
-      console.error('❌ [DEBUG] Paste failed:', error);
+      console.error('❌ Paste failed:', error);
     }
   }
 
@@ -2276,26 +2002,55 @@ export class WasabiTable {
       // まずコピー
       await this.handleCopy();
       
-      // 選択範囲のデータを削除
       const selectionInfo = this.getSelectionInfo();
       if (selectionInfo && selectionInfo.hasSelection) {
+        const changes: CellChange[] = [];
         if (selectionInfo.isRange) {
-          // 範囲選択の場合
-          for (let row = selectionInfo.start_row; row <= selectionInfo.end_row; row++) {
-            for (let col = selectionInfo.start_col; col <= selectionInfo.end_col; col++) {
-              this.setCellValue(row, col, '');
+          const startRow = selectionInfo.start_row;
+          const endRow = selectionInfo.end_row;
+          const startCol = selectionInfo.start_col;
+          const endCol = selectionInfo.end_col;
+          if (
+            startRow !== undefined &&
+            endRow !== undefined &&
+            startCol !== undefined &&
+            endCol !== undefined
+          ) {
+            for (let row = startRow; row <= endRow; row++) {
+              for (let col = startCol; col <= endCol; col++) {
+                const oldValue = this.getCellValue(row, col) ?? '';
+                if (oldValue !== '') {
+                  changes.push({ row, col, oldValue, newValue: '' });
+                }
+              }
             }
           }
-        } else {
-          // 単一セル選択の場合
-          this.setCellValue(selectionInfo.row, selectionInfo.col, '');
+        } else if (selectionInfo.row !== undefined && selectionInfo.col !== undefined) {
+          const oldValue = this.getCellValue(selectionInfo.row, selectionInfo.col) ?? '';
+          if (oldValue !== '') {
+            changes.push({
+              row: selectionInfo.row,
+              col: selectionInfo.col,
+              oldValue,
+              newValue: '',
+            });
+          }
         }
-        
+
+        this.pushUndoChanges(changes);
+        this.applyingHistory = true;
+        try {
+          for (const change of changes) {
+            this.wasmTable.set_cell_data(change.row, change.col, '');
+          }
+        } finally {
+          this.applyingHistory = false;
+        }
         this.render();
-        console.log('✅ [DEBUG] Cut completed successfully');
+        this.triggerCellSelectEvent();
       }
     } catch (error) {
-      console.error('❌ [DEBUG] Cut failed:', error);
+      console.error('❌ Cut failed:', error);
     }
   }
 
@@ -2309,9 +2064,8 @@ export class WasabiTable {
       this.updateRangeSelection(config.row_count - 1, config.col_count - 1);
       this.endRangeSelection();
       this.render();
-      console.log('✅ [DEBUG] Select all completed');
     } catch (error) {
-      console.error('❌ [DEBUG] Select all failed:', error);
+      console.error('❌ Select all failed:', error);
     }
   }
 
@@ -2331,12 +2085,11 @@ export class WasabiTable {
     try {
       const successful = document.execCommand('copy');
       if (successful) {
-        console.log('✅ [DEBUG] Fallback copy successful');
       } else {
-        console.error('❌ [DEBUG] Fallback copy failed');
+        console.error('❌ Fallback copy failed');
       }
     } catch (err) {
-      console.error('❌ [DEBUG] Fallback copy error:', err);
+      console.error('❌ Fallback copy error:', err);
     } finally {
       document.body.removeChild(textArea);
     }
@@ -2348,7 +2101,6 @@ export class WasabiTable {
   private fallbackReadFromClipboard(): string {
     // 古いブラウザでは自動的にクリップボードから読み取ることはできない
     // ユーザーに手動でペーストを促すか、他の方法を検討する必要がある
-    console.warn('⚠️ [DEBUG] Clipboard read not supported in this browser');
     return '';
   }
 
@@ -2408,13 +2160,10 @@ export class WasabiTable {
    * Shift+矢印キーによる範囲選択を処理
    */
   private handleShiftArrowKey(key: string): void {
-    console.log('🔀 [DEBUG] handleShiftArrowKey called with:', key);
     
     const selectedCell = this.getSelectedCell();
-    console.log('🔀 [DEBUG] Current selected cell for range:', selectedCell);
     
     if (!selectedCell) {
-      console.log('❌ [DEBUG] No selected cell for range selection, starting from (0,0)');
       this.selectCell(0, 0, true);
       this.startRangeSelection(0, 0);
       return;
@@ -2422,10 +2171,8 @@ export class WasabiTable {
 
     // 範囲選択が始まっていない場合は開始
     const selectionInfo = this.getSelectionInfo();
-    console.log('🔀 [DEBUG] Current selection info:', selectionInfo);
     
     if (!selectionInfo || !selectionInfo.isRange) {
-      console.log('🔀 [DEBUG] Starting new range selection from current cell');
       this.startRangeSelection(selectedCell.row, selectedCell.col);
     }
 
@@ -2449,19 +2196,14 @@ export class WasabiTable {
         break;
     }
 
-    console.log('🔀 [DEBUG] Range selection extending from', { row: newRow, col: newCol }, 'previous active cell:', currentActiveCell);
-
     // 範囲選択を更新（終端位置を移動）
     this.updateRangeSelection(newRow, newCol);
-    
+
     // 新しい終端セルが見えるように自動スクロール
     this.scrollToSelectedCell();
-    
+
     this.render();
-    
-    // 更新後の選択情報を確認
-    const updatedSelection = this.getSelectionInfo();
-    console.log('🔀 [DEBUG] Updated selection info:', updatedSelection);
+    this.triggerCellSelectEvent();
   }
 
   /**
@@ -2481,18 +2223,15 @@ export class WasabiTable {
    * Shift+Ctrl+矢印キーによる範囲選択（データの端まで）を処理
    */
   private handleShiftCtrlArrowKey(key: string): void {
-    console.log('🔀🚀 [DEBUG] handleShiftCtrlArrowKey called with:', key);
     
     const selectedCell = this.getSelectedCell();
     if (!selectedCell) {
-      console.log('❌ [DEBUG] No selected cell for Shift+Ctrl+Arrow navigation');
       return;
     }
 
     // 範囲選択が始まっていない場合は開始
     const selectionInfo = this.getSelectionInfo();
     if (!selectionInfo || !selectionInfo.isRange) {
-      console.log('🔀🚀 [DEBUG] Starting new range selection from current cell');
       this.startRangeSelection(selectedCell.row, selectedCell.col);
     }
 
@@ -2514,32 +2253,25 @@ export class WasabiTable {
         break;
     }
 
-    console.log('🔀🚀 [DEBUG] Shift+Ctrl+Arrow extending range from', selectedCell, 'to', { row: newRow, col: newCol });
-
     // 範囲選択を更新（終端位置を移動）
     this.updateRangeSelection(newRow, newCol);
     this.render();
     
     // 更新後の選択情報を確認
     const updatedSelection = this.getSelectionInfo();
-    console.log('🔀🚀 [DEBUG] Updated selection info:', updatedSelection);
   }
 
   /**
    * 通常の矢印キーによるセル移動を処理
    */
   private handleArrowKey(key: string): void {
-    console.log('🎯 [DEBUG] handleArrowKey called with:', key);
     
     const selectedCell = this.getSelectedCell();
-    console.log('🎯 [DEBUG] Current selected cell:', selectedCell);
     
     // デバッグ: 現在のスクロール位置を記録
     const stats = this.getStats();
-    console.log('🎯 [DEBUG] Current scroll position:', { scrollX: stats.scrollX, scrollY: stats.scrollY });
     
     if (!selectedCell) {
-      console.log('❌ [DEBUG] No selected cell found, defaulting to (0,0)');
       // 選択セルがない場合は(0,0)を選択してから移動
       this.selectCell(0, 0, true);
       this.render();
@@ -2564,41 +2296,32 @@ export class WasabiTable {
         break;
     }
 
-    console.log('🎯 [DEBUG] Moving from', selectedCell, 'to', { row: newRow, col: newCol });
-
     // デバッグ: セル移動前後の座標を詳しく記録
     const beforePosition = this.getCellScreenPosition(selectedCell.row, selectedCell.col);
-    console.log('🎯 [DEBUG] Before move - cell screen position:', beforePosition);
     
     // 新しいセルを選択（自動スクロール有効）
     this.selectCell(newRow, newCol, true);
     
     // デバッグ: 移動後の座標を記録
     const afterPosition = this.getCellScreenPosition(newRow, newCol);
-    console.log('🎯 [DEBUG] After move - cell screen position:', afterPosition);
     
     // デバッグ: pixel_to_cellで逆変換テスト
     const centerX = afterPosition.centerX;
     const centerY = afterPosition.centerY;
-    console.log('🎯 [DEBUG] Testing pixel_to_cell with center coordinates:', { centerX, centerY });
     
     const pixelToCell = this.wasmTable.pixel_to_cell(centerX, centerY);
-    console.log('🎯 [DEBUG] pixel_to_cell result:', pixelToCell);
     
     this.render();
-    
-    console.log('🎯 [DEBUG] Arrow key movement completed');
+    this.triggerCellSelectEvent();
   }
 
   /**
    * Ctrl+矢印キーによるExcel風の端まで移動を処理
    */
   private handleCtrlArrowNavigation(key: string): void {
-    console.log('🚀 [DEBUG] handleCtrlArrowNavigation called with:', key);
     
     const selectedCell = this.getSelectedCell();
     if (!selectedCell) {
-      console.log('❌ [DEBUG] No selected cell found for Ctrl+Arrow navigation');
       return;
     }
 
@@ -2620,13 +2343,10 @@ export class WasabiTable {
         break;
     }
 
-    console.log('🚀 [DEBUG] Ctrl+Arrow moving from', selectedCell, 'to', { row: newRow, col: newCol });
-
     // 新しいセルを選択（自動スクロール有効）
     this.selectCell(newRow, newCol, true);
     this.render();
     
-    console.log('🚀 [DEBUG] Ctrl+Arrow navigation completed');
   }
 
   /**
@@ -2748,7 +2468,6 @@ export class WasabiTable {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
-        console.log('🚫 [DEBUG] Global Tab key capture - editing mode');
       }
     }, true); // キャプチャフェーズで実行
   }
@@ -2763,7 +2482,6 @@ export class WasabiTable {
           const { width, height } = entry.contentRect;
           
           // デバッグログ
-          console.log('🔧 [DEBUG] ResizeObserver: Container resized:', { width, height, target: target.className });
           
           // updateCanvasSizeメソッドを使用して統一的に処理
           this.updateCanvasSize(Math.floor(width), Math.floor(height));
@@ -2775,9 +2493,7 @@ export class WasabiTable {
     const parentElement = this.canvas.parentElement;
     if (parentElement) {
       this.resizeObserver.observe(parentElement);
-      console.log('🔧 [DEBUG] ResizeObserver setup completed for:', parentElement.className);
     } else {
-      console.warn('🔧 [DEBUG] No parent element found for ResizeObserver');
     }
   }
 
@@ -3225,17 +2941,18 @@ export class WasabiTable {
     let themeColors: ThemeColors;
     
     if (typeof theme === 'string') {
-      // 事前定義されたテーマの場合
       themeColors = PREDEFINED_THEMES[theme];
       if (!themeColors) {
         throw new Error(`Unknown theme: ${theme}`);
       }
+      this.activeTheme = theme;
     } else {
-      // カスタムテーマオブジェクトの場合
       themeColors = theme;
+      this.activeTheme = theme.background_color === PREDEFINED_THEMES.dark.background_color
+        ? 'dark'
+        : 'light';
     }
 
-    // 現在の設定にテーマを適用
     const newConfig: TableConfig = {
       ...this.config,
       background_color: themeColors.background_color,
@@ -3245,14 +2962,42 @@ export class WasabiTable {
       selected_cell_color: themeColors.selected_cell_color
     };
     
-    // Rust側の設定を更新
     this.wasmTable.update_config(JSON.stringify(newConfig));
-    
-    // TypeScript側の設定も更新
     this.config = newConfig;
-    
-    // 再描画
+    this.updateScrollbarAppearance();
     this.render();
+  }
+
+  public getActiveTheme(): PredefinedTheme {
+    return this.activeTheme;
+  }
+
+  private updateScrollbarAppearance(): void {
+    const isDark = this.activeTheme === 'dark';
+    const trackColor = isDark ? '#1a202c' : '#f0f0f0';
+    const thumbColor = isDark ? '#4a5568' : '#c0c0c0';
+    const thumbHoverColor = isDark ? '#718096' : '#a0a0a0';
+    const borderColor = isDark ? '#2d3748' : '#ccc';
+
+    const applyScrollbarStyle = (
+      scrollbar: HTMLElement | null,
+      thumb: HTMLElement | null,
+      hoverColor: string
+    ) => {
+      if (!scrollbar || !thumb) return;
+      scrollbar.style.backgroundColor = trackColor;
+      scrollbar.style.borderColor = borderColor;
+      thumb.style.backgroundColor = thumbColor;
+      thumb.onmouseenter = () => {
+        thumb.style.backgroundColor = hoverColor;
+      };
+      thumb.onmouseleave = () => {
+        thumb.style.backgroundColor = thumbColor;
+      };
+    };
+
+    applyScrollbarStyle(this.horizontalScrollbar, this.horizontalThumb, thumbHoverColor);
+    applyScrollbarStyle(this.verticalScrollbar, this.verticalThumb, thumbHoverColor);
   }
 
   /**
@@ -3281,9 +3026,10 @@ export class WasabiTable {
    * フィルター条件を追加
    */
   public addFilterCondition(condition: FilterCondition): void {
-    // 同じ列の既存フィルターを削除
-    this.filterConditions = this.filterConditions.filter(c => c.columnIndex !== condition.columnIndex);
-    this.filterConditions.push(condition);
+    this.filterSortState.filterConditions = this.filterSortState.filterConditions.filter(
+      c => c.columnIndex !== condition.columnIndex
+    );
+    this.filterSortState.filterConditions.push(condition);
     this.applyFilters();
   }
 
@@ -3291,7 +3037,9 @@ export class WasabiTable {
    * フィルター条件を削除
    */
   public removeFilterCondition(columnIndex: number): void {
-    this.filterConditions = this.filterConditions.filter(c => c.columnIndex !== columnIndex);
+    this.filterSortState.filterConditions = this.filterSortState.filterConditions.filter(
+      c => c.columnIndex !== columnIndex
+    );
     this.applyFilters();
   }
 
@@ -3299,9 +3047,10 @@ export class WasabiTable {
    * 全フィルターをクリア
    */
   public clearAllFilters(): void {
-    this.filterConditions = [];
-    this.isFiltered = false;
-    this.filteredRows = [];
+    this.filterSortState.filterConditions = [];
+    this.filterSortState.isFiltered = false;
+    this.filterSortState.filteredRows = [];
+    this.wasmTable?.clear_filter();
     this.render();
   }
 
@@ -3309,638 +3058,56 @@ export class WasabiTable {
    * ソート条件を設定
    */
   public setSortCondition(condition: SortCondition | null): void {
-    console.log('🔄 [DEBUG] setSortCondition called with:', condition);
-    this.sortCondition = condition;
-    console.log('🔄 [DEBUG] Sort condition set, applying filters...');
-    this.applyFilters(); // ソートもフィルター適用と一緒に実行
+    this.filterSortState.sortCondition = condition;
+    this.applyFilters();
   }
 
   /**
    * フィルター・ソートを適用
    */
   private applyFilters(): void {
-    const config = this.getConfig();
-    let rows: number[] = [];
-
-    // 全行のインデックスを作成
-    for (let i = 0; i < config.row_count; i++) {
-      rows.push(i);
-    }
-
-    console.log('🔍 [DEBUG] Applying filters:', {
-      filterConditions: this.filterConditions,
-      sortCondition: this.sortCondition,
-      totalRows: rows.length
-    });
-
-    // フィルター適用
-    if (this.filterConditions.length > 0) {
-      rows = rows.filter(row => this.passesAllFilters(row));
-      this.isFiltered = true;
-      console.log('🔍 [DEBUG] After filtering:', rows.length, 'rows remain');
-    } else {
-      this.isFiltered = false;
-      console.log('🔍 [DEBUG] No filters applied, showing all rows');
-    }
-
-    // ソート適用
-    if (this.sortCondition) {
-      rows = this.sortRows(rows, this.sortCondition);
-      console.log('🔍 [DEBUG] After sorting:', rows.length, 'rows');
-    }
-
-    this.filteredRows = rows;
-    
-    // Rust側にフィルター結果を送信
-    try {
-      if (this.isFiltered || this.sortCondition) {
-        console.log('🔍 [DEBUG] Sending filtered/sorted rows to Rust:', rows.length, 'rows');
-        console.log('🔍 [DEBUG] First 10 rows:', rows.slice(0, 10));
-        this.wasmTable.set_filtered_rows(JSON.stringify(rows));
-      } else {
-        console.log('🔍 [DEBUG] Clearing filter in Rust');
-        this.wasmTable.clear_filter();
+    this.ensureInitialized();
+    runFilterSort(
+      this.filterSortState,
+      {
+        getCellValue: (row, col) => this.getCellValue(row, col),
+        getRowCount: () => this.getConfig().row_count,
+      },
+      {
+        set_filtered_rows: (rowsJson) => this.wasmTable.set_filtered_rows(rowsJson),
+        clear_filter: () => this.wasmTable.clear_filter(),
       }
-    } catch (error) {
-      console.error('🔍 [ERROR] Failed to update filter in Rust:', error);
+    );
+  }
+
+  private headerDialogController: HeaderDialogController | null = null;
+
+  private getHeaderDialogController(): HeaderDialogController {
+    if (!this.headerDialogController) {
+      this.headerDialogController = new HeaderDialogController({
+        getColumnHeaders: () => this.getColumnHeadersAsArray(),
+        getHeaderPosition: (columnIndex) => this.getHeaderPosition(columnIndex),
+        getFilterSortState: () => this.filterSortState,
+        addFilterCondition: (condition) => this.addFilterCondition(condition),
+        removeFilterCondition: (columnIndex) => this.removeFilterCondition(columnIndex),
+        setSortCondition: (condition) => this.setSortCondition(condition),
+      });
     }
-
-    // TypeScript側の追加レンダリングは不要（Rust側で実行済み）
-    console.log('🔍 [DEBUG] Filter/sort processing completed');
-  }
-
-  /**
-   * 行が全フィルター条件を満たすかチェック
-   */
-  private passesAllFilters(row: number): boolean {
-    return this.filterConditions.every(condition => {
-      if (!condition.isActive) return true;
-      return this.passesFilter(row, condition);
-    });
-  }
-
-  /**
-   * 行が特定のフィルター条件を満たすかチェック
-   */
-  private passesFilter(row: number, condition: FilterCondition): boolean {
-    const cellValue = this.getCellValue(row, condition.columnIndex) || '';
-    const filterValue = condition.value.toLowerCase();
-    const cellValueLower = cellValue.toLowerCase();
-
-    console.log('🔍 [DEBUG] passesFilter:', {
-      row,
-      columnIndex: condition.columnIndex,
-      cellValue,
-      filterValue: condition.value,
-      operator: condition.operator,
-      fieldType: condition.fieldType
-    });
-
-    let result = false;
-
-    switch (condition.operator) {
-      case FilterOperator.Contains:
-        result = cellValueLower.includes(filterValue);
-        break;
-      case FilterOperator.StartsWith:
-        result = cellValueLower.startsWith(filterValue);
-        break;
-      case FilterOperator.EndsWith:
-        result = cellValueLower.endsWith(filterValue);
-        break;
-      case FilterOperator.Equals:
-        if (condition.fieldType === FieldType.IntegerField || condition.fieldType === FieldType.DecimalField) {
-          result = parseFloat(cellValue) === parseFloat(condition.value);
-        } else if (condition.fieldType === FieldType.MenuField && condition.value.includes('|')) {
-          // MenuFieldの複数値選択の場合
-          const selectedValues = condition.value.split('|');
-          result = selectedValues.includes(cellValue);
-        } else {
-          result = cellValueLower === filterValue;
-        }
-        break;
-      case FilterOperator.NotEquals:
-        if (condition.fieldType === FieldType.IntegerField || condition.fieldType === FieldType.DecimalField) {
-          result = parseFloat(cellValue) !== parseFloat(condition.value);
-        } else {
-          result = cellValueLower !== filterValue;
-        }
-        break;
-      case FilterOperator.GreaterThan:
-        result = parseFloat(cellValue) > parseFloat(condition.value);
-        break;
-      case FilterOperator.GreaterThanOrEqual:
-        result = parseFloat(cellValue) >= parseFloat(condition.value);
-        break;
-      case FilterOperator.LessThan:
-        result = parseFloat(cellValue) < parseFloat(condition.value);
-        break;
-      case FilterOperator.LessThanOrEqual:
-        result = parseFloat(cellValue) <= parseFloat(condition.value);
-        break;
-      case FilterOperator.IsEmpty:
-        result = cellValue.trim() === '';
-        break;
-      case FilterOperator.IsNotEmpty:
-        result = cellValue.trim() !== '';
-        break;
-      default:
-        result = true;
-    }
-
-    console.log('🔍 [DEBUG] Filter result:', result);
-    return result;
-  }
-
-  /**
-   * 行をソート
-   */
-  private sortRows(rows: number[], sortCondition: SortCondition): number[] {
-    console.log('🔄 [DEBUG] sortRows called with:', {
-      rowCount: rows.length,
-      sortCondition,
-      firstFewRows: rows.slice(0, 5)
-    });
-
-    const sortedRows = rows.sort((a, b) => {
-      const aValue = this.getCellValue(a, sortCondition.columnIndex) || '';
-      const bValue = this.getCellValue(b, sortCondition.columnIndex) || '';
-
-      let comparison = 0;
-
-      if (sortCondition.fieldType === FieldType.IntegerField || 
-          sortCondition.fieldType === FieldType.DecimalField) {
-        // 数値比較
-        const aNum = parseFloat(aValue) || 0;
-        const bNum = parseFloat(bValue) || 0;
-        comparison = aNum - bNum;
-      } else if (sortCondition.fieldType === FieldType.DateField) {
-        // 日付比較
-        const aDate = new Date(aValue);
-        const bDate = new Date(bValue);
-        comparison = aDate.getTime() - bDate.getTime();
-      } else {
-        // 文字列比較
-        comparison = aValue.localeCompare(bValue);
-      }
-
-      const result = sortCondition.direction === 'desc' ? -comparison : comparison;
-      return result;
-    });
-
-    console.log('🔄 [DEBUG] Sort completed:', {
-      originalFirst5: rows.slice(0, 5),
-      sortedFirst5: sortedRows.slice(0, 5)
-    });
-
-    return sortedRows;
+    return this.headerDialogController;
   }
 
   /**
    * 統合ヘッダーダイアログを表示
    */
   public showHeaderDialog(columnIndex: number): void {
-    // 既存のダイアログを閉じる
-    this.hideAllFilterDialogs();
-
-    const headers = this.getColumnHeadersAsArray();
-    if (columnIndex >= headers.length) return;
-
-    const header = headers[columnIndex];
-    const dialog = this.createHeaderDialog(columnIndex, header);
-    
-    // ヘッダーの位置を取得してダイアログを配置
-    const headerPosition = this.getHeaderPosition(columnIndex);
-    dialog.style.position = 'fixed';
-    dialog.style.left = `${headerPosition.x}px`;
-    dialog.style.top = `${headerPosition.y + headerPosition.height}px`;
-    dialog.style.zIndex = '10000';
-
-    document.body.appendChild(dialog);
-    this.filterDialogs.set(columnIndex, dialog);
-
-    // 外側クリックで閉じる
-    setTimeout(() => {
-      document.addEventListener('click', this.handleFilterDialogOutsideClick);
-    }, 100);
+    this.getHeaderDialogController().show(columnIndex);
   }
 
   /**
    * フィルターダイアログを表示（後方互換性のため）
    */
   public showFilterDialog(columnIndex: number): void {
-    this.showHeaderDialog(columnIndex);
-  }
-
-  /**
-   * 統合ヘッダーダイアログを作成
-   */
-  private createHeaderDialog(columnIndex: number, header: ColumnHeader): HTMLElement {
-    const dialog = document.createElement('div');
-    dialog.className = 'wasabi-header-dialog';
-    dialog.style.cssText = `
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      padding: 16px;
-      min-width: 300px;
-      max-width: 400px;
-    `;
-
-    // タイトル
-    const title = document.createElement('div');
-    title.textContent = `列操作: ${header.display_name}`;
-    title.style.cssText = `
-      font-weight: bold;
-      margin-bottom: 16px;
-      color: #333;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 8px;
-    `;
-    dialog.appendChild(title);
-
-    // タブ切り替え
-    const tabContainer = document.createElement('div');
-    tabContainer.style.cssText = `
-      display: flex;
-      margin-bottom: 16px;
-      border-bottom: 1px solid #ddd;
-    `;
-
-    const sortTab = document.createElement('button');
-    sortTab.textContent = 'ソート';
-    sortTab.className = 'header-dialog-tab active';
-    sortTab.style.cssText = `
-      padding: 8px 16px;
-      border: none;
-      background: #f8f9fa;
-      cursor: pointer;
-      border-bottom: 2px solid #007bff;
-      margin-right: 4px;
-    `;
-
-    const filterTab = document.createElement('button');
-    filterTab.textContent = 'フィルター';
-    filterTab.className = 'header-dialog-tab';
-    filterTab.style.cssText = `
-      padding: 8px 16px;
-      border: none;
-      background: #f8f9fa;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-    `;
-
-    tabContainer.appendChild(sortTab);
-    tabContainer.appendChild(filterTab);
-    dialog.appendChild(tabContainer);
-
-    // コンテンツエリア
-    const contentArea = document.createElement('div');
-    contentArea.className = 'header-dialog-content';
-    dialog.appendChild(contentArea);
-
-    // ソートコンテンツを初期表示
-    this.createSortContent(contentArea, columnIndex, header);
-
-    // タブ切り替えイベント
-    sortTab.addEventListener('click', () => {
-      this.switchTab(sortTab, filterTab, contentArea, columnIndex, header, 'sort');
-    });
-
-    filterTab.addEventListener('click', () => {
-      this.switchTab(filterTab, sortTab, contentArea, columnIndex, header, 'filter');
-    });
-
-    return dialog;
-  }
-
-  /**
-   * フィルターダイアログを作成（後方互換性のため）
-   */
-  private createFilterDialog(columnIndex: number, header: ColumnHeader): HTMLElement {
-    const dialog = document.createElement('div');
-    dialog.className = 'wasabi-filter-dialog';
-    dialog.style.cssText = `
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      padding: 16px;
-      min-width: 250px;
-      max-width: 350px;
-    `;
-
-    // タイトル
-    const title = document.createElement('div');
-    title.textContent = `フィルター: ${header.display_name}`;
-    title.style.cssText = `
-      font-weight: bold;
-      margin-bottom: 12px;
-      color: #333;
-    `;
-    dialog.appendChild(title);
-
-    // 既存のフィルター条件を取得
-    const existingCondition = this.filterConditions.find(c => c.columnIndex === columnIndex);
-
-    // フィールドタイプに応じたフィルターUIを作成
-    if (header.field_type === FieldType.MenuField && header.menu_config) {
-      this.createMenuFieldFilter(dialog, columnIndex, header, existingCondition);
-    } else if (header.field_type === FieldType.IntegerField || header.field_type === FieldType.DecimalField) {
-      this.createNumericFieldFilter(dialog, columnIndex, header, existingCondition);
-    } else {
-      this.createTextFieldFilter(dialog, columnIndex, header, existingCondition);
-    }
-
-    // ボタン
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = `
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-      justify-content: flex-end;
-    `;
-
-    const applyBtn = document.createElement('button');
-    applyBtn.textContent = '適用';
-    applyBtn.style.cssText = `
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-
-    const clearBtn = document.createElement('button');
-    clearBtn.textContent = 'クリア';
-    clearBtn.style.cssText = `
-      background: #6c757d;
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'キャンセル';
-    cancelBtn.style.cssText = `
-      background: #f8f9fa;
-      color: #333;
-      border: 1px solid #ccc;
-      padding: 6px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-
-    applyBtn.addEventListener('click', () => {
-      this.applyFilterFromDialog(dialog, columnIndex, header.field_type as FieldType);
-    });
-
-    clearBtn.addEventListener('click', () => {
-      this.removeFilterCondition(columnIndex);
-      this.hideFilterDialog(columnIndex);
-    });
-
-    cancelBtn.addEventListener('click', () => {
-      this.hideFilterDialog(columnIndex);
-    });
-
-    buttonContainer.appendChild(applyBtn);
-    buttonContainer.appendChild(clearBtn);
-    buttonContainer.appendChild(cancelBtn);
-    dialog.appendChild(buttonContainer);
-
-    return dialog;
-  }
-
-  /**
-   * MenuFieldのフィルターUI作成
-   */
-  private createMenuFieldFilter(dialog: HTMLElement, columnIndex: number, header: ColumnHeader, existingCondition?: FilterCondition): void {
-    const container = document.createElement('div');
-    
-    // 選択肢を取得
-    const options = header.menu_config?.options || [];
-    const menuOptions = options.map(opt => 
-      typeof opt === 'string' ? { label: opt, value: opt } : opt
-    );
-
-    // チェックボックスリスト
-    const checkboxContainer = document.createElement('div');
-    checkboxContainer.style.cssText = `
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 8px;
-    `;
-
-    menuOptions.forEach(option => {
-      const label = document.createElement('label');
-      label.style.cssText = `
-        display: block;
-        margin-bottom: 4px;
-        cursor: pointer;
-      `;
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.value = option.value;
-      checkbox.style.marginRight = '8px';
-
-      // 既存条件があれば選択状態を復元
-      if (existingCondition && existingCondition.value.includes(option.value)) {
-        checkbox.checked = true;
-      }
-
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(option.label));
-      checkboxContainer.appendChild(label);
-    });
-
-    container.appendChild(checkboxContainer);
-    dialog.appendChild(container);
-  }
-
-  /**
-   * 数値フィールドのフィルターUI作成
-   */
-  private createNumericFieldFilter(dialog: HTMLElement, columnIndex: number, header: ColumnHeader, existingCondition?: FilterCondition): void {
-    const container = document.createElement('div');
-
-    // 演算子選択
-    const operatorSelect = document.createElement('select');
-    operatorSelect.style.cssText = `
-      width: 100%;
-      padding: 6px;
-      margin-bottom: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    `;
-
-    const numericOperators = [
-      { value: FilterOperator.Equals, label: '等しい (=)' },
-      { value: FilterOperator.NotEquals, label: '等しくない (≠)' },
-      { value: FilterOperator.GreaterThan, label: 'より大きい (>)' },
-      { value: FilterOperator.GreaterThanOrEqual, label: '以上 (≥)' },
-      { value: FilterOperator.LessThan, label: 'より小さい (<)' },
-      { value: FilterOperator.LessThanOrEqual, label: '以下 (≤)' },
-      { value: FilterOperator.IsEmpty, label: '空' },
-      { value: FilterOperator.IsNotEmpty, label: '空でない' }
-    ];
-
-    numericOperators.forEach(op => {
-      const option = document.createElement('option');
-      option.value = op.value;
-      option.textContent = op.label;
-      if (existingCondition && existingCondition.operator === op.value) {
-        option.selected = true;
-      }
-      operatorSelect.appendChild(option);
-    });
-
-    // 値入力
-    const valueInput = document.createElement('input');
-    valueInput.type = 'number';
-    valueInput.placeholder = '値を入力';
-    valueInput.style.cssText = `
-      width: 100%;
-      padding: 6px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    `;
-
-    if (existingCondition) {
-      valueInput.value = existingCondition.value;
-    }
-
-    // 空・空でない の場合は値入力を無効化
-    operatorSelect.addEventListener('change', () => {
-      const needsValue = ![FilterOperator.IsEmpty, FilterOperator.IsNotEmpty].includes(operatorSelect.value as FilterOperator);
-      valueInput.disabled = !needsValue;
-      valueInput.style.opacity = needsValue ? '1' : '0.5';
-    });
-
-    container.appendChild(operatorSelect);
-    container.appendChild(valueInput);
-    dialog.appendChild(container);
-
-    // 初期状態の設定
-    operatorSelect.dispatchEvent(new Event('change'));
-  }
-
-  /**
-   * テキストフィールドのフィルターUI作成
-   */
-  private createTextFieldFilter(dialog: HTMLElement, columnIndex: number, header: ColumnHeader, existingCondition?: FilterCondition): void {
-    const container = document.createElement('div');
-
-    // 演算子選択
-    const operatorSelect = document.createElement('select');
-    operatorSelect.style.cssText = `
-      width: 100%;
-      padding: 6px;
-      margin-bottom: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    `;
-
-    const textOperators = [
-      { value: FilterOperator.Contains, label: '含む' },
-      { value: FilterOperator.StartsWith, label: '～で始まる' },
-      { value: FilterOperator.EndsWith, label: '～で終わる' },
-      { value: FilterOperator.Equals, label: '等しい' },
-      { value: FilterOperator.NotEquals, label: '等しくない' },
-      { value: FilterOperator.IsEmpty, label: '空' },
-      { value: FilterOperator.IsNotEmpty, label: '空でない' }
-    ];
-
-    textOperators.forEach(op => {
-      const option = document.createElement('option');
-      option.value = op.value;
-      option.textContent = op.label;
-      if (existingCondition && existingCondition.operator === op.value) {
-        option.selected = true;
-      }
-      operatorSelect.appendChild(option);
-    });
-
-    // 値入力
-    const valueInput = document.createElement('input');
-    valueInput.type = 'text';
-    valueInput.placeholder = '検索文字列を入力';
-    valueInput.style.cssText = `
-      width: 100%;
-      padding: 6px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    `;
-
-    if (existingCondition) {
-      valueInput.value = existingCondition.value;
-    }
-
-    // 空・空でない の場合は値入力を無効化
-    operatorSelect.addEventListener('change', () => {
-      const needsValue = ![FilterOperator.IsEmpty, FilterOperator.IsNotEmpty].includes(operatorSelect.value as FilterOperator);
-      valueInput.disabled = !needsValue;
-      valueInput.style.opacity = needsValue ? '1' : '0.5';
-    });
-
-    container.appendChild(operatorSelect);
-    container.appendChild(valueInput);
-    dialog.appendChild(container);
-
-    // 初期状態の設定
-    operatorSelect.dispatchEvent(new Event('change'));
-  }
-
-  /**
-   * フィルターダイアログから条件を適用
-   */
-  private applyFilterFromDialog(dialog: HTMLElement, columnIndex: number, fieldType: FieldType): void {
-    if (fieldType === FieldType.MenuField) {
-      // MenuFieldの場合：選択されたチェックボックスの値を取得
-      const checkboxes = dialog.querySelectorAll('input[type="checkbox"]:checked') as NodeListOf<HTMLInputElement>;
-      const selectedValues = Array.from(checkboxes).map(cb => cb.value);
-      
-      if (selectedValues.length > 0) {
-        const condition: FilterCondition = {
-          columnIndex,
-          fieldType,
-          operator: FilterOperator.Equals,
-          value: selectedValues.join('|'), // 複数値は|で区切る
-          isActive: true
-        };
-        this.addFilterCondition(condition);
-      }
-    } else {
-      // その他のフィールド：演算子と値を取得
-      const operatorSelect = dialog.querySelector('select') as HTMLSelectElement;
-      const valueInput = dialog.querySelector('input[type="text"], input[type="number"]') as HTMLInputElement;
-      
-      const operator = operatorSelect.value as FilterOperator;
-      const value = valueInput?.value || '';
-      
-      // 空・空でない以外で値が空の場合はスキップ
-      if (![FilterOperator.IsEmpty, FilterOperator.IsNotEmpty].includes(operator) && !value.trim()) {
-        return;
-      }
-      
-      const condition: FilterCondition = {
-        columnIndex,
-        fieldType,
-        operator,
-        value,
-        isActive: true
-      };
-      this.addFilterCondition(condition);
-    }
-    
-    this.hideFilterDialog(columnIndex);
+    this.getHeaderDialogController().showFilterDialog(columnIndex);
   }
 
   /**
@@ -3950,20 +3117,18 @@ export class WasabiTable {
     const canvasRect = this.canvas.getBoundingClientRect();
     const config = this.getConfig();
     const stats = this.getStats();
-    
-    // 列の開始位置を計算（スクロール位置を考慮）
+
     let x = config.row_header_width;
     const headers = this.getColumnHeadersAsArray();
-    
+
     for (let i = 0; i < columnIndex && i < headers.length; i++) {
       x += headers[i].width;
     }
-    
-    // スクロール位置を引いて実際の表示位置を計算
+
     x -= stats.scrollX;
-    
+
     const width = columnIndex < headers.length ? headers[columnIndex].width : config.default_col_width;
-    
+
     return {
       x: canvasRect.left + x,
       y: canvasRect.top,
@@ -3973,50 +3138,13 @@ export class WasabiTable {
   }
 
   /**
-   * フィルターダイアログを非表示
-   */
-  private hideFilterDialog(columnIndex: number): void {
-    const dialog = this.filterDialogs.get(columnIndex);
-    if (dialog && dialog.parentNode) {
-      dialog.parentNode.removeChild(dialog);
-      this.filterDialogs.delete(columnIndex);
-    }
-  }
-
-  /**
-   * 全フィルターダイアログを非表示
-   */
-  private hideAllFilterDialogs(): void {
-    this.filterDialogs.forEach((dialog, columnIndex) => {
-      if (dialog.parentNode) {
-        dialog.parentNode.removeChild(dialog);
-      }
-    });
-    this.filterDialogs.clear();
-    document.removeEventListener('click', this.handleFilterDialogOutsideClick);
-  }
-
-  /**
-   * フィルターダイアログ外クリックハンドラー
-   */
-  private handleFilterDialogOutsideClick = (event: MouseEvent): void => {
-    const target = event.target as HTMLElement;
-    const isInsideDialog = target.closest('.wasabi-filter-dialog, .wasabi-header-dialog');
-    const isHeaderClick = target.closest('.wasabi-header-filter-btn');
-    
-    if (!isInsideDialog && !isHeaderClick) {
-      this.hideAllFilterDialogs();
-    }
-  };
-
-  /**
    * フィルター状態を取得
    */
   public getFilterState(): { conditions: FilterCondition[]; sortCondition: SortCondition | null; isFiltered: boolean } {
     return {
-      conditions: [...this.filterConditions],
-      sortCondition: this.sortCondition,
-      isFiltered: this.isFiltered
+      conditions: [...this.filterSortState.filterConditions],
+      sortCondition: this.filterSortState.sortCondition,
+      isFiltered: this.filterSortState.isFiltered,
     };
   }
 
@@ -4024,39 +3152,28 @@ export class WasabiTable {
    * フィルター結果を取得
    */
   public getFilterResult(): FilterResult {
-    const config = this.getConfig();
-    return {
-      filteredRows: [...this.filteredRows],
-      totalRows: config.row_count,
-      filteredCount: this.filteredRows.length
-    };
+    return buildFilterResult(this.filterSortState, this.getConfig().row_count);
   }
 
   /**
    * X座標から列インデックスを取得
    */
   private getColumnIndexFromX(canvasX: number): number {
-    // スクロール位置を考慮した座標計算
     const stats = this.getStats();
     const adjustedX = canvasX + stats.scrollX - this.config.row_header_width;
-    
+
     let currentX = 0;
     const headers = this.getColumnHeadersAsArray();
-    
-    console.log('🎯 [DEBUG] getColumnIndexFromX - canvasX:', canvasX, 'scrollX:', stats.scrollX, 'adjustedX:', adjustedX);
-    
+
     for (let col = 0; col < headers.length; col++) {
       const colWidth = headers[col].width;
-      console.log('🎯 [DEBUG] Column', col, 'range:', currentX, '-', currentX + colWidth);
-      
+
       if (adjustedX >= currentX && adjustedX < currentX + colWidth) {
-        console.log('🎯 [DEBUG] Found column:', col);
         return col;
       }
       currentX += colWidth;
     }
-    
-    console.log('🎯 [DEBUG] No column found for X position');
+
     return -1;
   }
 
@@ -4064,12 +3181,9 @@ export class WasabiTable {
    * ヘッダークリック処理
    */
   private handleHeaderClick(columnIndex: number, event: MouseEvent): void {
-    console.log('🎯 [DEBUG] Header clicked:', columnIndex);
-    
     const headers = this.getColumnHeadersAsArray();
     if (columnIndex >= headers.length) return;
 
-    // ヘッダークリックで統合ダイアログを表示
     this.showHeaderDialog(columnIndex);
     event.preventDefault();
   }
@@ -4082,11 +3196,10 @@ export class WasabiTable {
     if (columnIndex >= headers.length) return;
 
     const header = headers[columnIndex];
-    const currentSort = this.sortCondition;
+    const currentSort = this.filterSortState.sortCondition;
 
     let newDirection: 'asc' | 'desc' = 'asc';
 
-    // 同じ列の場合は方向を切り替え
     if (currentSort && currentSort.columnIndex === columnIndex) {
       newDirection = currentSort.direction === 'asc' ? 'desc' : 'asc';
     }
@@ -4098,226 +3211,8 @@ export class WasabiTable {
     };
 
     this.setSortCondition(sortCondition);
-    console.log('🔄 [DEBUG] Sort applied:', sortCondition);
   }
 
-
-
-  /**
-   * タブを切り替え
-   */
-  private switchTab(activeTab: HTMLElement, inactiveTab: HTMLElement, contentArea: HTMLElement, columnIndex: number, header: ColumnHeader, tabType: 'sort' | 'filter'): void {
-    // タブの見た目を更新
-    activeTab.style.borderBottom = '2px solid #007bff';
-    activeTab.style.backgroundColor = '#f8f9fa';
-    inactiveTab.style.borderBottom = '2px solid transparent';
-    inactiveTab.style.backgroundColor = '#f8f9fa';
-
-    // コンテンツを更新
-    contentArea.innerHTML = '';
-    if (tabType === 'sort') {
-      this.createSortContent(contentArea, columnIndex, header);
-    } else {
-      this.createFilterContent(contentArea, columnIndex, header);
-    }
-  }
-
-  /**
-   * ソートコンテンツを作成
-   */
-  private createSortContent(container: HTMLElement, columnIndex: number, header: ColumnHeader): void {
-    const currentSort = this.sortCondition;
-    const isCurrentColumn = currentSort && currentSort.columnIndex === columnIndex;
-
-    // ソート状態表示
-    const statusDiv = document.createElement('div');
-    statusDiv.style.cssText = `
-      margin-bottom: 16px;
-      padding: 8px;
-      background: #f8f9fa;
-      border-radius: 4px;
-      font-size: 14px;
-    `;
-    
-    if (isCurrentColumn) {
-      statusDiv.textContent = `現在のソート: ${currentSort.direction === 'asc' ? '昇順' : '降順'}`;
-      statusDiv.style.backgroundColor = '#d4edda';
-      statusDiv.style.color = '#155724';
-    } else {
-      statusDiv.textContent = 'ソートなし';
-    }
-    container.appendChild(statusDiv);
-
-    // ソートボタン
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = `
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 16px;
-    `;
-
-    const ascBtn = document.createElement('button');
-    ascBtn.textContent = '昇順でソート';
-    ascBtn.style.cssText = `
-      padding: 10px;
-      border: 1px solid #007bff;
-      background: ${isCurrentColumn && currentSort.direction === 'asc' ? '#007bff' : 'white'};
-      color: ${isCurrentColumn && currentSort.direction === 'asc' ? 'white' : '#007bff'};
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-
-    const descBtn = document.createElement('button');
-    descBtn.textContent = '降順でソート';
-    descBtn.style.cssText = `
-      padding: 10px;
-      border: 1px solid #007bff;
-      background: ${isCurrentColumn && currentSort.direction === 'desc' ? '#007bff' : 'white'};
-      color: ${isCurrentColumn && currentSort.direction === 'desc' ? 'white' : '#007bff'};
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-
-    const clearBtn = document.createElement('button');
-    clearBtn.textContent = 'ソートをクリア';
-    clearBtn.style.cssText = `
-      padding: 10px;
-      border: 1px solid #6c757d;
-      background: white;
-      color: #6c757d;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-
-    // イベントリスナー
-    ascBtn.addEventListener('click', () => {
-      console.log('🔄 [DEBUG] Ascending sort button clicked for column:', columnIndex);
-      this.setSortCondition({
-        columnIndex,
-        fieldType: header.field_type as FieldType,
-        direction: 'asc'
-      });
-      this.hideAllFilterDialogs();
-    });
-
-    descBtn.addEventListener('click', () => {
-      console.log('🔄 [DEBUG] Descending sort button clicked for column:', columnIndex);
-      this.setSortCondition({
-        columnIndex,
-        fieldType: header.field_type as FieldType,
-        direction: 'desc'
-      });
-      this.hideAllFilterDialogs();
-    });
-
-    clearBtn.addEventListener('click', () => {
-      console.log('🔄 [DEBUG] Clear sort button clicked');
-      this.setSortCondition(null);
-      this.hideAllFilterDialogs();
-    });
-
-    buttonContainer.appendChild(ascBtn);
-    buttonContainer.appendChild(descBtn);
-    buttonContainer.appendChild(clearBtn);
-    container.appendChild(buttonContainer);
-  }
-
-  /**
-   * フィルターコンテンツを作成
-   */
-  private createFilterContent(container: HTMLElement, columnIndex: number, header: ColumnHeader): void {
-    // 既存のフィルター条件を取得
-    const existingCondition = this.filterConditions.find(c => c.columnIndex === columnIndex);
-
-    // フィルター状態表示
-    const statusDiv = document.createElement('div');
-    statusDiv.style.cssText = `
-      margin-bottom: 16px;
-      padding: 8px;
-      background: #f8f9fa;
-      border-radius: 4px;
-      font-size: 14px;
-    `;
-    
-    if (existingCondition && existingCondition.isActive) {
-      statusDiv.textContent = `フィルター適用中: ${existingCondition.operator} "${existingCondition.value}"`;
-      statusDiv.style.backgroundColor = '#d4edda';
-      statusDiv.style.color = '#155724';
-    } else {
-      statusDiv.textContent = 'フィルターなし';
-    }
-    container.appendChild(statusDiv);
-
-    // フィールドタイプに応じたフィルターUIを作成
-    if (header.field_type === FieldType.MenuField && header.menu_config) {
-      this.createMenuFieldFilter(container, columnIndex, header, existingCondition);
-    } else if (header.field_type === FieldType.IntegerField || header.field_type === FieldType.DecimalField) {
-      this.createNumericFieldFilter(container, columnIndex, header, existingCondition);
-    } else {
-      this.createTextFieldFilter(container, columnIndex, header, existingCondition);
-    }
-
-    // ボタン
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = `
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-      justify-content: flex-end;
-    `;
-
-    const applyBtn = document.createElement('button');
-    applyBtn.textContent = '適用';
-    applyBtn.style.cssText = `
-      background: #007bff;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-
-    const clearBtn = document.createElement('button');
-    clearBtn.textContent = 'クリア';
-    clearBtn.style.cssText = `
-      background: #6c757d;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'キャンセル';
-    cancelBtn.style.cssText = `
-      background: #f8f9fa;
-      color: #333;
-      border: 1px solid #ccc;
-      padding: 8px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-    `;
-
-    applyBtn.addEventListener('click', () => {
-      this.applyFilterFromDialog(container, columnIndex, header.field_type as FieldType);
-    });
-
-    clearBtn.addEventListener('click', () => {
-      this.removeFilterCondition(columnIndex);
-      this.hideAllFilterDialogs();
-    });
-
-    cancelBtn.addEventListener('click', () => {
-      this.hideAllFilterDialogs();
-    });
-
-    buttonContainer.appendChild(applyBtn);
-    buttonContainer.appendChild(clearBtn);
-    buttonContainer.appendChild(cancelBtn);
-    container.appendChild(buttonContainer);
-  }
 
   /**
    * ヘッダーボタンを削除

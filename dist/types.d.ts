@@ -1,70 +1,70 @@
 /**
- * 共通の型定義とユーティリティ関数
+ * Wasabi Table 共通型定義
  */
-export interface TableConfig {
-    /** 行数 */
-    row_count: number;
-    /** 列数 */
-    col_count: number;
-    /** デフォルト列幅 */
-    default_col_width: number;
-    /** デフォルト行高 */
-    default_row_height: number;
-    /** ヘッダー高 */
-    header_height: number;
-    /** 行ヘッダー幅 */
-    row_header_width: number;
-    /** フォントファミリー */
-    font_family: string;
-    /** フォントサイズ */
-    font_size: number;
-    /** フォントスタイル */
-    font_style: string;
-    /** フォント太さ */
-    font_weight: string;
-    /** 背景色 */
+export interface ThemeColors {
     background_color: string;
-    /** テキスト色 */
     text_color: string;
-    /** グリッド色 */
     grid_color: string;
-    /** ヘッダー背景色 */
     header_background_color: string;
-    /** 選択セル色 */
     selected_cell_color: string;
-    /** グリッド表示フラグ */
+    range_selection_color?: string;
+    error_cell_color?: string;
+    editing_cell_color?: string;
+}
+export type PredefinedTheme = 'light' | 'dark';
+export declare const PREDEFINED_THEMES: Record<PredefinedTheme, ThemeColors>;
+export interface TableConfig {
+    row_count: number;
+    col_count: number;
+    default_col_width: number;
+    default_row_height: number;
+    header_height: number;
+    row_header_width: number;
+    font_family: string;
+    font_size: number;
+    font_style: string;
+    font_weight: string;
+    background_color: string;
+    text_color: string;
+    grid_color: string;
+    header_background_color: string;
+    selected_cell_color: string;
     show_grid: boolean;
-    /** 列ヘッダー設定 */
     column_headers: ColumnHeader[];
 }
 export interface CellData {
-    /** セルの値 */
     value: string;
-    /** 行インデックス */
     row: number;
-    /** 列インデックス */
     col: number;
 }
 export interface CellPosition {
-    /** 行インデックス */
     row: number;
-    /** 列インデックス */
     col: number;
 }
-export interface ValidationError {
-    /** フィールド名 */
-    field_name: string;
-    /** エラーメッセージ */
-    message: string;
-    /** エラータイプ */
-    error_type: string;
+export interface TableStats {
+    totalCells: number;
+    visibleCells: number;
+    dataCells: number;
+    scrollX: number;
+    scrollY: number;
+    visibleRows: {
+        start: number;
+        end: number;
+    };
+    visibleCols: {
+        start: number;
+        end: number;
+    };
 }
-export interface ValidationResult {
-    /** 検証が成功したかどうか */
-    isValid: boolean;
-    /** エラー情報（検証失敗時のみ） */
-    error?: ValidationError;
+export type NotificationType = 'info' | 'success' | 'warning' | 'redo';
+export interface EventHandlers {
+    onCellSelect?: (position: CellPosition) => void;
+    onEditStart?: (position: CellPosition, value: string) => void;
+    onEditEnd?: (position: CellPosition, value: string) => void;
+    onCellChange?: (position: CellPosition, oldValue: string, newValue: string) => void;
+    onNotification?: (message: string, type?: NotificationType) => void;
 }
+export declare const DEFAULT_CONFIG: TableConfig;
 export declare enum FieldType {
     CharField = "CharField",
     EmailField = "EmailField",
@@ -79,44 +79,118 @@ export declare enum FieldType {
     ButtonField = "ButtonField",
     MenuField = "MenuField"
 }
+export declare enum FilterOperator {
+    Contains = "contains",
+    StartsWith = "startsWith",
+    EndsWith = "endsWith",
+    Equals = "equals",
+    NotEquals = "notEquals",
+    GreaterThan = "greaterThan",
+    GreaterThanOrEqual = "greaterThanOrEqual",
+    LessThan = "lessThan",
+    LessThanOrEqual = "lessThanOrEqual",
+    IsEmpty = "isEmpty",
+    IsNotEmpty = "isNotEmpty"
+}
+export interface FilterCondition {
+    columnIndex: number;
+    fieldType: FieldType;
+    operator: FilterOperator;
+    value: string;
+    isActive: boolean;
+}
+export interface SortCondition {
+    columnIndex: number;
+    fieldType: FieldType;
+    direction: 'asc' | 'desc';
+}
+export interface FilterResult {
+    filteredRows: number[];
+    totalRows: number;
+    filteredCount: number;
+}
+export interface MenuFieldOption {
+    label: string;
+    value: string;
+    disabled?: boolean;
+}
+export interface MenuFieldConfig {
+    options: MenuFieldOption[] | string[];
+    searchable?: boolean;
+    placeholder?: string;
+    maxDisplayItems?: number;
+}
 export interface ColumnHeader {
-    /** プロパティ名（内部識別用） */
     name: string;
-    /** 表示名（ヘッダーに表示される名前） */
     display_name: string;
-    /** 列の幅（ピクセル） */
     width: number;
-    /** 必須入力項目かどうか */
     required: boolean;
-    /** 表示順序 */
     order: number;
-    /** 表示/非表示フラグ */
     is_visible: boolean;
-    /** フィールドタイプ */
     field_type: FieldType | string;
-    /** 最大文字数（文字列フィールド用） */
     max_length?: number;
-    /** 整数桁数（数値フィールド用） */
+    min_length?: number;
     max_digits?: number;
-    /** 小数点桁数（小数フィールド用） */
     decimal_places?: number;
-    /** 最小値（数値フィールド用） */
     min_number?: number;
-    /** 最大値（数値フィールド用） */
     max_number?: number;
-    /** 選択肢（メニューフィールド用） */
     choices?: string[];
+    menu_config?: MenuFieldConfig;
+}
+export interface ValidationError {
+    field_name: string;
+    message: string;
+    error_type: string;
+}
+export interface ValidationResult {
+    isValid: boolean;
+    error?: ValidationError;
+}
+export interface CellScreenPosition {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    centerX: number;
+    centerY: number;
+    absolute_x: number;
+    absolute_y: number;
+}
+export interface ListenerOptions {
+    enableValidation?: boolean;
+    enableIMESupport?: boolean;
+    autoFocusCanvas?: boolean;
+    validationDelay?: number;
+    enableKeyboardShortcuts?: boolean;
+}
+export interface UIElements {
+    cellReference: HTMLElement;
+    formulaInput: HTMLInputElement;
+    statsElement?: HTMLElement;
+    validationError?: HTMLElement;
+    validationSuccess?: HTMLElement;
+}
+export interface EventCallbacks {
+    onStatsUpdate?: (stats: TableStats) => void;
+    onValidationError?: (error: ValidationError) => void;
+    onValidationSuccess?: () => void;
+    onCellReferenceUpdate?: (reference: string) => void;
+    onNotification?: (message: string, type?: NotificationType) => void;
+}
+export interface SelectionInfo {
+    type: 'range' | 'single' | 'none';
+    hasSelection: boolean;
+    isRange: boolean;
+    start_row?: number;
+    start_col?: number;
+    end_row?: number;
+    end_col?: number;
+    row?: number;
+    col?: number;
+    cell_count: number;
 }
 /**
- * 列名を生成（A, B, C, ..., Z, AA, AB, ...）
- */
-export declare function getColumnName(col: number): string;
-/**
- * セル参照文字列を生成（例: A1, B2, AA10）
- */
-export declare function getCellReference(row: number, col: number): string;
-/**
- * WasabiTableのインターフェース（循環インポートを避けるため）
+ * WasabiTable の公開インターフェース（循環参照回避用）
  */
 export interface IWasabiTable {
     getSelectedCell(): CellPosition | undefined;
@@ -126,8 +200,20 @@ export interface IWasabiTable {
     getConfig(): TableConfig;
     render(): void;
     selectCell(row: number, col: number): void;
-    setEventHandlers(handlers: any): void;
+    setEventHandlers(handlers: EventHandlers): void;
     getCellValue(row: number, col: number): string | undefined;
     getSelectedCellValidationError(): string | undefined;
-    getStats(): any;
+    getStats(): TableStats;
+    getSelectionInfo(): SelectionInfo;
+    setKeyboardShortcutsEnabled?(enabled: boolean): void;
 }
+export interface CreateWasabiTableUIConfig {
+    cellReferenceSelector: string;
+    formulaInputSelector: string;
+    statsElementSelector?: string;
+    validationErrorSelector?: string;
+    validationSuccessSelector?: string;
+}
+export declare function getColumnName(col: number): string;
+export declare function getCellReference(row: number, col: number): string;
+export declare function getSelectionReference(info: SelectionInfo): string;

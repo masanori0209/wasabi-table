@@ -139,10 +139,19 @@ body {
 
 #myCanvas {
     display: block;
-    cursor: crosshair;
+    cursor: default;
     width: 100%;
     height: auto;
     max-width: 100%;
+}
+
+#myCanvas:focus {
+    outline: 2px solid #4a7c59;
+    outline-offset: 2px;
+}
+
+body.theme-dark #myCanvas:focus {
+    outline-color: #7fb069;
 }
 
 .controls {
@@ -499,4 +508,91 @@ body {
     .controls {
         padding: 1rem;
     }
-} 
+}
+
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 20000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.toast {
+    min-width: 260px;
+    max-width: 420px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    color: #fff;
+    background: #2d5a3d;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.toast-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast-success {
+    background: linear-gradient(135deg, #4a7c59 0%, #2d5a3d 100%);
+}
+
+.toast-info {
+    background: linear-gradient(135deg, #5a8a69 0%, #3d6b4a 100%);
+}
+
+.toast-redo {
+    background: linear-gradient(135deg, #c9a227 0%, #9a7b1a 100%);
+    color: #fffef5;
+}
+
+body.theme-dark {
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+    color: #e2e8f0;
+}
+
+body.theme-dark .demo-section,
+body.theme-dark .feature-card {
+    background: rgba(45, 55, 72, 0.95);
+    color: #e2e8f0;
+    border-color: #4a5568;
+}
+
+body.theme-dark .demo-section h2,
+body.theme-dark .controls-section h3,
+body.theme-dark .feature-card h3 {
+    color: #c8e6c9;
+}
+
+body.theme-dark .formula-bar,
+body.theme-dark .controls,
+body.theme-dark .stats {
+    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+body.theme-dark .formula-input,
+body.theme-dark .control-group input,
+body.theme-dark .control-group select {
+    background: #1a202c;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+body.theme-dark .table-container {
+    border-color: #4a5568;
+    background: #1a202c;
+}
+
+body.theme-dark .control-group label {
+    color: #c8e6c9;
+}

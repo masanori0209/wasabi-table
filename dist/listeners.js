@@ -1,4 +1,4 @@
-import { getCellReference } from './types.js';
+import { getSelectionReference } from './types.js';
 /**
  * WasabiTableのリスナー管理クラス
  */
@@ -18,6 +18,9 @@ export class WasabiTableListeners {
             enableKeyboardShortcuts: true,
             ...options
         };
+        if (this.table.setKeyboardShortcutsEnabled) {
+            this.table.setKeyboardShortcutsEnabled(this.options.enableKeyboardShortcuts);
+        }
         this.initialize();
     }
     initialize() {
@@ -67,33 +70,25 @@ export class WasabiTableListeners {
                 var _a, _b;
                 this.updateCellReference();
                 this.updateStats();
-                (_b = (_a = this.callbacks).onCellReferenceUpdate) === null || _b === void 0 ? void 0 : _b.call(_a, getCellReference(position.row, position.col));
-            }
+                this.focusCanvas();
+                const reference = getSelectionReference(this.table.getSelectionInfo());
+                (_b = (_a = this.callbacks).onCellReferenceUpdate) === null || _b === void 0 ? void 0 : _b.call(_a, reference);
+            },
+            onNotification: (message, type) => {
+                var _a, _b;
+                (_b = (_a = this.callbacks).onNotification) === null || _b === void 0 ? void 0 : _b.call(_a, message, type);
+            },
         });
     }
     /**
-     * グローバルハンドラー関数を設定
+     * Rust側から呼ばれるグローバルコールバックを設定
+     * WasabiTable が設定したクリック/ホイール/キーハンドラーは上書きしない
      */
     setupGlobalHandlers() {
-        // グローバル関数として公開
-        window.handleTableClick = (x, y) => {
-            // Canvas click handling logic would go here
-            console.log('Table click:', x, y);
-        };
-        window.handleTableWheel = (deltaX, deltaY) => {
-            // Canvas wheel handling logic would go here
-            console.log('Table wheel:', deltaX, deltaY);
-        };
-        window.handleTableKey = (key) => {
-            if (this.isComposing && (key === 'Enter' || key === 'Tab')) {
-                return; // IME入力中はスキップ
-            }
-            // Key handling logic would go here
-            console.log('Table key:', key);
-        };
         window.triggerRender = () => {
             this.table.render();
             this.updateCellReference();
+            this.updateStats();
         };
     }
     /**
@@ -165,11 +160,14 @@ export class WasabiTableListeners {
      * セル参照を更新
      */
     updateCellReference() {
+        const selectionInfo = this.table.getSelectionInfo();
+        if (!selectionInfo.hasSelection)
+            return;
+        const cellRef = getSelectionReference(selectionInfo);
+        this.uiElements.cellReference.textContent = cellRef;
         const selectedCell = this.table.getSelectedCell();
         if (!selectedCell)
             return;
-        const cellRef = getCellReference(selectedCell.row, selectedCell.col);
-        this.uiElements.cellReference.textContent = cellRef;
         const cellValue = this.table.getCellValue(selectedCell.row, selectedCell.col) || '';
         this.uiElements.formulaInput.value = cellValue;
         // 検証エラーチェック
@@ -177,7 +175,7 @@ export class WasabiTableListeners {
             try {
                 const errorMessage = this.table.getSelectedCellValidationError();
                 if (errorMessage) {
-                    console.log('Validation error for selected cell:', errorMessage);
+                    this.showValidationError({ field_name: '', message: errorMessage, error_type: 'validation' });
                 }
             }
             catch (error) {
@@ -273,16 +271,19 @@ export class WasabiTableListeners {
         }, 10);
     }
     /**
+     * セル参照・統計表示を手動更新（プログラムから値を変更した後など）
+     */
+    refresh() {
+        this.updateCellReference();
+        this.updateStats();
+    }
+    /**
      * リスナーを破棄
      */
     destroy() {
         if (this.validationTimeout) {
             clearTimeout(this.validationTimeout);
         }
-        // グローバル関数をクリア
-        delete window.handleTableClick;
-        delete window.handleTableWheel;
-        delete window.handleTableKey;
         delete window.triggerRender;
     }
 }

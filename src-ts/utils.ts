@@ -1,5 +1,4 @@
-import type { UIElements } from './listeners';
-import type { IWasabiTable } from './types';
+import type { IWasabiTable, UIElements } from './types';
 
 /**
  * DOM要素を自動的に取得してUIElementsオブジェクトを作成
@@ -128,19 +127,20 @@ export function debounce<T extends (...args: any[]) => any>(
  * A1形式の参照文字列を行列インデックスに変換
  */
 export function parseCellReference(reference: string): { row: number; col: number } | null {
-  const match = reference.match(/^([A-Z]+)(\d+)$/);
+  const match = reference.trim().match(/^([A-Za-z]+)(\d+)$/i);
   if (!match) return null;
 
-  const colStr = match[1];
+  const colStr = match[1].toUpperCase();
   const rowStr = match[2];
 
   let col = 0;
   for (let i = 0; i < colStr.length; i++) {
     col = col * 26 + (colStr.charCodeAt(i) - 64);
   }
-  col -= 1; // 0ベースに変換
+  col -= 1;
 
-  const row = parseInt(rowStr) - 1; // 0ベースに変換
+  const row = parseInt(rowStr, 10) - 1;
+  if (row < 0) return null;
 
   return { row, col };
 }
@@ -157,7 +157,8 @@ export function isKeyboardShortcut(event: KeyboardEvent, shortcut: string): bool
   const hasAlt = keys.includes('alt') && event.altKey;
   
   const mainKey = keys.find(key => !['ctrl', 'shift', 'alt'].includes(key));
-  
+  if (!mainKey) return false;
+
   return (
     (!keys.includes('ctrl') || hasCtrl) &&
     (!keys.includes('shift') || hasShift) &&

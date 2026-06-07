@@ -101,17 +101,19 @@ export function debounce(func, wait) {
  * A1形式の参照文字列を行列インデックスに変換
  */
 export function parseCellReference(reference) {
-    const match = reference.match(/^([A-Z]+)(\d+)$/);
+    const match = reference.trim().match(/^([A-Za-z]+)(\d+)$/i);
     if (!match)
         return null;
-    const colStr = match[1];
+    const colStr = match[1].toUpperCase();
     const rowStr = match[2];
     let col = 0;
     for (let i = 0; i < colStr.length; i++) {
         col = col * 26 + (colStr.charCodeAt(i) - 64);
     }
-    col -= 1; // 0ベースに変換
-    const row = parseInt(rowStr) - 1; // 0ベースに変換
+    col -= 1;
+    const row = parseInt(rowStr, 10) - 1;
+    if (row < 0)
+        return null;
     return { row, col };
 }
 /**
@@ -124,6 +126,8 @@ export function isKeyboardShortcut(event, shortcut) {
     const hasShift = keys.includes('shift') && event.shiftKey;
     const hasAlt = keys.includes('alt') && event.altKey;
     const mainKey = keys.find(key => !['ctrl', 'shift', 'alt'].includes(key));
+    if (!mainKey)
+        return false;
     return ((!keys.includes('ctrl') || hasCtrl) &&
         (!keys.includes('shift') || hasShift) &&
         (!keys.includes('alt') || hasAlt) &&

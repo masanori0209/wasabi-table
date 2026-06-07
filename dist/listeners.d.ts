@@ -1,33 +1,5 @@
-import type { ValidationError, IWasabiTable } from './types';
-/**
- * リスナー設定オプション
- */
-export interface ListenerOptions {
-    enableValidation?: boolean;
-    enableIMESupport?: boolean;
-    autoFocusCanvas?: boolean;
-    validationDelay?: number;
-    enableKeyboardShortcuts?: boolean;
-}
-/**
- * UI要素の設定
- */
-export interface UIElements {
-    cellReference: HTMLElement;
-    formulaInput: HTMLInputElement;
-    statsElement?: HTMLElement;
-    validationError?: HTMLElement;
-    validationSuccess?: HTMLElement;
-}
-/**
- * イベントコールバック
- */
-export interface EventCallbacks {
-    onStatsUpdate?: (stats: any) => void;
-    onValidationError?: (error: ValidationError) => void;
-    onValidationSuccess?: () => void;
-    onCellReferenceUpdate?: (reference: string) => void;
-}
+import type { EventCallbacks, IWasabiTable, ListenerOptions, UIElements } from './types';
+export type { EventCallbacks, ListenerOptions, UIElements } from './types';
 /**
  * WasabiTableのリスナー管理クラス
  */
@@ -53,7 +25,8 @@ export declare class WasabiTableListeners {
      */
     private setupTableEventHandlers;
     /**
-     * グローバルハンドラー関数を設定
+     * Rust側から呼ばれるグローバルコールバックを設定
+     * WasabiTable が設定したクリック/ホイール/キーハンドラーは上書きしない
      */
     private setupGlobalHandlers;
     /**
@@ -92,6 +65,10 @@ export declare class WasabiTableListeners {
      * キャンバスにフォーカスを設定
      */
     private focusCanvas;
+    /**
+     * セル参照・統計表示を手動更新（プログラムから値を変更した後など）
+     */
+    refresh(): void;
     /**
      * リスナーを破棄
      */

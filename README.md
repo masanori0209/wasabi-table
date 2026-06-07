@@ -1,180 +1,117 @@
 # Wasabi Table
 
-高速で軽量なExcel風テーブルコンポーネント。Rust + WebAssemblyで構築され、Canvas APIを使用してレンダリングします。
+高速で軽量な Excel 風テーブルコンポーネント。Rust + WebAssembly で構築され、Canvas API を使用してレンダリングします。
 
-## 📁 プロジェクト構成
+## プロジェクト構成
 
-### [`wasabi-table`](./packages/core) - コアライブラリ
-- Rust + WebAssemblyで実装された高性能テーブルエンジン
-- Canvas APIベースのレンダリング
-- 大量データの効率的な処理
+```
+wasabi-table/
+├── src/              # Rust コア（WASM にコンパイル）
+├── src-ts/           # TypeScript ラッパー・リスナー
+├── dist/             # TypeScript ビルド出力
+├── pkg/              # WASM ビルド出力（npm run build で生成）
+├── e2e/              # Playwright E2E テスト
+├── examples/         # 使用例・ライブデモ
+└── docs/             # ドキュメント
+```
 
-### [`wasabi-table-listeners`](./packages/listeners) - イベントリスナー
-- TypeScriptで実装されたイベント処理システム
-- キーボード・マウス操作のハンドリング
-- Excel風のユーザーインターフェース
+## 主な機能
 
-## ✨ 主な機能
+- **Canvas + WASM** による高性能レンダリング
+- **Excel 風操作**: セル選択・範囲選択・キーボードナビゲーション
+- **編集**: インライン編集・コピー&ペースト
+- **フィルター・ソート**、条件付き書式、セルバリデーション
+- **テーマ**: light / dark
 
-### 🚀 高性能レンダリング
-- **Canvas API**: DOMを使わない軽量レンダリング
-- **WebAssembly**: Rustで実装された高速計算エンジン
-- **仮想化**: 大量データでもスムーズなスクロール
+## クイックスタート
 
-### 📊 Excel風インターフェース
-- **セル選択**: 単一セル・範囲選択
-- **キーボードナビゲーション**: 矢印キー・Tab・Enter
-- **編集機能**: インライン編集・コピー&ペースト
-- **リサイズ**: 列幅・行高の調整
+### 前提条件
 
-### 🔧 開発者フレンドリー
-- **TypeScript**: 型安全なAPI
-- **モジュラー設計**: 必要な機能のみ使用可能
-- **カスタマイズ**: テーマ・スタイルの変更
+- Node.js 18+
+- Rust 1.70+
+- [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
 
-## 🚀 クイックスタート
-
-### インストール
+### インストール・ビルド
 
 ```bash
-npm install wasabi-table
+npm install
+npm run build    # pkg/ + dist/ を生成（初回必須）
 ```
 
 ### 基本的な使用方法
 
 ```typescript
 import { WasabiTable } from 'wasabi-table';
-import { createWasabiTableListeners } from 'wasabi-table-listeners';
 
 const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
 const table = await WasabiTable.create(canvas);
 
-// データを設定
 table.setCellValue(0, 0, 'Hello');
 table.setCellValue(0, 1, 'World');
-
-// レンダリング
 table.render();
 ```
 
-### Canvas リサイズ機能
-
-WasabiTableは、Canvasのサイズが変更されたときに自動的にテーブルのレイアウトを調整する機能を提供します。
+### リスナー統合（数式バー・統計表示）
 
 ```typescript
-// 手動でCanvasサイズを更新
-table.updateCanvasSize(800, 600);
+import { createWasabiTableWithListeners } from 'wasabi-table';
 
-// 親要素のサイズに合わせて自動調整
-table.updateCanvasSize(); // 引数なしで親要素サイズに合わせる
-
-// 自動リサイズ監視を有効にする（推奨）
-// create時に自動的に有効になりますが、手動で設定することも可能
-table.setupResizeObserver();
+const { table, listeners } = await createWasabiTableWithListeners(
+  canvas,
+  { row_count: 50, col_count: 10 },
+  {
+    cellReferenceSelector: '#cellReference',
+    formulaInputSelector: '#formulaInput',
+    statsElementSelector: '#stats',
+  }
+);
 ```
 
-#### 主な機能：
-- **自動セル描画更新**: リサイズ時にセルが正しく再描画される
-- **スクロールバー自動調整**: 新しいサイズに合わせてスクロールバーが調整される
-- **レスポンシブ対応**: ウィンドウリサイズやコンテナサイズ変更に対応
-- **ResizeObserver監視**: 効率的なサイズ変更検出
-
-## 📚 ドキュメント
-
-### API リファレンス
-- [Core API](./docs/api-core.md)
-- [Listeners API](./docs/api-listeners.md)
-- [Configuration](./docs/configuration.md)
-
-### ガイド
-- [Getting Started](./docs/getting-started.md)
-- [Customization](./docs/customization.md)
-- [Performance Tips](./docs/performance.md)
-
-## 🏗️ 開発
-
-### 前提条件
-- Node.js 18+
-- Rust 1.70+
-- wasm-pack
-
-### セットアップ
+### ライブデモ
 
 ```bash
-# リポジトリをクローン
-git clone https://github.com/yourusername/wasabi-table.git
-cd wasabi-table
-
-# 依存関係をインストール
-npm install
-
-# ビルド
 npm run build
-
-# 開発サーバーを起動
 npm run serve
+# http://localhost:8501/examples/npm-package/index.html
 ```
 
-### プロジェクト構造
-
-```
-wasabi-table/
-├── src/                       # Rustソースコード
-│   ├── core/                    # wasabi-table コアパッケージ
-│   │   ├── table.rs           # メインテーブル実装
-│   │   ├── render.rs          # レンダリングエンジン
-│   │   ├── events.rs          # イベント処理
-│   │   └── types.rs           # 型定義
-│   └── wasm/                  # WebAssembly バインディング
-├── src-ts/                    # TypeScriptソースコード
-│   ├── index.ts              # メインエントリーポイント
-│   ├── listeners/               # wasabi-table-listeners パッケージ
-│   │   ├── keyboard.ts        # キーボードイベント
-│   │   ├── mouse.ts           # マウスイベント
-│   │   └── index.ts           # リスナーエントリーポイント
-│   └── utils/                 # ユーティリティ
-├── examples/                  # 使用例
-├── docs/                      # ドキュメント
-└── pkg/                       # ビルド出力
-```
-
-### ビルドコマンド
+## テスト
 
 ```bash
-# 完全ビルド
-npm run build
+# 全テスト（ユニット + Rust + E2E）
+npm run test:all
 
-# Rustのみビルド
-npm run build:rust
+# TypeScript ユニットテスト
+npm run test:unit
 
-# TypeScriptのみビルド
-npm run build:ts
+# E2E テスト（ビルド + ローカルサーバー自動起動、失敗時に動画・trace 保存）
+npm run test:e2e
 
-# 開発モード（ウォッチ）
-npm run dev
+# ブラウザ表示しながら E2E（録画あり）
+npm run test:e2e:record
+
+# E2E レポート表示
+npm run test:e2e:report
+
+# Rust WASM ブラウザテスト（Firefox 必要）
+npm run test:rust
 ```
 
-## 🤝 コントリビューション
+## 開発
 
-コントリビューションを歓迎します！
+```bash
+npm run dev          # TypeScript ウォッチ
+./build.sh           # WASM + TS フルビルド
+```
 
-1. このリポジトリをフォーク
-2. 機能ブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. 変更をコミット (`git commit -m 'Add amazing feature'`)
-4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
-5. プルリクエストを作成
+WASM を変更した場合は `npm run build:wasm` または `npm run build` を再実行してください。
 
-## 📄 ライセンス
+## ドキュメント
 
-このプロジェクトはMITライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルをご覧ください。
+- [Getting Started](./docs/getting-started.md)
+- [Core API](./docs/api-core.md)
+- [使用例](./examples/usage-examples.md)
 
-## 🐛 バグ報告・機能要望
+## ライセンス
 
-問題が発生した場合は、[GitHub Issues](https://github.com/yourusername/wasabi-table/issues) でお知らせください。
-
-## 📊 パフォーマンス
-
-- **大量データ**: 100万セルでもスムーズ
-- **メモリ効率**: 仮想化による低メモリ使用量
-- **レンダリング**: 60fps でのスムーズスクロール
-- **起動時間**: 軽量なWebAssemblyモジュール
+[MIT](./LICENSE)

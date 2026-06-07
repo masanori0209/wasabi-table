@@ -1,10 +1,15 @@
 #!/bin/bash
+set -euo pipefail
 
-# 必要なツールのインストール
-cargo install wasm-pack
+echo "Building Wasabi Table..."
 
-# ビルド
-wasm-pack build --target web
+if ! command -v wasm-pack &> /dev/null; then
+    echo "wasm-pack is not installed. Install: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh"
+    exit 1
+fi
 
-# ビルド結果を確認
-echo "Build completed. Check the pkg directory for the output." 
+wasm-pack build --target web --out-dir pkg
+npm run build:ts
+npm run fix-imports
+
+echo "Build completed."

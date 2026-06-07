@@ -86,4 +86,56 @@ impl CellFormat {
             Condition::IsNotEmpty => !cell.value.is_empty(),
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{CellData, Condition};
+
+    fn test_cell(value: &str) -> CellData {
+        CellData {
+            value: value.to_string(),
+            row: 0,
+            col: 0,
+            width: 100.0,
+            height: 25.0,
+            background_color: None,
+            text_color: None,
+            font_style: None,
+            font_weight: None,
+            text_decoration: None,
+            format: None,
+            validation_error: None,
+        }
+    }
+
+    #[test]
+    fn matches_equals_condition() {
+        let format = CellFormat {
+            background_color: Some("#ff0000".to_string()),
+            text_color: None,
+            font_style: None,
+            font_weight: None,
+            text_decoration: None,
+            condition: Condition::Equals("done".to_string()),
+        };
+        assert!(format.matches_condition(&test_cell("done")));
+        assert!(!format.matches_condition(&test_cell("pending")));
+    }
+
+    #[test]
+    fn matches_greater_than_condition() {
+        let format = CellFormat {
+            background_color: None,
+            text_color: None,
+            font_style: None,
+            font_weight: None,
+            text_decoration: None,
+            condition: Condition::GreaterThan(100.0),
+        };
+        assert!(format.matches_condition(&test_cell("150")));
+        assert!(!format.matches_condition(&test_cell("50")));
+        assert!(!format.matches_condition(&test_cell("abc")));
+    }
 } 

@@ -1,5 +1,4 @@
-import type { UIElements } from './listeners';
-import type { IWasabiTable } from './types';
+import type { IWasabiTable, UIElements } from './types';
 /**
  * DOM要素を自動的に取得してUIElementsオブジェクトを作成
  */

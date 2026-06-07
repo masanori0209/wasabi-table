@@ -27,16 +27,3 @@ impl From<WasabiTableError> for JsValue {
         JsValue::from_str(&error.to_string())
     }
 }
-
-// エラーハンドリング用のマクロ
-#[macro_export]
-macro_rules! wasabi_try {
-    ($e:expr) => {
-        match $e {
-            Ok(_) => (),
-            Err(e) => {
-                return Err(JsValue::from_str(&format!("Error: {:?}", e)));
-            }
-        }
-    };
-} 

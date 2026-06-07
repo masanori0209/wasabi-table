@@ -1,309 +1,17 @@
-/**
- * テーマの色設定
- */
-export interface ThemeColors {
-    /** 背景色 */
-    background_color: string;
-    /** テキスト色 */
-    text_color: string;
-    /** グリッド色 */
-    grid_color: string;
-    /** ヘッダー背景色 */
-    header_background_color: string;
-    /** 選択セル色 */
-    selected_cell_color: string;
-    /** 範囲選択色（オプション） */
-    range_selection_color?: string;
-    /** エラーセル色（オプション） */
-    error_cell_color?: string;
-    /** 編集セル色（オプション） */
-    editing_cell_color?: string;
-}
-/**
- * 事前定義されたテーマ
- */
-export type PredefinedTheme = 'light' | 'dark';
-/**
- * 事前定義されたテーマ定義
- */
-export declare const PREDEFINED_THEMES: Record<PredefinedTheme, ThemeColors>;
-/**
- * テーブル設定のインターface
- */
-export interface TableConfig {
-    /** 行数 */
-    row_count: number;
-    /** 列数 */
-    col_count: number;
-    /** デフォルト列幅 */
-    default_col_width: number;
-    /** デフォルト行高 */
-    default_row_height: number;
-    /** ヘッダー高 */
-    header_height: number;
-    /** 行ヘッダー幅 */
-    row_header_width: number;
-    /** フォントファミリー */
-    font_family: string;
-    /** フォントサイズ */
-    font_size: number;
-    /** フォントスタイル */
-    font_style: string;
-    /** フォント太さ */
-    font_weight: string;
-    /** 背景色 */
-    background_color: string;
-    /** テキスト色 */
-    text_color: string;
-    /** グリッド色 */
-    grid_color: string;
-    /** ヘッダー背景色 */
-    header_background_color: string;
-    /** 選択セル色 */
-    selected_cell_color: string;
-    /** グリッド表示フラグ */
-    show_grid: boolean;
-    /** 列ヘッダー設定 */
-    column_headers: ColumnHeader[];
-}
-/**
- * セルデータのインターface
- */
-export interface CellData {
-    /** セルの値 */
-    value: string;
-    /** 行インデックス */
-    row: number;
-    /** 列インデックス */
-    col: number;
-}
-/**
- * セル位置のインターface
- */
-export interface CellPosition {
-    /** 行インデックス */
-    row: number;
-    /** 列インデックス */
-    col: number;
-}
-/**
- * テーブル統計情報のインターface
- */
-export interface TableStats {
-    /** 総セル数 */
-    totalCells: number;
-    /** 表示セル数 */
-    visibleCells: number;
-    /** データセル数 */
-    dataCells: number;
-    /** 水平スクロール位置 */
-    scrollX: number;
-    /** 垂直スクロール位置 */
-    scrollY: number;
-    /** 表示行範囲 */
-    visibleRows: {
-        start: number;
-        end: number;
-    };
-    /** 表示列範囲 */
-    visibleCols: {
-        start: number;
-        end: number;
-    };
-}
-/**
- * イベントハンドラーの型定義
- */
-export interface EventHandlers {
-    /** セル選択時のコールバック */
-    onCellSelect?: (position: CellPosition) => void;
-    /** セル編集開始時のコールバック */
-    onEditStart?: (position: CellPosition, value: string) => void;
-    /** セル編集終了時のコールバック */
-    onEditEnd?: (position: CellPosition, value: string) => void;
-    /** セル値変更時のコールバック */
-    onCellChange?: (position: CellPosition, oldValue: string, newValue: string) => void;
-}
-/**
- * デフォルトのテーブル設定
- */
-export declare const DEFAULT_CONFIG: TableConfig;
-/**
- * フィールドタイプの列挙型
- */
-export declare enum FieldType {
-    CharField = "CharField",
-    EmailField = "EmailField",
-    TextareaField = "TextareaField",
-    IntegerField = "IntegerField",
-    DecimalField = "DecimalField",
-    DecimalWithNullField = "DecimalWithNullField",
-    DateField = "DateField",
-    TimeField = "TimeField",
-    CheckField = "CheckField",
-    BooleanField = "BooleanField",
-    ButtonField = "ButtonField",
-    MenuField = "MenuField"
-}
-/**
- * フィルター条件の種類
- */
-export declare enum FilterOperator {
-    Contains = "contains",
-    StartsWith = "startsWith",
-    EndsWith = "endsWith",
-    Equals = "equals",
-    NotEquals = "notEquals",
-    GreaterThan = "greaterThan",
-    GreaterThanOrEqual = "greaterThanOrEqual",
-    LessThan = "lessThan",
-    LessThanOrEqual = "lessThanOrEqual",
-    IsEmpty = "isEmpty",
-    IsNotEmpty = "isNotEmpty"
-}
-/**
- * フィルター条件
- */
-export interface FilterCondition {
-    /** 列インデックス */
-    columnIndex: number;
-    /** フィールドタイプ */
-    fieldType: FieldType;
-    /** 演算子 */
-    operator: FilterOperator;
-    /** 検索値 */
-    value: string;
-    /** アクティブかどうか */
-    isActive: boolean;
-}
-/**
- * ソート条件
- */
-export interface SortCondition {
-    /** 列インデックス */
-    columnIndex: number;
-    /** フィールドタイプ */
-    fieldType: FieldType;
-    /** ソート方向 */
-    direction: 'asc' | 'desc';
-}
-/**
- * フィルター結果
- */
-export interface FilterResult {
-    /** フィルター後の行インデックス配列 */
-    filteredRows: number[];
-    /** 総行数 */
-    totalRows: number;
-    /** フィルター後の行数 */
-    filteredCount: number;
-}
-/**
- * MenuFieldの選択肢設定
- */
-export interface MenuFieldOption {
-    /** 表示値 */
-    label: string;
-    /** 内部値 */
-    value: string;
-    /** 無効化フラグ */
-    disabled?: boolean;
-}
-/**
- * MenuFieldの設定（KeyValueまたはリスト形式）
- */
-export interface MenuFieldConfig {
-    /** 選択肢（KeyValue形式またはリスト形式） */
-    options: MenuFieldOption[] | string[];
-    /** 検索可能フラグ */
-    searchable?: boolean;
-    /** プレースホルダーテキスト */
-    placeholder?: string;
-    /** 最大表示項目数 */
-    maxDisplayItems?: number;
-}
-/**
- * 列ヘッダー設定のインターface
- */
-export interface ColumnHeader {
-    /** プロパティ名（内部識別用） */
-    name: string;
-    /** 表示名（ヘッダーに表示される名前） */
-    display_name: string;
-    /** 列の幅（ピクセル） */
-    width: number;
-    /** 必須入力項目かどうか */
-    required: boolean;
-    /** 表示順序 */
-    order: number;
-    /** 表示/非表示フラグ */
-    is_visible: boolean;
-    /** フィールドタイプ */
-    field_type: FieldType | string;
-    /** 最大文字数（文字列フィールド用） */
-    max_length?: number;
-    /** 整数桁数（数値フィールド用） */
-    max_digits?: number;
-    /** 小数点桁数（小数フィールド用） */
-    decimal_places?: number;
-    /** 最小値（数値フィールド用） */
-    min_number?: number;
-    /** 最大値（数値フィールド用） */
-    max_number?: number;
-    /** 選択肢（メニューフィールド用） */
-    choices?: string[];
-    /** MenuField設定（新しい設定） */
-    menu_config?: MenuFieldConfig;
-}
-/**
- * 入力検証エラーのインターface
- */
-export interface ValidationError {
-    /** フィールド名 */
-    field_name: string;
-    /** エラーメッセージ */
-    message: string;
-    /** エラータイプ */
-    error_type: string;
-}
-/**
- * 検証結果のインターface
- */
-export interface ValidationResult {
-    /** 検証が成功したかどうか */
-    isValid: boolean;
-    /** エラー情報（検証失敗時のみ） */
-    error?: ValidationError;
-}
+import type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterResult, ListenerOptions, MenuFieldConfig, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, ValidationError, ValidationResult } from './types';
+export type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterOperator, FilterResult, ListenerOptions, MenuFieldConfig, MenuFieldOption, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, UIElements, ValidationError, ValidationResult, } from './types';
+export { DEFAULT_CONFIG, FieldType, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types';
+export { getSelectionReference } from './types';
 export { WasabiTableListeners } from './listeners';
-export type { ListenerOptions, UIElements, EventCallbacks } from './listeners';
-export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut } from './utils';
+export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut, } from './utils';
+export { applyFilters as applyFilterSort, createFilterSortState, getFilterResult as buildFilterResult, passesFilter, sortRows as sortRowsByCondition, } from './filter-sort';
 /**
  * WasabiTableとリスナーを簡単に初期化する関数
  */
-export declare function createWasabiTableWithListeners(canvas: HTMLCanvasElement, config: Partial<TableConfig> | undefined, uiConfig: {
-    cellReferenceSelector: string;
-    formulaInputSelector: string;
-    statsElementSelector?: string;
-    validationErrorSelector?: string;
-    validationSuccessSelector?: string;
-}, listenerOptions?: any, callbacks?: any): Promise<{
+export declare function createWasabiTableWithListeners(canvas: HTMLCanvasElement, config: Partial<TableConfig> | undefined, uiConfig: CreateWasabiTableUIConfig, listenerOptions?: ListenerOptions, callbacks?: EventCallbacks): Promise<{
     table: WasabiTable;
-    listeners: any;
+    listeners: import('./listeners').WasabiTableListeners;
 }>;
-/**
- * セルの画面位置情報
- */
-export interface CellScreenPosition {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    centerX: number;
-    centerY: number;
-    absolute_x: number;
-    absolute_y: number;
-}
 /**
  * WasabiTable - 高性能なExcel風テーブルコンポーネント
  *
@@ -341,11 +49,11 @@ export declare class WasabiTable {
     private selectBoxElement;
     private currentMenuFieldCell;
     private menuFieldOptions;
-    private filterConditions;
-    private sortCondition;
-    private filteredRows;
-    private isFiltered;
-    private filterDialogs;
+    private filterSortState;
+    private keyboardShortcutsEnabled;
+    private activeTheme;
+    private undoStack;
+    private applyingHistory;
     private constructor();
     /**
      * WasabiTableインスタンスを作成
@@ -366,7 +74,19 @@ export declare class WasabiTable {
      * @param col 列番号（0から開始）
      * @param value 設定する値
      */
-    setCellValue(row: number, col: number, value: string): void;
+    setCellValue(row: number, col: number, value: string, options?: {
+        recordUndo?: boolean;
+    }): void;
+    canUndo(): boolean;
+    canRedo(): boolean;
+    undo(): boolean;
+    redo(): boolean;
+    private notifyUser;
+    private applyHistoryChanges;
+    private pushUndoChanges;
+    private collectRangeChanges;
+    private parseTsv;
+    private getPasteStartPosition;
     /**
      * セルの値を取得
      *
@@ -597,7 +317,7 @@ export declare class WasabiTable {
     /**
      * 選択情報を取得
      */
-    getSelectionInfo(): any;
+    getSelectionInfo(): SelectionInfo;
     /**
      * マウスドラッグを処理
      */
@@ -605,6 +325,8 @@ export declare class WasabiTable {
     /**
      * キーボードショートカットを処理
      */
+    setKeyboardShortcutsEnabled(enabled: boolean): void;
+    isKeyboardShortcutsEnabled(): boolean;
     handleKeyboardShortcut(event: KeyboardEvent): boolean;
     /**
      * コピー処理
@@ -731,6 +453,8 @@ export declare class WasabiTable {
      * テーマを適用
      */
     applyTheme(theme: PredefinedTheme | ThemeColors): void;
+    getActiveTheme(): PredefinedTheme;
+    private updateScrollbarAppearance;
     /**
      * カスタムテーマを作成するヘルパー関数
      */
@@ -759,18 +483,8 @@ export declare class WasabiTable {
      * フィルター・ソートを適用
      */
     private applyFilters;
-    /**
-     * 行が全フィルター条件を満たすかチェック
-     */
-    private passesAllFilters;
-    /**
-     * 行が特定のフィルター条件を満たすかチェック
-     */
-    private passesFilter;
-    /**
-     * 行をソート
-     */
-    private sortRows;
+    private headerDialogController;
+    private getHeaderDialogController;
     /**
      * 統合ヘッダーダイアログを表示
      */
@@ -780,45 +494,9 @@ export declare class WasabiTable {
      */
     showFilterDialog(columnIndex: number): void;
     /**
-     * 統合ヘッダーダイアログを作成
-     */
-    private createHeaderDialog;
-    /**
-     * フィルターダイアログを作成（後方互換性のため）
-     */
-    private createFilterDialog;
-    /**
-     * MenuFieldのフィルターUI作成
-     */
-    private createMenuFieldFilter;
-    /**
-     * 数値フィールドのフィルターUI作成
-     */
-    private createNumericFieldFilter;
-    /**
-     * テキストフィールドのフィルターUI作成
-     */
-    private createTextFieldFilter;
-    /**
-     * フィルターダイアログから条件を適用
-     */
-    private applyFilterFromDialog;
-    /**
      * ヘッダーの位置を取得
      */
     private getHeaderPosition;
-    /**
-     * フィルターダイアログを非表示
-     */
-    private hideFilterDialog;
-    /**
-     * 全フィルターダイアログを非表示
-     */
-    private hideAllFilterDialogs;
-    /**
-     * フィルターダイアログ外クリックハンドラー
-     */
-    private handleFilterDialogOutsideClick;
     /**
      * フィルター状態を取得
      */
@@ -843,18 +521,6 @@ export declare class WasabiTable {
      * ヘッダーソート処理
      */
     private handleHeaderSort;
-    /**
-     * タブを切り替え
-     */
-    private switchTab;
-    /**
-     * ソートコンテンツを作成
-     */
-    private createSortContent;
-    /**
-     * フィルターコンテンツを作成
-     */
-    private createFilterContent;
     /**
      * ヘッダーボタンを削除
      */

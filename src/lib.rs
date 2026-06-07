@@ -4,14 +4,16 @@ pub mod table;
 pub mod types;
 pub mod error;
 pub mod render;
-pub mod events;
 pub mod edit;
 
 pub mod format;
 pub mod validation;
-pub mod tests;
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod tests;
 
 pub use table::WasabiTable;
+pub use render::column_name;
 pub use types::{CellData, TableConfig, CellFormat, Condition};
 pub use format::Formattable;
 pub use error::WasabiTableError;
@@ -23,6 +25,6 @@ extern "C" {
 }
 
 #[wasm_bindgen(start)]
-pub fn main() {
+pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
 }

@@ -1,147 +1,255 @@
 /**
- * 共通の型定義とユーティリティ関数
+ * Wasabi Table 共通型定義
  */
 
-export interface TableConfig {
-  /** 行数 */
-  row_count: number;
-  /** 列数 */
-  col_count: number;
-  /** デフォルト列幅 */
-  default_col_width: number;
-  /** デフォルト行高 */
-  default_row_height: number;
-  /** ヘッダー高 */
-  header_height: number;
-  /** 行ヘッダー幅 */
-  row_header_width: number;
-  /** フォントファミリー */
-  font_family: string;
-  /** フォントサイズ */
-  font_size: number;
-  /** フォントスタイル */
-  font_style: string;
-  /** フォント太さ */
-  font_weight: string;
-  /** 背景色 */
+export interface ThemeColors {
   background_color: string;
-  /** テキスト色 */
   text_color: string;
-  /** グリッド色 */
   grid_color: string;
-  /** ヘッダー背景色 */
   header_background_color: string;
-  /** 選択セル色 */
   selected_cell_color: string;
-  /** グリッド表示フラグ */
+  range_selection_color?: string;
+  error_cell_color?: string;
+  editing_cell_color?: string;
+}
+
+export type PredefinedTheme = 'light' | 'dark';
+
+export const PREDEFINED_THEMES: Record<PredefinedTheme, ThemeColors> = {
+  light: {
+    background_color: '#ffffff',
+    text_color: '#000000',
+    grid_color: '#e0e0e0',
+    header_background_color: '#f5f5f5',
+    selected_cell_color: '#3498db',
+    range_selection_color: 'rgba(52, 152, 219, 0.2)',
+    error_cell_color: '#e74c3c',
+    editing_cell_color: '#f39c12',
+  },
+  dark: {
+    background_color: '#2d3748',
+    text_color: '#e2e8f0',
+    grid_color: '#4a5568',
+    header_background_color: '#1a202c',
+    selected_cell_color: '#667eea',
+    range_selection_color: 'rgba(102, 126, 234, 0.2)',
+    error_cell_color: '#fc8181',
+    editing_cell_color: '#f6ad55',
+  },
+};
+
+export interface TableConfig {
+  row_count: number;
+  col_count: number;
+  default_col_width: number;
+  default_row_height: number;
+  header_height: number;
+  row_header_width: number;
+  font_family: string;
+  font_size: number;
+  font_style: string;
+  font_weight: string;
+  background_color: string;
+  text_color: string;
+  grid_color: string;
+  header_background_color: string;
+  selected_cell_color: string;
   show_grid: boolean;
-  /** 列ヘッダー設定 */
   column_headers: ColumnHeader[];
 }
 
 export interface CellData {
-  /** セルの値 */
   value: string;
-  /** 行インデックス */
   row: number;
-  /** 列インデックス */
   col: number;
 }
 
 export interface CellPosition {
-  /** 行インデックス */
   row: number;
-  /** 列インデックス */
   col: number;
 }
 
+export interface TableStats {
+  totalCells: number;
+  visibleCells: number;
+  dataCells: number;
+  scrollX: number;
+  scrollY: number;
+  visibleRows: { start: number; end: number };
+  visibleCols: { start: number; end: number };
+}
+
+export type NotificationType = 'info' | 'success' | 'warning' | 'redo';
+
+export interface EventHandlers {
+  onCellSelect?: (position: CellPosition) => void;
+  onEditStart?: (position: CellPosition, value: string) => void;
+  onEditEnd?: (position: CellPosition, value: string) => void;
+  onCellChange?: (position: CellPosition, oldValue: string, newValue: string) => void;
+  onNotification?: (message: string, type?: NotificationType) => void;
+}
+
+export const DEFAULT_CONFIG: TableConfig = {
+  row_count: 100,
+  col_count: 26,
+  default_col_width: 100,
+  default_row_height: 25,
+  header_height: 30,
+  row_header_width: 50,
+  font_family: 'Arial, sans-serif',
+  font_size: 12,
+  font_style: 'normal',
+  font_weight: 'normal',
+  background_color: '#ffffff',
+  text_color: '#000000',
+  grid_color: '#cccccc',
+  header_background_color: '#f0f0f0',
+  selected_cell_color: '#3498db',
+  show_grid: true,
+  column_headers: [],
+};
+
+export enum FieldType {
+  CharField = 'CharField',
+  EmailField = 'EmailField',
+  TextareaField = 'TextareaField',
+  IntegerField = 'IntegerField',
+  DecimalField = 'DecimalField',
+  DecimalWithNullField = 'DecimalWithNullField',
+  DateField = 'DateField',
+  TimeField = 'TimeField',
+  CheckField = 'CheckField',
+  BooleanField = 'BooleanField',
+  ButtonField = 'ButtonField',
+  MenuField = 'MenuField',
+}
+
+export enum FilterOperator {
+  Contains = 'contains',
+  StartsWith = 'startsWith',
+  EndsWith = 'endsWith',
+  Equals = 'equals',
+  NotEquals = 'notEquals',
+  GreaterThan = 'greaterThan',
+  GreaterThanOrEqual = 'greaterThanOrEqual',
+  LessThan = 'lessThan',
+  LessThanOrEqual = 'lessThanOrEqual',
+  IsEmpty = 'isEmpty',
+  IsNotEmpty = 'isNotEmpty',
+}
+
+export interface FilterCondition {
+  columnIndex: number;
+  fieldType: FieldType;
+  operator: FilterOperator;
+  value: string;
+  isActive: boolean;
+}
+
+export interface SortCondition {
+  columnIndex: number;
+  fieldType: FieldType;
+  direction: 'asc' | 'desc';
+}
+
+export interface FilterResult {
+  filteredRows: number[];
+  totalRows: number;
+  filteredCount: number;
+}
+
+export interface MenuFieldOption {
+  label: string;
+  value: string;
+  disabled?: boolean;
+}
+
+export interface MenuFieldConfig {
+  options: MenuFieldOption[] | string[];
+  searchable?: boolean;
+  placeholder?: string;
+  maxDisplayItems?: number;
+}
+
+export interface ColumnHeader {
+  name: string;
+  display_name: string;
+  width: number;
+  required: boolean;
+  order: number;
+  is_visible: boolean;
+  field_type: FieldType | string;
+  max_length?: number;
+  min_length?: number;
+  max_digits?: number;
+  decimal_places?: number;
+  min_number?: number;
+  max_number?: number;
+  choices?: string[];
+  menu_config?: MenuFieldConfig;
+}
+
 export interface ValidationError {
-  /** フィールド名 */
   field_name: string;
-  /** エラーメッセージ */
   message: string;
-  /** エラータイプ */
   error_type: string;
 }
 
 export interface ValidationResult {
-  /** 検証が成功したかどうか */
   isValid: boolean;
-  /** エラー情報（検証失敗時のみ） */
   error?: ValidationError;
 }
 
-export enum FieldType {
-  CharField = "CharField",
-  EmailField = "EmailField", 
-  TextareaField = "TextareaField",
-  IntegerField = "IntegerField",
-  DecimalField = "DecimalField",
-  DecimalWithNullField = "DecimalWithNullField",
-  DateField = "DateField",
-  TimeField = "TimeField",
-  CheckField = "CheckField",
-  BooleanField = "BooleanField",
-  ButtonField = "ButtonField",
-  MenuField = "MenuField"
-}
-
-export interface ColumnHeader {
-  /** プロパティ名（内部識別用） */
-  name: string;
-  /** 表示名（ヘッダーに表示される名前） */
-  display_name: string;
-  /** 列の幅（ピクセル） */
+export interface CellScreenPosition {
+  x: number;
+  y: number;
   width: number;
-  /** 必須入力項目かどうか */
-  required: boolean;
-  /** 表示順序 */
-  order: number;
-  /** 表示/非表示フラグ */
-  is_visible: boolean;
-  /** フィールドタイプ */
-  field_type: FieldType | string;
-  /** 最大文字数（文字列フィールド用） */
-  max_length?: number;
-  /** 整数桁数（数値フィールド用） */
-  max_digits?: number;
-  /** 小数点桁数（小数フィールド用） */
-  decimal_places?: number;
-  /** 最小値（数値フィールド用） */
-  min_number?: number;
-  /** 最大値（数値フィールド用） */
-  max_number?: number;
-  /** 選択肢（メニューフィールド用） */
-  choices?: string[];
+  height: number;
+  centerX: number;
+  centerY: number;
+  absolute_x: number;
+  absolute_y: number;
+}
+
+export interface ListenerOptions {
+  enableValidation?: boolean;
+  enableIMESupport?: boolean;
+  autoFocusCanvas?: boolean;
+  validationDelay?: number;
+  enableKeyboardShortcuts?: boolean;
+}
+
+export interface UIElements {
+  cellReference: HTMLElement;
+  formulaInput: HTMLInputElement;
+  statsElement?: HTMLElement;
+  validationError?: HTMLElement;
+  validationSuccess?: HTMLElement;
+}
+
+export interface EventCallbacks {
+  onStatsUpdate?: (stats: TableStats) => void;
+  onValidationError?: (error: ValidationError) => void;
+  onValidationSuccess?: () => void;
+  onCellReferenceUpdate?: (reference: string) => void;
+  onNotification?: (message: string, type?: NotificationType) => void;
+}
+
+export interface SelectionInfo {
+  type: 'range' | 'single' | 'none';
+  hasSelection: boolean;
+  isRange: boolean;
+  start_row?: number;
+  start_col?: number;
+  end_row?: number;
+  end_col?: number;
+  row?: number;
+  col?: number;
+  cell_count: number;
 }
 
 /**
- * 列名を生成（A, B, C, ..., Z, AA, AB, ...）
- */
-export function getColumnName(col: number): string {
-  let result = '';
-  let n = col;
-  
-  while (true) {
-    result = String.fromCharCode(65 + (n % 26)) + result;
-    if (n < 26) {
-      break;
-    }
-    n = Math.floor(n / 26) - 1;
-  }
-  
-  return result;
-}
-
-/**
- * セル参照文字列を生成（例: A1, B2, AA10）
- */
-export function getCellReference(row: number, col: number): string {
-  return `${getColumnName(col)}${row + 1}`;
-}
-
-/**
- * WasabiTableのインターフェース（循環インポートを避けるため）
+ * WasabiTable の公開インターフェース（循環参照回避用）
  */
 export interface IWasabiTable {
   getSelectedCell(): CellPosition | undefined;
@@ -151,8 +259,63 @@ export interface IWasabiTable {
   getConfig(): TableConfig;
   render(): void;
   selectCell(row: number, col: number): void;
-  setEventHandlers(handlers: any): void;
+  setEventHandlers(handlers: EventHandlers): void;
   getCellValue(row: number, col: number): string | undefined;
   getSelectedCellValidationError(): string | undefined;
-  getStats(): any;
-} 
+  getStats(): TableStats;
+  getSelectionInfo(): SelectionInfo;
+  setKeyboardShortcutsEnabled?(enabled: boolean): void;
+}
+
+export interface CreateWasabiTableUIConfig {
+  cellReferenceSelector: string;
+  formulaInputSelector: string;
+  statsElementSelector?: string;
+  validationErrorSelector?: string;
+  validationSuccessSelector?: string;
+}
+
+export function getColumnName(col: number): string {
+  let result = '';
+  let n = col;
+
+  while (true) {
+    result = String.fromCharCode(65 + (n % 26)) + result;
+    if (n < 26) break;
+    n = Math.floor(n / 26) - 1;
+  }
+
+  return result;
+}
+
+export function getCellReference(row: number, col: number): string {
+  return `${getColumnName(col)}${row + 1}`;
+}
+
+export function getSelectionReference(info: SelectionInfo): string {
+  if (!info.hasSelection) {
+    return '';
+  }
+
+  if (
+    info.isRange &&
+    info.start_row !== undefined &&
+    info.start_col !== undefined &&
+    info.end_row !== undefined &&
+    info.end_col !== undefined
+  ) {
+    const startRow = Math.min(info.start_row, info.end_row);
+    const endRow = Math.max(info.start_row, info.end_row);
+    const startCol = Math.min(info.start_col, info.end_col);
+    const endCol = Math.max(info.start_col, info.end_col);
+    const startRef = getCellReference(startRow, startCol);
+    const endRef = getCellReference(endRow, endCol);
+    return startRef === endRef ? startRef : `${startRef}:${endRef}`;
+  }
+
+  if (info.row !== undefined && info.col !== undefined) {
+    return getCellReference(info.row, info.col);
+  }
+
+  return '';
+}

@@ -20,8 +20,6 @@ pub struct WasabiTable {
     #[wasm_bindgen(skip)]
     pub data: HashMap<String, CellData>,
     #[wasm_bindgen(skip)]
-    pub headers: Vec<String>,
-    #[wasm_bindgen(skip)]
     pub selected_cell: Option<(usize, usize)>,
     #[wasm_bindgen(skip)]
     pub selected_range: Option<crate::types::CellRange>,
@@ -35,6 +33,10 @@ pub struct WasabiTable {
     pub editing_cell: Option<(usize, usize)>,
     #[wasm_bindgen(skip)]
     pub editing_input: Option<web_sys::HtmlInputElement>,
+    #[wasm_bindgen(skip)]
+    pub _editing_keydown_closure: Option<Closure<dyn FnMut(web_sys::KeyboardEvent)>>,
+    #[wasm_bindgen(skip)]
+    pub _editing_keyup_closure: Option<Closure<dyn FnMut(web_sys::KeyboardEvent)>>,
     #[wasm_bindgen(skip)]
     pub _click_closure: Option<Closure<dyn FnMut(web_sys::MouseEvent)>>,
     #[wasm_bindgen(skip)]
@@ -52,13 +54,21 @@ pub struct WasabiTable {
     pub visible_rows: (usize, usize),
     #[wasm_bindgen(skip)]
     pub visible_cols: (usize, usize),
-    #[wasm_bindgen(skip)]
-    pub cells: Vec<Vec<Option<Cell>>>,
     // フィルター・ソート用フィールドを追加
     #[wasm_bindgen(skip)]
     pub filtered_rows: Vec<usize>,
     #[wasm_bindgen(skip)]
     pub is_filtered: bool,
+    #[wasm_bindgen(skip)]
+    pub render_dirty: bool,
+    #[wasm_bindgen(skip)]
+    pub last_render_scroll_x: f64,
+    #[wasm_bindgen(skip)]
+    pub last_render_scroll_y: f64,
+    #[wasm_bindgen(skip)]
+    pub last_visible_rows: (usize, usize),
+    #[wasm_bindgen(skip)]
+    pub last_visible_cols: (usize, usize),
 }
 
 #[wasm_bindgen]
@@ -76,28 +86,11 @@ impl WasabiTable {
         let canvas_width = canvas.width() as f64;
         let canvas_height = canvas.height() as f64;
 
-        // セルデータを初期化
-        let mut cells = Vec::new();
-        for _ in 0..config.row_count {
-            let mut row = Vec::new();
-            for _ in 0..config.col_count {
-                row.push(None);
-            }
-            cells.push(row);
-        }
-
-        // ヘッダーを初期化
-        let mut headers = Vec::new();
-        for i in 0..config.col_count {
-            headers.push(format!("{}", (b'A' + (i % 26) as u8) as char));
-        }
-
         let mut table = WasabiTable {
             canvas: canvas.clone(),
             ctx,
             config,
             data: HashMap::new(),
-            headers,
             selected_cell: Some((0, 0)), // 初期選択セル
             selected_range: None,
             is_selecting: false,
@@ -105,6 +98,8 @@ impl WasabiTable {
             clipboard_data: Vec::new(),
             editing_cell: None,
             editing_input: None,
+            _editing_keydown_closure: None,
+            _editing_keyup_closure: None,
             _click_closure: None,
             _wheel_closure: None,
             canvas_width,
@@ -115,9 +110,13 @@ impl WasabiTable {
             conditional_formats: HashMap::new(),
             visible_rows: (0, 0),
             visible_cols: (0, 0),
-            cells,
             filtered_rows: Vec::new(),
             is_filtered: false,
+            render_dirty: true,
+            last_render_scroll_x: 0.0,
+            last_render_scroll_y: 0.0,
+            last_visible_rows: (0, 0),
+            last_visible_cols: (0, 0),
         };
 
         // 表示範囲を計算
@@ -147,7 +146,6 @@ impl WasabiTable {
                 let x = event.client_x() as f64 - rect.left();
                 let y = event.client_y() as f64 - rect.top();
                 
-                web_sys::console::log_1(&format!("🖱️ [DEBUG] Click at canvas coords ({}, {})", x, y).into());
                 
                 // グローバル関数を呼び出してテーブルを更新
                 if let Some(window) = web_sys::window() {
@@ -172,7 +170,6 @@ impl WasabiTable {
             let wheel_closure = Closure::wrap(Box::new(move |event: web_sys::WheelEvent| {
                 event.prevent_default();
                 
-                web_sys::console::log_1(&format!("🔄 [DEBUG] Wheel delta: ({}, {})", event.delta_x(), event.delta_y()).into());
                 
                 // グローバル関数を呼び出してスクロール
                 if let Some(window) = web_sys::window() {
@@ -200,7 +197,6 @@ impl WasabiTable {
     // クリックイベントを処理するメソッド（JavaScript側から呼び出される）
     #[wasm_bindgen]
     pub fn handle_canvas_click(&mut self, canvas_x: f64, canvas_y: f64) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("🖱️ [DEBUG] Canvas click at ({}, {})", canvas_x, canvas_y).into());
         
         if let Some(cell_pos) = self.pixel_to_cell(canvas_x, canvas_y) {
             let parts: Vec<&str> = cell_pos.split(':').collect();
@@ -211,7 +207,6 @@ impl WasabiTable {
                 (Ok(r), Ok(c)) => (r, c),
                 _ => return Ok(()),
             };
-            web_sys::console::log_1(&format!("🎯 [DEBUG] Clicked cell ({}, {})", row, col).into());
             
             // 編集中の場合の処理
             if let Some((editing_row, editing_col)) = self.editing_cell {
@@ -221,7 +216,6 @@ impl WasabiTable {
                 }
                 
                 // 異なるセルをクリックした場合は編集を終了
-                web_sys::console::log_1(&format!("📝 [DEBUG] Finishing edit on ({}, {}) and moving to ({}, {})", editing_row, editing_col, row, col).into());
                 self.finish_editing()?;
             }
             
@@ -231,7 +225,6 @@ impl WasabiTable {
             
             // 新しいセルを選択
             self.selected_cell = Some((row, col));
-            web_sys::console::log_1(&format!("🎯 [DEBUG] Selected cell updated to ({}, {})", row, col).into());
             self.render()?;
             
             // グローバル関数でレンダリングをトリガー
@@ -251,7 +244,6 @@ impl WasabiTable {
     // ホイールイベントを処理するメソッド（JavaScript側から呼び出される）
     #[wasm_bindgen]
     pub fn handle_canvas_wheel(&mut self, delta_x: f64, delta_y: f64) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("🔄 [DEBUG] Processing wheel delta: ({}, {})", delta_x, delta_y).into());
 
         // スクロール量を調整（より滑らかなスクロール）
         let scroll_factor = 0.3; // さらに滑らかに調整
@@ -266,18 +258,6 @@ impl WasabiTable {
         
         // スクロール位置が実際に変更された場合のみレンダリング
         if (self.scroll_x - old_scroll_x).abs() > 0.1 || (self.scroll_y - old_scroll_y).abs() > 0.1 {
-            // requestAnimationFrameを使用して次のフレームでレンダリング
-            if let Some(window) = web_sys::window() {
-                let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
-                    // この時点でrenderを呼び出す
-                    // JavaScriptのrequestAnimationFrameコールバック内で実行される
-                }) as Box<dyn FnMut()>);
-                
-                window.request_animation_frame(closure.as_ref().unchecked_ref())?;
-                closure.forget(); // メモリリークを防ぐため、一度だけ使用
-            }
-            
-            // 即座にレンダリング（フォールバック）
             self.render()?;
         }
         
@@ -287,7 +267,6 @@ impl WasabiTable {
     // キーボードイベントを処理するメソッド（JavaScript側から呼び出される）
     #[wasm_bindgen]
     pub fn handle_canvas_keydown(&mut self, key: &str) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("⌨️ [DEBUG] Key pressed: {}", key).into());
         
         match key {
             "ArrowUp" => {
@@ -329,7 +308,6 @@ impl WasabiTable {
                     
                     if row + 1 < self.config.row_count {
                         self.selected_cell = Some((row + 1, col));
-                        web_sys::console::log_1(&format!("⬇️ [DEBUG] Moved to cell ({}, {})", row + 1, col).into());
                     }
                     self.render()?;
                 } else if let Some((row, col)) = self.selected_cell {
@@ -344,14 +322,12 @@ impl WasabiTable {
                     
                     if col + 1 < self.config.col_count {
                         self.selected_cell = Some((row, col + 1));
-                        web_sys::console::log_1(&format!("➡️ [DEBUG] Moved to cell ({}, {})", row, col + 1).into());
                     }
                     self.render()?;
                 } else if let Some((row, col)) = self.selected_cell {
                     // 選択中の場合：右のセルに移動
                     if col + 1 < self.config.col_count {
                         self.selected_cell = Some((row, col + 1));
-                        web_sys::console::log_1(&format!("➡️ [DEBUG] Moved to cell ({}, {})", row, col + 1).into());
                         self.render()?;
                     }
                 }
@@ -360,7 +336,6 @@ impl WasabiTable {
                 if self.editing_cell.is_some() {
                     // 編集中の場合：編集をキャンセル
                     self.cancel_editing()?;
-                    web_sys::console::log_1(&"❌ [DEBUG] Cancelled editing with Escape".into());
                 }
             }
             "F2" => {
@@ -368,16 +343,12 @@ impl WasabiTable {
                     if self.editing_cell.is_none() {
                         // F2で編集開始（既存の値を保持）
                         self.start_editing(row, col)?;
-                        web_sys::console::log_1(&format!("📝 [DEBUG] Started editing with F2 at ({}, {})", row, col).into());
                     }
                 }
             }
             "Delete" | "Backspace" => {
                 // 範囲選択がある場合は、範囲内の全セルをクリア
                 if let Some(range) = self.selected_range {
-                    web_sys::console::log_1(&format!("🗑️ [DEBUG] Clearing range selection ({},{}) to ({},{})", 
-                        range.start_row, range.start_col, range.end_row, range.end_col).into());
-                    
                     for row in range.start_row..=range.end_row {
                         for col in range.start_col..=range.end_col {
                             self.set_cell_data(row, col, String::new())?;
@@ -390,13 +361,11 @@ impl WasabiTable {
                     self.selected_cell = Some(active_cell);
                     
                     self.render()?;
-                    web_sys::console::log_1(&format!("🗑️ [DEBUG] Cleared range selection and set active cell to ({}, {})", active_cell.0, active_cell.1).into());
                 } else if let Some((row, col)) = self.selected_cell {
                     if self.editing_cell.is_none() {
                         // 編集中でない場合：セルの内容をクリア
                         self.set_cell_data(row, col, String::new())?;
                         self.render()?;
-                        web_sys::console::log_1(&format!("🗑️ [DEBUG] Cleared cell ({}, {})", row, col).into());
                     }
                 }
             }
@@ -410,13 +379,11 @@ impl WasabiTable {
                         self.selected_cell = Some(active_cell);
                         if self.editing_cell.is_none() {
                             self.start_editing_with_value(active_cell.0, active_cell.1, key)?;
-                            web_sys::console::log_1(&format!("✏️ [DEBUG] Started editing from range selection with character '{}' at ({}, {})", key, active_cell.0, active_cell.1).into());
                         }
                     } else if let Some((row, col)) = self.selected_cell {
                         if self.editing_cell.is_none() {
                             // 編集開始（既存の値をクリアして新しい文字から開始）
                             self.start_editing_with_value(row, col, key)?;
-                            web_sys::console::log_1(&format!("✏️ [DEBUG] Started editing with character '{}' at ({}, {})", key, row, col).into());
                         }
                     }
                 }
@@ -488,20 +455,10 @@ impl WasabiTable {
             font_weight: None,
             text_decoration: None,
             format: None,
-            validation_error: validation_error_info.clone(),
+            validation_error: validation_error_info,
         });
 
-        // セル配列も更新
-        if let Some(cell_row) = self.cells.get_mut(row) {
-            if let Some(cell) = cell_row.get_mut(col) {
-                *cell = Some(Cell {
-                    value: value.clone(),
-                    format: None,
-                    validation_error: validation_error_info,
-                });
-            }
-        }
-
+        self.mark_render_dirty();
         Ok(())
     }
 
@@ -532,18 +489,40 @@ impl WasabiTable {
         self.data.get(&key).map(|cell| cell.value.clone())
     }
 
-    // ヘッダーを設定
-    #[wasm_bindgen]
-    pub fn set_header(&mut self, col: usize, value: &str) {
-        if col < self.headers.len() {
-            self.headers[col] = value.to_string();
+    fn ensure_column_headers_capacity(&mut self, col: usize) {
+        while self.config.column_headers.len() <= col {
+            let i = self.config.column_headers.len();
+            self.config.column_headers.push(crate::types::ColumnHeader {
+                name: format!("col_{}", i),
+                display_name: self.get_column_name(i),
+                ..Default::default()
+            });
         }
     }
 
-    // ヘッダーを取得
+    // ヘッダー表示名を設定（column_headers に統合）
+    #[wasm_bindgen]
+    pub fn set_header(&mut self, col: usize, value: &str) {
+        self.ensure_column_headers_capacity(col);
+        if let Some(header) = self.config.column_headers.get_mut(col) {
+            header.display_name = value.to_string();
+        }
+        self.mark_render_dirty();
+    }
+
+    // ヘッダー表示名を取得（column_headers に統合）
     #[wasm_bindgen]
     pub fn get_header(&self, col: usize) -> Option<String> {
-        self.headers.get(col).cloned()
+        if let Some(header) = self.config.column_headers.get(col) {
+            if !header.display_name.is_empty() {
+                return Some(header.display_name.clone());
+            }
+        }
+        if col < self.config.col_count {
+            Some(self.get_column_name(col))
+        } else {
+            None
+        }
     }
 
     // テーブル設定を更新
@@ -553,6 +532,7 @@ impl WasabiTable {
             Ok(config) => {
                 self.config = config;
                 self.calculate_visible_range();
+                self.mark_render_dirty();
                 Ok(())
             }
             Err(e) => Err(JsValue::from_str(&format!("Failed to parse config: {}", e))),
@@ -574,14 +554,12 @@ impl WasabiTable {
         
         // 編集中の場合、入力フィールドの位置を更新
         if let (Some((row, col)), Some(ref input)) = (self.editing_cell, &self.editing_input) {
-            if let Err(e) = self.update_editing_input_position(input, row, col) {
-                web_sys::console::log_1(&format!("⚠️ [DEBUG] Failed to update input position: {:?}", e).into());
+            if let Err(_e) = self.update_editing_input_position(input, row, col) {
             }
         }
         
         // 範囲選択中の場合は描画を更新
         if self.is_selecting || self.selected_range.is_some() {
-            web_sys::console::log_1(&format!("🔀 [DEBUG] Updating range selection display after scroll").into());
         }
     }
 
@@ -608,8 +586,8 @@ impl WasabiTable {
 
     // 垂直スクロールの最大値を計算
     fn calculate_max_scroll_y(&self) -> f64 {
-        // 全行の高さを計算
-        let total_height = self.config.row_count as f64 * self.config.default_row_height;
+        let total_height =
+            self.effective_row_count() as f64 * self.config.default_row_height;
         
         // キャンバス高さからヘッダー高さとスクロールバー分を引いた表示領域高さ
         let scrollbar_height = 17.0; // スクロールバーの高さ
@@ -656,8 +634,19 @@ impl WasabiTable {
             return None;
         }
 
-        let row = ((y - self.config.header_height + self.scroll_y) / self.config.default_row_height) as usize;
-        
+        let display_row =
+            ((y - self.config.header_height + self.scroll_y) / self.config.default_row_height) as usize;
+
+        let row = if self.is_filtered && !self.filtered_rows.is_empty() {
+            if display_row < self.filtered_rows.len() {
+                self.filtered_rows[display_row]
+            } else {
+                return None;
+            }
+        } else {
+            display_row
+        };
+
         // 列の計算（カスタム幅対応）
         // スクロールを考慮した絶対X座標を計算（get_column_x_positionと一貫性を保つ）
         let mut accumulated_width = self.config.row_header_width;
@@ -731,7 +720,36 @@ impl WasabiTable {
 
     // テーブルの総高さを計算
     fn get_table_height(&self) -> f64 {
-        self.config.row_count as f64 * self.config.default_row_height
+        self.effective_row_count() as f64 * self.config.default_row_height
+    }
+
+    /// フィルター適用時を考慮した表示行数
+    fn effective_row_count(&self) -> usize {
+        if self.is_filtered {
+            self.filtered_rows.len()
+        } else {
+            self.config.row_count
+        }
+    }
+
+    /// データ行番号を画面上のY座標に変換（フィルター対応）
+    fn row_to_screen_y(&self, data_row: usize) -> Option<f64> {
+        if self.is_filtered && !self.filtered_rows.is_empty() {
+            self.filtered_rows
+                .iter()
+                .position(|&r| r == data_row)
+                .map(|display_row| {
+                    display_row as f64 * self.config.default_row_height
+                        + self.config.header_height
+                        - self.scroll_y
+                })
+        } else {
+            Some(
+                data_row as f64 * self.config.default_row_height
+                    + self.config.header_height
+                    - self.scroll_y,
+            )
+        }
     }
 
     // バッチデータ設定
@@ -743,6 +761,7 @@ impl WasabiTable {
                     let key = format!("{}:{}", cell.row, cell.col);
                     self.data.insert(key, cell);
                 }
+                self.mark_render_dirty();
                 Ok(())
             }
             Err(e) => Err(JsValue::from_str(&format!("Failed to parse data: {}", e))),
@@ -841,13 +860,12 @@ impl WasabiTable {
                 String::new()
             };
             
-            web_sys::console::log_1(&format!("💾 [DEBUG] Saving edited value: '{}' to cell ({}, {})", value, row, col).into());
             
             // セルデータを更新
             self.set_cell_data(row, col, value)?;
             
-            // 編集入力フィールドを削除
             if let Some(input) = self.editing_input.take() {
+                self.detach_editing_input_listeners(&input)?;
                 if let Some(parent) = input.parent_node() {
                     parent.remove_child(&input)?;
                 }
@@ -859,7 +877,6 @@ impl WasabiTable {
             // キャンバスにフォーカスを戻す
             self.canvas.focus()?;
             
-            web_sys::console::log_1(&format!("✅ [DEBUG] Finished editing cell ({}, {})", row, col).into());
         }
         
         Ok(())
@@ -868,24 +885,22 @@ impl WasabiTable {
     // 編集をキャンセルする
     #[wasm_bindgen]
     pub fn cancel_editing(&mut self) -> Result<(), JsValue> {
-        if let Some((row, col)) = self.editing_cell {
+        if let Some((_row, _col)) = self.editing_cell {
             // 編集入力フィールドを削除（値は保存しない）
-            if let Some(input) = &self.editing_input {
+            if let Some(input) = self.editing_input.take() {
+                self.detach_editing_input_listeners(&input)?;
                 if let Some(parent) = input.parent_node() {
-                    parent.remove_child(input)?;
+                    parent.remove_child(&input)?;
                 }
             }
-            
-            // 編集状態をクリア
+
             self.editing_cell = None;
-            self.editing_input = None;
             
             // キャンバスにフォーカスを戻す
             self.canvas.focus()?;
             
             // render()の呼び出しを削除（JavaScriptサイドで処理）
             
-            web_sys::console::log_1(&format!("❌ [DEBUG] Cancelled editing cell ({}, {})", row, col).into());
         }
         
         Ok(())
@@ -893,33 +908,111 @@ impl WasabiTable {
 
 
 
+    fn conditional_format_for_cell(&self, row: usize, col: usize) -> Option<&CellFormat> {
+        let key = format!("format:{}:{}", row, col);
+        self.conditional_formats.get(&key)
+    }
+
     #[wasm_bindgen]
-    pub fn add_conditional_format(&mut self, _row: usize, _col: usize, format_json: &str) -> Result<(), JsValue> {
-        let _format: CellFormat = serde_json::from_str(format_json)
+    pub fn add_conditional_format(&mut self, row: usize, col: usize, format_json: &str) -> Result<(), JsValue> {
+        let format: CellFormat = serde_json::from_str(format_json)
             .map_err(|e| JsValue::from_str(&format!("Invalid format JSON: {}", e)))?;
-        // TODO: Implement format application
+        let key = format!("format:{}:{}", row, col);
+        self.conditional_formats.insert(key, format);
+        self.mark_render_dirty();
         Ok(())
     }
 
     #[wasm_bindgen]
-    pub fn remove_conditional_format(&mut self, _row: usize, _col: usize) -> Result<(), JsValue> {
-        // TODO: Implement format removal
+    pub fn remove_conditional_format(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
+        let key = format!("format:{}:{}", row, col);
+        self.conditional_formats.remove(&key);
+        self.mark_render_dirty();
         Ok(())
+    }
+
+    fn mark_render_dirty(&mut self) {
+        self.render_dirty = true;
+    }
+
+    fn selection_bounds(&self) -> Option<(usize, usize, usize, usize)> {
+        if let Some(range) = &self.selected_range {
+            Some((
+                range.start_row.min(range.end_row),
+                range.start_row.max(range.end_row),
+                range.start_col.min(range.end_col),
+                range.start_col.max(range.end_col),
+            ))
+        } else if let Some((row, col)) = self.selected_cell {
+            Some((row, row, col, col))
+        } else {
+            None
+        }
+    }
+
+    fn is_column_header_active(&self, col: usize) -> bool {
+        self.selection_bounds()
+            .map(|(_, _, min_col, max_col)| col >= min_col && col <= max_col)
+            .unwrap_or(false)
+    }
+
+    fn is_row_header_active(&self, data_row: usize) -> bool {
+        self.selection_bounds()
+            .map(|(min_row, max_row, _, _)| data_row >= min_row && data_row <= max_row)
+            .unwrap_or(false)
+    }
+
+    fn is_cell_in_selection(&self, row: usize, col: usize) -> bool {
+        self.selection_bounds()
+            .map(|(min_row, max_row, min_col, max_col)| {
+                row >= min_row && row <= max_row && col >= min_col && col <= max_col
+            })
+            .unwrap_or(false)
+    }
+
+    fn truncate_text(&self, text: &str, max_width: f64) -> String {
+        if max_width <= 0.0 {
+            return String::new();
+        }
+
+        const ELLIPSIS: &str = "...";
+        let approx_char_width = self.config.font_size as f64 * 0.55;
+        let max_chars = (max_width / approx_char_width).floor() as usize;
+        let char_count = text.chars().count();
+
+        if char_count <= max_chars {
+            return text.to_string();
+        }
+
+        if max_chars <= ELLIPSIS.len() {
+            return ELLIPSIS.to_string();
+        }
+
+        let take = max_chars - ELLIPSIS.len();
+        format!(
+            "{}{ELLIPSIS}",
+            text.chars().take(take).collect::<String>()
+        )
     }
 
     // レンダリングメソッドの更新
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
-        // 前回の描画領域を保存（部分更新用）
-        let needs_full_render = true; // 後で最適化可能
-        
+        let scroll_changed = (self.scroll_x - self.last_render_scroll_x).abs() > 0.5
+            || (self.scroll_y - self.last_render_scroll_y).abs() > 0.5;
+        let viewport_changed = self.visible_rows != self.last_visible_rows
+            || self.visible_cols != self.last_visible_cols;
+        let needs_full_render = self.render_dirty || scroll_changed || viewport_changed;
+
         if needs_full_render {
-            // キャンバスをクリア（最小限に）
             self.ctx.clear_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
-            
-            // 背景を描画
             self.ctx.set_fill_style_str(&self.config.background_color);
             self.ctx.fill_rect(0.0, 0.0, self.canvas_width, self.canvas_height);
+            self.last_render_scroll_x = self.scroll_x;
+            self.last_render_scroll_y = self.scroll_y;
+            self.last_visible_rows = self.visible_rows;
+            self.last_visible_cols = self.visible_cols;
+            self.render_dirty = false;
         }
         
         // ===== ヘッダーの固定部分を先に描画 =====
@@ -946,7 +1039,11 @@ impl WasabiTable {
         }
         
         // グリッドを描画
-        self.render_grid()?;
+        if self.config.show_grid {
+            self.render_grid()?;
+        } else {
+            self.render_selection_overlay()?;
+        }
         
         // スクロール可能なヘッダー部分を最後に描画（セルとグリッドの上に重ねる）
         self.render_scrollable_headers()?;
@@ -1034,6 +1131,11 @@ impl WasabiTable {
             
             // 列ヘッダーは画面内に表示される場合のみ描画
             if x + column_width > self.config.row_header_width && x < self.canvas_width {
+                if self.is_column_header_active(col) {
+                    self.ctx.set_fill_style_str(&self.config.selected_cell_color);
+                    self.ctx.fill_rect(x, 0.0, column_width, self.config.header_height);
+                }
+
                 let display_name = if let Some(header) = self.get_column_header(col) {
                     if header.is_visible {
                         header.display_name.clone()
@@ -1043,19 +1145,59 @@ impl WasabiTable {
                 } else {
                     self.get_column_name(col)
                 };
+
+                let header_text_color = if self.is_column_header_active(col) {
+                    "#ffffff"
+                } else {
+                    self.config.text_color.as_str()
+                };
+                self.ctx.set_fill_style_str(header_text_color);
                 
                 self.ctx.fill_text(&display_name, x + column_width / 2.0, self.config.header_height / 2.0)?;
             }
         }
         
         // 行番号を描画（スクロール対応）
-        let max_row = self.visible_rows.1.min(self.config.row_count);
-        for row in self.visible_rows.0..max_row {
-            let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
-            // 行ヘッダーは画面内に表示される場合のみ描画
+        let max_row = if self.is_filtered && !self.filtered_rows.is_empty() {
+            self.visible_rows.1.min(self.filtered_rows.len())
+        } else {
+            self.visible_rows.1.min(self.config.row_count)
+        };
+        for display_row in self.visible_rows.0..max_row {
+            let y = display_row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
             if y + self.config.default_row_height > self.config.header_height && y < self.canvas_height {
-                let row_number = (row + 1).to_string();
-                self.ctx.fill_text(&row_number, self.config.row_header_width / 2.0, y + self.config.default_row_height / 2.0)?;
+                let data_row = if self.is_filtered && !self.filtered_rows.is_empty() {
+                    if display_row < self.filtered_rows.len() {
+                        self.filtered_rows[display_row]
+                    } else {
+                        continue;
+                    }
+                } else {
+                    display_row
+                };
+
+                if self.is_row_header_active(data_row) {
+                    self.ctx.set_fill_style_str(&self.config.selected_cell_color);
+                    self.ctx.fill_rect(
+                        0.0,
+                        y,
+                        self.config.row_header_width,
+                        self.config.default_row_height,
+                    );
+                }
+
+                let row_number = (data_row + 1).to_string();
+                let row_text_color = if self.is_row_header_active(data_row) {
+                    "#ffffff"
+                } else {
+                    self.config.text_color.as_str()
+                };
+                self.ctx.set_fill_style_str(row_text_color);
+                self.ctx.fill_text(
+                    &row_number,
+                    self.config.row_header_width / 2.0,
+                    y + self.config.default_row_height / 2.0,
+                )?;
             }
         }
         
@@ -1064,12 +1206,6 @@ impl WasabiTable {
         self.ctx.set_text_baseline("alphabetic");
         
         Ok(())
-    }
-
-    fn render_header(&mut self) -> Result<(), JsValue> {
-        // 互換性のため残しているが、新しいメソッドにリダイレクト
-        self.render_fixed_headers()?;
-        self.render_scrollable_headers()
     }
 
     fn render_cell(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
@@ -1095,23 +1231,40 @@ impl WasabiTable {
             return Ok(());
         }
 
-        // セルの背景を描画
-        self.ctx.set_fill_style_str(&self.config.background_color);
-        self.ctx.fill_rect(x, y, width, height);
-
         // セルの値を取得
         let key = format!("{}:{}", data_row, col);
         let cell_value = self.data.get(&key).map(|data| data.value.clone()).unwrap_or_default();
         let has_validation_error = self.data.get(&key).and_then(|data| data.validation_error.as_ref()).is_some();
 
-        // 選択されたセルの場合は境界線を描画
-        if let Some((selected_row, selected_col)) = self.selected_cell {
-            if selected_row == data_row && selected_col == col {
-                self.ctx.set_stroke_style_str(&self.config.selected_cell_color);
-                self.ctx.set_line_width(2.0);
-                self.ctx.stroke_rect(x, y, width, height);
+        // 条件付き書式を適用
+        let mut cell_bg = self.config.background_color.clone();
+        let mut cell_text = self.config.text_color.clone();
+        let temp_cell = CellData {
+            value: cell_value.clone(),
+            row: data_row,
+            col,
+            width,
+            height,
+            background_color: None,
+            text_color: None,
+            font_style: None,
+            font_weight: None,
+            text_decoration: None,
+            format: None,
+            validation_error: None,
+        };
+        if let Some(format) = self.conditional_format_for_cell(data_row, col) {
+            if format.matches_condition(&temp_cell) {
+                if let Some(c) = &format.background_color {
+                    cell_bg = c.clone();
+                }
+                if let Some(c) = &format.text_color {
+                    cell_text = c.clone();
+                }
             }
         }
+        self.ctx.set_fill_style_str(&cell_bg);
+        self.ctx.fill_rect(x, y, width, height);
 
         // 検証エラーがある場合は黄色の枠を描画
         if has_validation_error {
@@ -1145,7 +1298,7 @@ impl WasabiTable {
             self.draw_checkbox(checkbox_x, checkbox_y, checkbox_size, is_checked)?;
         } else if !cell_value.is_empty() {
             // 通常のテキストを描画
-            self.ctx.set_fill_style_str(&self.config.text_color);
+            self.ctx.set_fill_style_str(&cell_text);
             self.ctx.set_font(&format!("{}px {}", self.config.font_size, self.config.font_family));
             
             // アイコン用のスペースを考慮してテキスト位置を調整
@@ -1161,8 +1314,16 @@ impl WasabiTable {
                 self.ctx.clip();
             }
             
+            let max_text_width = if is_menu_field {
+                width - 25.0 - (text_x - x)
+            } else if has_validation_error {
+                width - 25.0 - (text_x - x)
+            } else {
+                width - 10.0 - (text_x - x)
+            };
+            let display_text = self.truncate_text(&cell_value, max_text_width);
             let text_y = y + (height / 2.0) + (self.config.font_size as f64 / 3.0);
-            self.ctx.fill_text(&cell_value, text_x, text_y)?;
+            self.ctx.fill_text(&display_text, text_x, text_y)?;
             
             if is_menu_field {
                 self.ctx.restore();
@@ -1174,8 +1335,10 @@ impl WasabiTable {
             self.draw_warning_icon(x + 5.0, y + (height / 2.0) - 8.0)?;
         }
 
-        // MenuFieldの場合はドロップダウンアイコンを描画
-        if is_menu_field {
+        // MenuFieldの場合は値があるか選択中のみドロップダウンアイコンを描画
+        if is_menu_field
+            && (!cell_value.is_empty() || self.is_cell_in_selection(data_row, col))
+        {
             self.draw_dropdown_icon(x + width - 20.0, y + (height / 2.0) - 6.0)?;
         }
 
@@ -1319,9 +1482,13 @@ impl WasabiTable {
         }
 
         // 横線をバッチ処理で描画（テーブル範囲内のみ）
-        let max_row = self.visible_rows.1.min(self.config.row_count);
-        for row in self.visible_rows.0..=max_row {
-            let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
+        let max_row = if self.is_filtered && !self.filtered_rows.is_empty() {
+            self.visible_rows.1.min(self.filtered_rows.len())
+        } else {
+            self.visible_rows.1.min(self.config.row_count)
+        };
+        for display_row in self.visible_rows.0..=max_row {
+            let y = display_row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
             if y >= self.config.header_height && y <= self.canvas_height {
                 self.ctx.begin_path();
                 self.ctx.move_to(self.config.row_header_width, y);
@@ -1333,68 +1500,72 @@ impl WasabiTable {
             }
         }
         
-        // 範囲選択の描画
+        self.render_selection_overlay()?;
+        Ok(())
+    }
+
+    /// 選択状態のオーバーレイを描画（グリッド有無に関わらず共通）
+    fn render_selection_overlay(&mut self) -> Result<(), JsValue> {
         if let Some(range) = self.selected_range {
-            self.ctx.set_fill_style_str("rgba(52, 152, 219, 0.2)"); // 半透明の青
-            
-            // 全ての選択されたセルの背景を塗りつぶし
+            self.ctx.set_fill_style_str("rgba(52, 152, 219, 0.42)");
+
             for row in range.start_row..=range.end_row {
                 for col in range.start_col..=range.end_col {
                     let x = self.get_column_x_position(col);
-                    let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
-                    
-                    let column_width = if let Some(header) = self.get_column_header(col) {
+                    if let Some(y) = self.row_to_screen_y(row) {
+                        let column_width = if let Some(header) = self.get_column_header(col) {
+                            header.width
+                        } else {
+                            self.config.default_col_width
+                        };
+
+                        if x + column_width > self.config.row_header_width
+                            && x < self.canvas_width
+                            && y + self.config.default_row_height > self.config.header_height
+                            && y < self.canvas_height
+                        {
+                            self.ctx.fill_rect(x, y, column_width, self.config.default_row_height);
+                        }
+                    }
+                }
+            }
+
+            self.ctx.set_stroke_style_str(&self.config.selected_cell_color);
+            self.ctx.set_line_width(2.0);
+
+            let start_x = self.get_column_x_position(range.start_col);
+            if let (Some(start_y), Some(end_y)) = (
+                self.row_to_screen_y(range.start_row),
+                self.row_to_screen_y(range.end_row),
+            ) {
+                let end_x = self.get_column_x_position(range.end_col)
+                    + if let Some(header) = self.get_column_header(range.end_col) {
                         header.width
                     } else {
                         self.config.default_col_width
                     };
-                    
-                    // セルが画面内にある場合のみ描画
-                    if x + column_width > self.config.row_header_width && 
-                       x < self.canvas_width && 
-                       y + self.config.default_row_height > self.config.header_height && 
-                       y < self.canvas_height {
-                        // 背景を塗りつぶし
-                        self.ctx.fill_rect(x, y, column_width, self.config.default_row_height);
-                    }
-                }
+                let range_width = end_x - start_x;
+                let range_height =
+                    end_y + self.config.default_row_height - start_y;
+                self.ctx.stroke_rect(start_x, start_y, range_width, range_height);
             }
-            
-            // 範囲全体の境界線を描画
-            self.ctx.set_stroke_style_str(&self.config.selected_cell_color);
-            self.ctx.set_line_width(2.0);
-            
-            let start_x = self.get_column_x_position(range.start_col);
-            let start_y = range.start_row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
-            let end_x = self.get_column_x_position(range.end_col) + if let Some(header) = self.get_column_header(range.end_col) {
-                header.width
-            } else {
-                self.config.default_col_width
-            };
-            let end_y = (range.end_row + 1) as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
-            
-            let range_width = end_x - start_x;
-            let range_height = end_y - start_y;
-            
-            // 範囲全体の境界線を描画
-            self.ctx.stroke_rect(start_x, start_y, range_width, range_height);
-            
         } else if let Some((row, col)) = self.selected_cell {
-            // 単一セル選択の枠を描画（カスタム列幅対応）
             let x = self.get_column_x_position(col);
-            let y = row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
-            
-            let column_width = if let Some(header) = self.get_column_header(col) {
-                header.width
-            } else {
-                self.config.default_col_width
-            };
-            
-            self.ctx.set_stroke_style_str(&self.config.selected_cell_color);
-            self.ctx.set_line_width(2.0);
-            self.ctx.stroke_rect(x, y, column_width, self.config.default_row_height);
+            if let Some(y) = self.row_to_screen_y(row) {
+                let column_width = if let Some(header) = self.get_column_header(col) {
+                    header.width
+                } else {
+                    self.config.default_col_width
+                };
+
+                self.ctx.set_fill_style_str("rgba(52, 152, 219, 0.28)");
+                self.ctx.fill_rect(x, y, column_width, self.config.default_row_height);
+                self.ctx.set_stroke_style_str(&self.config.selected_cell_color);
+                self.ctx.set_line_width(2.0);
+                self.ctx.stroke_rect(x, y, column_width, self.config.default_row_height);
+            }
         }
-        
+
         Ok(())
     }
 
@@ -1406,8 +1577,8 @@ impl WasabiTable {
                 self.config.column_headers = headers;
                 // 列数を更新
                 self.config.col_count = self.config.column_headers.len().max(1);
-                // 表示範囲を再計算（重要：これを追加）
                 self.calculate_visible_range();
+                self.mark_render_dirty();
                 Ok(())
             }
             Err(e) => Err(JsValue::from_str(&format!("Failed to parse headers: {}", e))),
@@ -1441,14 +1612,11 @@ impl WasabiTable {
     /// 選択されたセルの検証エラーメッセージを取得
     #[wasm_bindgen]
     pub fn get_selected_cell_validation_error(&self) -> Option<String> {
-        if let Some(selected) = &self.selected_cell {
-            if let Some(row) = self.cells.get(selected.0) {
-                if let Some(cell) = row.get(selected.1) {
-                    if let Some(cell_data) = cell {
-                        if let Some(error_info) = &cell_data.validation_error {
-                            return Some(error_info.message.clone());
-                        }
-                    }
+        if let Some((row, col)) = self.selected_cell {
+            let key = format!("{}:{}", row, col);
+            if let Some(cell_data) = self.data.get(&key) {
+                if let Some(error_info) = &cell_data.validation_error {
+                    return Some(error_info.message.clone());
                 }
             }
         }
@@ -1522,50 +1690,26 @@ impl WasabiTable {
     /// 指定した値で編集を開始する
     #[wasm_bindgen]
     pub fn start_editing_with_value(&mut self, row: usize, col: usize, initial_value: &str) -> Result<(), JsValue> {
-        // 範囲選択をクリアしてから編集開始
         self.clear_range_selection_if_needed(false);
-        
-        // 既存の編集を終了
+
         if self.editing_cell.is_some() {
             self.finish_editing()?;
         }
-        
+
+        let input = self.create_editing_input(row, col)?;
+        input.set_value(initial_value);
+        self.attach_editing_input_listeners(&input)?;
+
         self.editing_cell = Some((row, col));
         self.selected_cell = Some((row, col));
-        
-        // 入力要素を作成
+
         let document = web_sys::window().unwrap().document().unwrap();
-        let input = document.create_element("input")?.dyn_into::<web_sys::HtmlInputElement>()?;
-        
-        // 初期値を設定
-        input.set_value(initial_value);
-        
-        // スタイルを設定
-        let html_element: web_sys::HtmlElement = input.clone().dyn_into()?;
-        let style = html_element.style();
-        style.set_property("position", "fixed")?;
-        style.set_property("z-index", "1000")?;
-        style.set_property("border", "2px solid #007bff")?;
-        style.set_property("padding", "2px 4px")?;
-        style.set_property("font-family", &self.config.font_family)?;
-        style.set_property("font-size", &format!("{}px", self.config.font_size))?;
-        style.set_property("background", "white")?;
-        style.set_property("outline", "none")?;
-        
-        // 位置を設定
-        self.update_editing_input_position(&input, row, col)?;
-        
-        // DOMに追加
         document.body().unwrap().append_child(&input)?;
-        
-        // フォーカスして全選択
+        self.editing_input = Some(input.clone());
+
         input.focus()?;
         input.select();
-        
-        self.editing_input = Some(input);
-        
-        web_sys::console::log_1(&format!("📝 [DEBUG] Started editing cell ({}, {}) with value '{}'", row, col, initial_value).into());
-        
+
         Ok(())
     }
 
@@ -1573,7 +1717,6 @@ impl WasabiTable {
     #[wasm_bindgen]
     pub fn handle_editing_enter(&mut self) -> Result<(), JsValue> {
         if let Some((row, col)) = self.editing_cell {
-            web_sys::console::log_1(&format!("⬇️ [DEBUG] Handling Enter during editing at ({}, {})", row, col).into());
             
             // 編集を完了
             self.finish_editing()?;
@@ -1581,11 +1724,9 @@ impl WasabiTable {
             // 下のセルに移動
             if row + 1 < self.config.row_count {
                 self.selected_cell = Some((row + 1, col));
-                web_sys::console::log_1(&format!("⬇️ [DEBUG] Moved to cell ({}, {})", row + 1, col).into());
             } else {
                 // 最下行の場合は同じセルに留まる
                 self.selected_cell = Some((row, col));
-                web_sys::console::log_1(&format!("⬇️ [DEBUG] Stayed at cell ({}, {}) - last row", row, col).into());
             }
             
             // キャンバスにフォーカスを確実に戻す
@@ -1601,7 +1742,6 @@ impl WasabiTable {
     #[wasm_bindgen]
     pub fn handle_editing_tab(&mut self) -> Result<(), JsValue> {
         if let Some((row, col)) = self.editing_cell {
-            web_sys::console::log_1(&format!("➡️ [DEBUG] Handling Tab during editing at ({}, {})", row, col).into());
             
             // 編集を完了
             self.finish_editing()?;
@@ -1609,11 +1749,9 @@ impl WasabiTable {
             // 右のセルに移動
             if col + 1 < self.config.col_count {
                 self.selected_cell = Some((row, col + 1));
-                web_sys::console::log_1(&format!("➡️ [DEBUG] Moved to cell ({}, {})", row, col + 1).into());
             } else {
                 // 最右列の場合は同じセルに留まる
                 self.selected_cell = Some((row, col));
-                web_sys::console::log_1(&format!("➡️ [DEBUG] Stayed at cell ({}, {}) - last column", row, col).into());
             }
             
             // キャンバスにフォーカスを確実に戻す
@@ -1629,7 +1767,6 @@ impl WasabiTable {
     #[wasm_bindgen]
     pub fn handle_editing_escape(&mut self) -> Result<(), JsValue> {
         if self.editing_cell.is_some() {
-            web_sys::console::log_1(&"❌ [DEBUG] Handling Escape during editing".into());
             
             // 編集をキャンセル（cancel_editingでキャンバスフォーカスも処理される）
             self.cancel_editing()?;
@@ -1643,27 +1780,22 @@ impl WasabiTable {
     // 範囲選択開始
     #[wasm_bindgen]
     pub fn start_range_selection(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("🔀 [DEBUG] start_range_selection: ({},{})", row, col).into());
         self.is_selecting = true;
         self.selection_start = Some((row, col));
         self.selected_range = Some(crate::types::CellRange::new(row, col, row, col));
         // selected_cellは現在の選択を保持（開始位置に固定しない）
         // 範囲選択中は終端位置がアクティブセルとなる
-        web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection started: {:?}", self.selected_range).into());
         Ok(())
     }
 
     // 範囲選択更新
     #[wasm_bindgen]
     pub fn update_range_selection(&mut self, row: usize, col: usize) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("🔀 [DEBUG] update_range_selection: ({},{})", row, col).into());
         if let Some((start_row, start_col)) = self.selection_start {
             self.selected_range = Some(crate::types::CellRange::new(start_row, start_col, row, col));
             // 現在のアクティブセル位置を更新（範囲選択の終端位置）
             self.selected_cell = Some((row, col));
-            web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection updated: {:?}, active cell: ({}, {})", self.selected_range, row, col).into());
         } else {
-            web_sys::console::log_1(&"⚠️ [DEBUG] update_range_selection called without selection_start".into());
         }
         Ok(())
     }
@@ -1671,7 +1803,6 @@ impl WasabiTable {
     // 範囲選択終了
     #[wasm_bindgen]
     pub fn end_range_selection(&mut self) -> Result<(), JsValue> {
-        web_sys::console::log_1(&"🔀 [DEBUG] end_range_selection called".into());
         self.is_selecting = false;
         // selection_startとselected_rangeは保持（範囲選択状態を維持）
         // selected_cellも現在の終端位置を保持
@@ -1681,19 +1812,16 @@ impl WasabiTable {
     // 範囲選択をクリア
     #[wasm_bindgen]
     pub fn clear_selection(&mut self) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("🔀 [DEBUG] clear_selection called").into());
         self.selected_range = None;
         self.is_selecting = false;
         self.selection_start = None;
         // 単一セル選択は保持する（clear_selectionは範囲選択のみをクリア）
-        web_sys::console::log_1(&format!("🔀 [DEBUG] Range selection cleared").into());
         Ok(())
     }
 
     // 範囲選択状態をクリアする統一メソッド
     fn clear_range_selection_if_needed(&mut self, preserve_single_selection: bool) {
         if self.selected_range.is_some() || self.is_selecting {
-            web_sys::console::log_1(&format!("🔀 [DEBUG] Clearing range selection state").into());
             self.selected_range = None;
             self.is_selecting = false;
             self.selection_start = None;
@@ -1708,15 +1836,7 @@ impl WasabiTable {
     pub fn copy_selection(&mut self) -> Result<String, JsValue> {
         let mut copied_data = Vec::new();
         
-        // デバッグ情報を出力
-        web_sys::console::log_1(&format!("📋 [DEBUG] copy_selection called").into());
-        web_sys::console::log_1(&format!("📋 [DEBUG] selected_range: {:?}", self.selected_range).into());
-        web_sys::console::log_1(&format!("📋 [DEBUG] selected_cell: {:?}", self.selected_cell).into());
-        
         if let Some(range) = self.selected_range {
-            web_sys::console::log_1(&format!("📋 [DEBUG] Copying range: ({},{}) to ({},{})", 
-                range.start_row, range.start_col, range.end_row, range.end_col).into());
-            
             for row in range.start_row..=range.end_row {
                 let mut row_data = Vec::new();
                 for col in range.start_col..=range.end_col {
@@ -1725,13 +1845,8 @@ impl WasabiTable {
                 }
                 copied_data.push(row_data);
             }
-            
-            web_sys::console::log_1(&format!("📋 [DEBUG] Copied {} rows with {} total cells", 
-                copied_data.len(), 
-                copied_data.iter().map(|row| row.len()).sum::<usize>()).into());
         } else if let Some((row, col)) = self.selected_cell {
             // 単一セルの場合
-            web_sys::console::log_1(&format!("📋 [DEBUG] Copying single cell: ({},{})", row, col).into());
             let value = self.get_cell_data(row, col).unwrap_or_default();
             copied_data.push(vec![value]);
         }
@@ -1744,7 +1859,6 @@ impl WasabiTable {
             .collect::<Vec<_>>()
             .join("\n");
         
-        web_sys::console::log_1(&format!("📋 [DEBUG] TSV result: '{}'", tsv).into());
         
         Ok(tsv)
     }
@@ -1787,6 +1901,7 @@ impl WasabiTable {
             }
         }
 
+        self.render()?;
         Ok(())
     }
 
@@ -1850,6 +1965,7 @@ impl WasabiTable {
         self.canvas_width = width;
         self.canvas_height = height;
         self.calculate_visible_range();
+        self.mark_render_dirty();
         Ok(())
     }
     
@@ -1859,17 +1975,16 @@ impl WasabiTable {
         let filtered_rows: Vec<usize> = serde_json::from_str(filtered_rows_json)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse filtered rows: {}", e)))?;
         
-        web_sys::console::log_1(&format!("🔍 [DEBUG] Setting filtered rows: {:?}", filtered_rows).into());
         
         self.filtered_rows = filtered_rows;
-        self.is_filtered = !self.filtered_rows.is_empty();
-        
+        self.is_filtered = true;
+        self.mark_render_dirty();
+
         // 範囲選択の妥当性をチェック
         if let Some(range) = &self.selected_range {
             let is_valid = (range.start_row..=range.end_row)
                 .all(|row| self.filtered_rows.is_empty() || self.filtered_rows.contains(&row));
             if !is_valid {
-                web_sys::console::log_1(&format!("🔍 [DEBUG] Range selection invalidated by filter, clearing").into());
                 self.clear_range_selection_if_needed(true);
             }
         }
@@ -1877,7 +1992,6 @@ impl WasabiTable {
         // 単一セル選択の妥当性もチェック
         if let Some((row, _)) = self.selected_cell {
             if self.is_filtered && !self.filtered_rows.contains(&row) {
-                web_sys::console::log_1(&format!("🔍 [DEBUG] Selected cell invalidated by filter, clearing").into());
                 self.selected_cell = None;
             }
         }
@@ -1887,26 +2001,22 @@ impl WasabiTable {
         
         // 再描画を実行
         self.render()?;
-        
-        web_sys::console::log_1(&format!("🔍 [DEBUG] Filter applied and rendered. Filtered: {}, Row count: {}", 
-            self.is_filtered, self.filtered_rows.len()).into());
-        
+
         Ok(())
     }
     
     // フィルターをクリア
     #[wasm_bindgen]
     pub fn clear_filter(&mut self) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("🔍 [DEBUG] Clearing filter").into());
         
         self.filtered_rows.clear();
         self.is_filtered = false;
         self.calculate_visible_range();
-        
+        self.mark_render_dirty();
+
         // 再描画を実行
         self.render()?;
         
-        web_sys::console::log_1(&format!("🔍 [DEBUG] Filter cleared and rendered").into());
         
         Ok(())
     }

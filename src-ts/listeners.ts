@@ -1,37 +1,15 @@
-import type { CellPosition, ValidationError, ValidationResult, IWasabiTable } from './types';
-import { getCellReference } from './types';
+import type {
+  CellPosition,
+  EventCallbacks,
+  IWasabiTable,
+  ListenerOptions,
+  UIElements,
+  ValidationError,
+  ValidationResult,
+} from './types';
+import { getCellReference, getSelectionReference } from './types';
 
-/**
- * リスナー設定オプション
- */
-export interface ListenerOptions {
-  enableValidation?: boolean;
-  enableIMESupport?: boolean;
-  autoFocusCanvas?: boolean;
-  validationDelay?: number;
-  enableKeyboardShortcuts?: boolean;
-}
-
-/**
- * UI要素の設定
- */
-export interface UIElements {
-  cellReference: HTMLElement;
-  formulaInput: HTMLInputElement;
-  statsElement?: HTMLElement;
-  validationError?: HTMLElement;
-  validationSuccess?: HTMLElement;
-}
-
-/**
- * イベントコールバック
- */
-export interface EventCallbacks {
-  onStatsUpdate?: (stats: any) => void;
-  onValidationError?: (error: ValidationError) => void;
-  onValidationSuccess?: () => void;
-  onCellReferenceUpdate?: (reference: string) => void;
-}
+export type { EventCallbacks, ListenerOptions, UIElements } from './types';
 
 /**
  * WasabiTableのリスナー管理クラス
@@ -63,6 +41,10 @@ export class WasabiTableListeners {
       enableKeyboardShortcuts: true,
       ...options
     };
+
+    if (this.table.setKeyboardShortcutsEnabled) {
+      this.table.setKeyboardShortcutsEnabled(this.options.enableKeyboardShortcuts);
+    }
 
     this.initialize();
   }
@@ -119,39 +101,25 @@ export class WasabiTableListeners {
       onCellSelect: (position: CellPosition) => {
         this.updateCellReference();
         this.updateStats();
-        this.callbacks.onCellReferenceUpdate?.(
-          getCellReference(position.row, position.col)
-        );
-      }
+        this.focusCanvas();
+        const reference = getSelectionReference(this.table.getSelectionInfo());
+        this.callbacks.onCellReferenceUpdate?.(reference);
+      },
+      onNotification: (message, type) => {
+        this.callbacks.onNotification?.(message, type);
+      },
     });
   }
 
   /**
-   * グローバルハンドラー関数を設定
+   * Rust側から呼ばれるグローバルコールバックを設定
+   * WasabiTable が設定したクリック/ホイール/キーハンドラーは上書きしない
    */
   private setupGlobalHandlers(): void {
-    // グローバル関数として公開
-    (window as any).handleTableClick = (x: number, y: number) => {
-      // Canvas click handling logic would go here
-      console.log('Table click:', x, y);
-    };
-
-    (window as any).handleTableWheel = (deltaX: number, deltaY: number) => {
-      // Canvas wheel handling logic would go here
-      console.log('Table wheel:', deltaX, deltaY);
-    };
-
-    (window as any).handleTableKey = (key: string) => {
-      if (this.isComposing && (key === 'Enter' || key === 'Tab')) {
-        return; // IME入力中はスキップ
-      }
-      // Key handling logic would go here
-      console.log('Table key:', key);
-    };
-
     (window as any).triggerRender = () => {
       this.table.render();
       this.updateCellReference();
+      this.updateStats();
     };
   }
 
@@ -232,11 +200,14 @@ export class WasabiTableListeners {
    * セル参照を更新
    */
   private updateCellReference(): void {
+    const selectionInfo = this.table.getSelectionInfo();
+    if (!selectionInfo.hasSelection) return;
+
+    const cellRef = getSelectionReference(selectionInfo);
+    this.uiElements.cellReference.textContent = cellRef;
+
     const selectedCell = this.table.getSelectedCell();
     if (!selectedCell) return;
-
-          const cellRef = getCellReference(selectedCell.row, selectedCell.col);
-    this.uiElements.cellReference.textContent = cellRef;
 
     const cellValue = this.table.getCellValue(selectedCell.row, selectedCell.col) || '';
     this.uiElements.formulaInput.value = cellValue;
@@ -246,7 +217,7 @@ export class WasabiTableListeners {
       try {
         const errorMessage = this.table.getSelectedCellValidationError();
         if (errorMessage) {
-          console.log('Validation error for selected cell:', errorMessage);
+          this.showValidationError({ field_name: '', message: errorMessage, error_type: 'validation' });
         }
       } catch (error) {
         console.warn('Error checking validation:', error);
@@ -351,6 +322,14 @@ export class WasabiTableListeners {
   }
 
   /**
+   * セル参照・統計表示を手動更新（プログラムから値を変更した後など）
+   */
+  public refresh(): void {
+    this.updateCellReference();
+    this.updateStats();
+  }
+
+  /**
    * リスナーを破棄
    */
   public destroy(): void {
@@ -358,10 +337,6 @@ export class WasabiTableListeners {
       clearTimeout(this.validationTimeout);
     }
 
-    // グローバル関数をクリア
-    delete (window as any).handleTableClick;
-    delete (window as any).handleTableWheel;
-    delete (window as any).handleTableKey;
     delete (window as any).triggerRender;
   }
 } 

@@ -74,14 +74,6 @@ pub struct CellData {
     pub validation_error: Option<ValidationErrorInfo>,
 }
 
-// セルの型定義
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Cell {
-    pub value: String,
-    pub format: Option<CellFormat>,
-    pub validation_error: Option<ValidationErrorInfo>,
-}
-
 // テーブル設定
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TableConfig {
@@ -151,6 +143,7 @@ pub struct ColumnHeader {
     pub name: String,                    // プロパティ名
     pub display_name: String,            // 表示名
     pub max_length: Option<usize>,       // 最大文字数
+    pub min_length: Option<usize>,       // 最小文字数
     pub max_digits: Option<usize>,       // 整数桁数
     pub decimal_places: Option<usize>,   // 小数点桁数
     pub width: f64,                      // 横の長さ
@@ -169,6 +162,7 @@ impl Default for ColumnHeader {
             name: String::new(),
             display_name: String::new(),
             max_length: None,
+            min_length: None,
             max_digits: None,
             decimal_places: None,
             width: 100.0,
