@@ -66,7 +66,7 @@
   "bugs": {
     "url": "https://github.com/masanori0209/wasabi-table/issues"
   },
-  "homepage": "https://github.com/masanori0209/wasabi-table#readme",
+  "homepage": "https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html",
   "devDependencies": {
     "@playwright/test": "^1.52.0",
     "@types/node": "^20.0.0",
