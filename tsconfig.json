@@ -4,6 +4,8 @@
     "module": "ES2020",
     "lib": ["ES2018", "DOM"],
     "declaration": true,
+    "sourceMap": false,
+    "declarationMap": false,
     "outDir": "./dist",
     "rootDir": "./src-ts",
     "strict": true,

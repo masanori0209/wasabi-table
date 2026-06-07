@@ -1,4 +1,4 @@
-import { FieldType, FilterOperator, } from './types.js';
+import { FieldType, FilterOperator, } from './types';
 const HEADER_DIALOG_STYLE_ID = 'wasabi-header-dialog-styles';
 function ensureHeaderDialogStyles() {
     if (document.getElementById(HEADER_DIALOG_STYLE_ID))

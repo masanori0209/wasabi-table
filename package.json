@@ -33,8 +33,10 @@
     "test:e2e:report": "playwright show-report",
     "test:all": "npm run test:unit && cargo test && npm run test:rust && npm run test:e2e",
     "strip-debug-logs": "node scripts/strip-debug-logs.mjs",
+    "strip-debug-logs:dist": "node scripts/strip-debug-logs.mjs --dist",
+    "build:publish": "npm run build && npm run strip-debug-logs:dist",
     "clean": "rm -rf dist pkg playwright-report test-results",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run build:publish",
     "serve": "python3 -m http.server 8501",
     "serve:node": "npx http-server -p 8501 -c-1"
   },

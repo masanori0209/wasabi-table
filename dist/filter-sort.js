@@ -1,4 +1,4 @@
-import { FieldType, FilterOperator } from './types.js';
+import { FieldType, FilterOperator } from './types';
 export function createFilterSortState() {
     return {
         filterConditions: [],

@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 /**
  * [DEBUG] タグ付きログを安全に削除する
- * Rust: 単行 web_sys::console 呼び出しのみ削除（複数行 format! は触らない）
+ * --dist: dist/*.js のみ処理（公開ビルド用、ソースは変更しない）
+ * デフォルト: src ファイルを処理（開発用・手動実行）
  */
 import fs from 'fs';
 import path from 'path';
 
 const root = path.resolve(import.meta.dirname, '..');
+const distMode = process.argv.includes('--dist');
 
 function stripTypeScript(content) {
   const lines = content.split('\n');
@@ -16,7 +18,7 @@ function stripTypeScript(content) {
   while (i < lines.length) {
     const line = lines[i];
     const isDebugConsole =
-      /console\.(log|warn|debug|info)\s*\(/.test(line) &&
+      /console\.(log|warn|debug|info|error)\s*\(/.test(line) &&
       (/\[DEBUG\]/.test(line) || /🔧|🎯|🖱️|⌨️|📝|✅|❌|🔀|📋|🔄|🈴|⬅️|➡️|🗑️|✏️|🔍|🚫/.test(line));
 
     if (isDebugConsole) {
@@ -58,17 +60,29 @@ function stripRust(content) {
     .join('\n');
 }
 
-const targets = [
-  { file: 'src-ts/index.ts', fn: stripTypeScript },
-  { file: 'src-ts/listeners.ts', fn: stripTypeScript },
-  { file: 'src/table.rs', fn: stripRust },
-  { file: 'src/edit.rs', fn: stripRust },
-];
+if (distMode) {
+  const distDir = path.join(root, 'dist');
+  for (const name of fs.readdirSync(distDir)) {
+    if (!name.endsWith('.js')) continue;
+    const full = path.join(distDir, name);
+    const before = fs.readFileSync(full, 'utf8');
+    const after = stripTypeScript(before);
+    fs.writeFileSync(full, after);
+    console.log(`dist/${name}: ${before.split('\n').length - after.split('\n').length} lines removed`);
+  }
+} else {
+  const targets = [
+    { file: 'src-ts/index.ts', fn: stripTypeScript },
+    { file: 'src-ts/listeners.ts', fn: stripTypeScript },
+    { file: 'src/table.rs', fn: stripRust },
+    { file: 'src/edit.rs', fn: stripRust },
+  ];
 
-for (const { file, fn } of targets) {
-  const full = path.join(root, file);
-  const before = fs.readFileSync(full, 'utf8');
-  const after = fn(before);
-  fs.writeFileSync(full, after);
-  console.log(`${file}: ${before.split('\n').length - after.split('\n').length} lines removed`);
+  for (const { file, fn } of targets) {
+    const full = path.join(root, file);
+    const before = fs.readFileSync(full, 'utf8');
+    const after = fn(before);
+    fs.writeFileSync(full, after);
+    console.log(`${file}: ${before.split('\n').length - after.split('\n').length} lines removed`);
+  }
 }
