@@ -116,6 +116,37 @@ export function parseCellReference(reference) {
         return null;
     return { row, col };
 }
+const VALIDATION_TOOLTIP_BODY_STYLE = 'background: #dc3545; color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; max-width: 250px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);';
+/**
+ * 検証エラーツールチップの DOM を安全に構築（message は textContent で挿入）
+ */
+export function buildValidationTooltipContent(message, options) {
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'relative';
+    const body = document.createElement('div');
+    body.style.cssText = VALIDATION_TOOLTIP_BODY_STYLE;
+    body.textContent = message;
+    const arrow = document.createElement('div');
+    arrow.style.position = 'absolute';
+    arrow.style.width = '0';
+    arrow.style.height = '0';
+    arrow.style.borderLeft = '6px solid transparent';
+    arrow.style.borderRight = '6px solid transparent';
+    arrow.style.left = `${options.arrowOffset}px`;
+    if (options.isBelow) {
+        arrow.style.bottom = '100%';
+        arrow.style.borderBottom = '6px solid #dc3545';
+        wrapper.appendChild(arrow);
+        wrapper.appendChild(body);
+    }
+    else {
+        arrow.style.top = '100%';
+        arrow.style.borderTop = '6px solid #dc3545';
+        wrapper.appendChild(body);
+        wrapper.appendChild(arrow);
+    }
+    return wrapper;
+}
 /**
  * キーボードショートカットのヘルパー
  */

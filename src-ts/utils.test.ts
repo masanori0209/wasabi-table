@@ -1,6 +1,9 @@
+/**
+ * @vitest-environment happy-dom
+ */
 import { describe, expect, it } from 'vitest';
 import { getCellReference, getColumnName, getSelectionReference } from './types';
-import { isKeyboardShortcut, parseCellReference } from './utils';
+import { buildValidationTooltipContent, isKeyboardShortcut, parseCellReference } from './utils';
 
 describe('parseCellReference', () => {
   it('parses uppercase references', () => {
@@ -52,6 +55,24 @@ describe('types helpers', () => {
         cell_count: 1,
       })
     ).toBe('A1');
+  });
+});
+
+describe('buildValidationTooltipContent', () => {
+  it('renders message as text, not HTML', () => {
+    const malicious = '<img src=x onerror="alert(1)">';
+    const tooltip = buildValidationTooltipContent(malicious, { isBelow: false, arrowOffset: 20 });
+    const body = tooltip.querySelector('div');
+
+    expect(body?.textContent).toBe(malicious);
+    expect(body?.innerHTML).not.toContain('<img');
+    expect(tooltip.querySelector('img')).toBeNull();
+  });
+
+  it('places arrow above body when isBelow is true', () => {
+    const tooltip = buildValidationTooltipContent('error', { isBelow: true, arrowOffset: 30 });
+    expect(tooltip.children.length).toBe(2);
+    expect(tooltip.children[0].style.borderBottom).toContain('6px');
   });
 });
 

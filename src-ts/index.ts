@@ -83,6 +83,7 @@ import {
 } from './filter-sort';
 import { HeaderDialogController } from './header-dialog';
 import { UndoStack, type CellChange } from './undo-stack';
+import { buildValidationTooltipContent } from './utils';
 export {
   applyFilters as applyFilterSort,
   createFilterSortState,
@@ -792,16 +793,6 @@ export class WasabiTable {
       const absoluteX = canvasRect.left + cellScreenPos.centerX;
       const absoluteY = canvasRect.top + cellScreenPos.y;
       
-      // 吹き出しの内容を設定
-      this.tooltipElement.innerHTML = `
-        <div style="position: relative;">
-          <div style="background: #dc3545; color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; max-width: 250px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-            ${message}
-          </div>
-          <div style="position: absolute; top: 100%; left: 20px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #dc3545;"></div>
-        </div>
-      `;
-      
       // 位置を設定
       const tooltipWidth = 250;
       const tooltipHeight = 60;
@@ -823,27 +814,8 @@ export class WasabiTable {
       // 矢印の位置を調整
       const arrowOffset = Math.max(20, Math.min(tooltipWidth - 20, absoluteX - tooltipX));
       
-      if (isBelow) {
-        // セルの下に表示する場合は矢印を上向きに
-        this.tooltipElement.innerHTML = `
-          <div style="position: relative;">
-            <div style="position: absolute; bottom: 100%; left: ${arrowOffset}px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 6px solid #dc3545;"></div>
-            <div style="background: #dc3545; color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; max-width: 250px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-              ${message}
-            </div>
-          </div>
-        `;
-      } else {
-        // セルの上に表示する場合は矢印を下向きに
-        this.tooltipElement.innerHTML = `
-          <div style="position: relative;">
-            <div style="background: #dc3545; color: white; padding: 8px 12px; border-radius: 6px; font-size: 12px; max-width: 250px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-              ${message}
-            </div>
-            <div style="position: absolute; top: 100%; left: ${arrowOffset}px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #dc3545;"></div>
-          </div>
-        `;
-      }
+      const tooltipContent = buildValidationTooltipContent(message, { isBelow, arrowOffset });
+      this.tooltipElement.replaceChildren(tooltipContent);
       
       this.tooltipElement.style.left = tooltipX + 'px';
       this.tooltipElement.style.top = tooltipY + 'px';

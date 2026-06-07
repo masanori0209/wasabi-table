@@ -33,6 +33,13 @@ export declare function parseCellReference(reference: string): {
     col: number;
 } | null;
 /**
+ * 検証エラーツールチップの DOM を安全に構築（message は textContent で挿入）
+ */
+export declare function buildValidationTooltipContent(message: string, options: {
+    isBelow: boolean;
+    arrowOffset: number;
+}): HTMLDivElement;
+/**
  * キーボードショートカットのヘルパー
  */
 export declare function isKeyboardShortcut(event: KeyboardEvent, shortcut: string): boolean;
