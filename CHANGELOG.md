@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-07
+
+### Fixed
+- Cell click and drag selection no longer double-fire or clear selection on single click
+- Formula bar and cell reference stay in sync after canvas interactions
+- Edit cycle keyboard bugs: focus no longer stolen during inline editing
+- Arrow keys while editing now commit the value and move to the adjacent cell (Excel-like)
+- Stale inline edit overlays are removed when starting a new edit
+- Formula bar arrow/Enter navigation stays in sync with the table
+
 ## [0.1.1] - 2026-06-07
 
 ### Added
@@ -37,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.2
 [0.1.1]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.1
 [0.1.0]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.0
