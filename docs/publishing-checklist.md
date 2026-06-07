@@ -22,12 +22,14 @@ Private → Public 化および npm 初回公開前に確認する項目です�
 - [ ] GitHub リポジトリを Public に変更
 - [ ] npm 組織・アカウントの 2FA 有効化
 - [ ] `NPM_TOKEN` を GitHub Secrets に登録
-- [ ] 公開 CI/CD ワークフロー有効化（#8）
+- [x] 公開 CI/CD ワークフロー追加（`.github/workflows/release.yml`）
+- [ ] `NPM_TOKEN` 登録後にタグ `v0.1.0` で初回 publish
 - [ ] 初回タグ `v0.1.0` 作成と GitHub Release
 
 ## Phase 3: 公開後
 
-- [ ] README のデモ URL 更新（#9）
+- [x] README・getting-started にデモ URL を追記
+- [ ] GitHub Pages を有効化（Settings → Pages → GitHub Actions）
 - [ ] npm ページの説明文・キーワード確認
 - [ ] Issue テンプレート・CONTRIBUTING.md（任意）
 

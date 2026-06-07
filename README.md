@@ -77,6 +77,9 @@ const { table, listeners } = await createWasabiTableWithListeners(
 
 ### ライブデモ
 
+- **公開デモ**（main ブランチ push 後）: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html
+- **ローカル**:
+
 ```bash
 npm run build
 npm run serve

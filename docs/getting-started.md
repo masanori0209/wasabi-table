@@ -1,6 +1,23 @@
 # Getting Started
 
-## 1. ビルド
+## npm からインストール（公開後）
+
+```bash
+npm install wasabi-table
+```
+
+```typescript
+import { WasabiTable } from 'wasabi-table';
+
+const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
+const table = await WasabiTable.create(canvas);
+```
+
+**ライブデモ**: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html
+
+## リポジトリからのビルド
+
+### 1. ビルド
 
 ```bash
 npm install
