@@ -62,11 +62,22 @@ export class WasabiTableListeners {
   private setupFormulaBarListeners(): void {
     const { formulaInput } = this.uiElements;
 
-    // Enter キー処理
     formulaInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         this.handleFormulaEnter();
+        return;
+      }
+
+      if (
+        ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) &&
+        !e.shiftKey &&
+        !this.table.isEditing?.()
+      ) {
+        e.preventDefault();
+        this.table.navigateSelectedCell?.(e.key);
+        this.updateCellReference();
+        this.table.focusCanvas?.();
       }
     });
 
@@ -101,7 +112,10 @@ export class WasabiTableListeners {
       onCellSelect: (position: CellPosition) => {
         this.updateCellReference();
         this.updateStats();
-        this.focusCanvas();
+        // インライン編集中にキャンバスへフォーカスを奪うとキー操作が壊れる
+        if (!this.table.isEditing?.()) {
+          this.focusCanvas();
+        }
         const reference = getSelectionReference(this.table.getSelectionInfo());
         this.callbacks.onCellReferenceUpdate?.(reference);
       },
@@ -129,6 +143,11 @@ export class WasabiTableListeners {
   private handleFormulaEnter(): void {
     const selectedCell = this.table.getSelectedCell();
     if (!selectedCell) return;
+
+    // インライン編集オーバーレイが残っている場合は先に確定する
+    if (this.table.isEditing?.()) {
+      this.table.finishEditing?.();
+    }
 
     const value = this.uiElements.formulaInput.value;
 
@@ -163,6 +182,7 @@ export class WasabiTableListeners {
       this.table.render();
       this.updateCellReference();
     }
+    this.table.focusCanvas?.();
   }
 
   /**
@@ -312,13 +332,8 @@ export class WasabiTableListeners {
    */
   private focusCanvas(): void {
     if (!this.options.autoFocusCanvas) return;
-
-    setTimeout(() => {
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        canvas.focus();
-      }
-    }, 10);
+    if (this.table.isEditing?.()) return;
+    this.table.focusCanvas?.();
   }
 
   /**

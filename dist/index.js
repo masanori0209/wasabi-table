@@ -299,6 +299,9 @@ export class WasabiTable {
      */
     selectCell(row, col, autoScroll = true) {
         this.ensureInitialized();
+        if (this.isEditing()) {
+            this.finishEditing();
+        }
         // 直接行・列番号でセルを選択する方法を使用
         // 座標計算に依存せず、Rust側のselect_cell_by_positionメソッドを使用
         const result = this.wasmTable.select_cell_by_position(row, col);
@@ -435,10 +438,29 @@ export class WasabiTable {
     finishEditing() {
         this.ensureInitialized();
         this.wasmTable.finish_editing();
+        this.focusCanvas();
         // 編集完了後に検証エラーを更新
         setTimeout(() => {
             this.updateValidationTooltip();
         }, 100);
+    }
+    /**
+     * キャンバスにフォーカスを戻す
+     */
+    focusCanvas() {
+        this.canvas.focus();
+    }
+    /**
+     * 矢印キーで選択セルを移動（数式バーからの操作にも使用）
+     */
+    navigateSelectedCell(key) {
+        this.ensureInitialized();
+        if (this.isEditing()) {
+            this.finishEditing();
+        }
+        this.syncActiveFormulaBarValue();
+        this.clearSelection();
+        this.handleArrowKey(key);
     }
     /**
      * 編集をキャンセル
@@ -867,7 +889,10 @@ export class WasabiTable {
         }, { passive: false });
         // 統一されたキーボードイベント処理
         document.addEventListener('keydown', (event) => {
-            // 編集中の場合は通常のキーイベントを無視（編集フィールドが処理する）
+            if (this.isComposing) {
+                return;
+            }
+            // 編集中の処理
             if (this.isEditing()) {
                 // 編集中のTabキーは特別に処理（ブラウザのデフォルト動作を完全に阻止）
                 if (event.key === 'Tab') {
@@ -875,32 +900,34 @@ export class WasabiTable {
                     event.stopPropagation();
                     event.stopImmediatePropagation();
                 }
-                // 編集中の矢印キーは入力フィールド内でのカーソル移動として処理
-                // ドキュメントレベルでは何もしない（入力フィールドが処理する）
-                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-                    return; // 入力フィールドのデフォルト動作を許可
+                // Excel風: 矢印キーで編集を確定して隣のセルへ移動
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key) && !event.shiftKey) {
+                    event.preventDefault();
+                    this.finishEditing();
+                    this.syncActiveFormulaBarValue();
+                    this.clearSelection();
+                    this.handleArrowKey(event.key);
+                    return;
                 }
                 // Delete/Backspaceキーの範囲選択対応
                 if (event.key === 'Delete' || event.key === 'Backspace') {
                     const selectionInfo = this.getSelectionInfo();
                     if (selectionInfo && selectionInfo.isRange) {
-                        // 範囲選択の全セルをクリア（Rustで処理）
                         this.wasmTable.handle_canvas_keydown(event.key);
                         this.render();
                         event.preventDefault();
                         return;
                     }
                 }
+                // フォーカスがオーバーレイから外れた場合は戻す（onCellSelect 等で奪われることがある）
+                this.refocusEditingInputIfNeeded();
                 return;
             }
-            // フォーカス状態の詳細デバッグ
-            // キャンバスがフォーカスされていない場合は無視
-            if (this.canvas !== document.activeElement) {
+            // キャンバス・数式バーからのテーブル操作のみ受け付ける
+            if (!this.isTableNavigationTarget()) {
                 return;
             }
-            if (this.isComposing) {
-                return;
-            }
+            this.syncActiveFormulaBarValue();
             const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
             const cmdKey = isMac ? event.metaKey : event.ctrlKey;
             // キーボードショートカット（Ctrl/Cmd + キー）
@@ -926,8 +953,8 @@ export class WasabiTable {
                 event.preventDefault();
                 return;
             }
-            // Enterキーで編集開始
-            if (event.key === 'Enter' && !this.isEditing()) {
+            // Enterキーで編集開始（数式バーは listeners 側で処理）
+            if (event.key === 'Enter' && !this.isEditing() && document.activeElement !== this.getFormulaInputElement()) {
                 const selectedCell = this.getSelectedCell();
                 if (selectedCell) {
                     this.startEditing(selectedCell.row, selectedCell.col);
@@ -980,11 +1007,7 @@ export class WasabiTable {
         window.handleEditingEnter = () => {
             try {
                 this.wasmTable.handle_editing_enter();
-                // レンダリングはRust側で実行されるため削除
-                // キャンバスにフォーカスを確実に戻す
-                setTimeout(() => {
-                    this.canvas.focus();
-                }, 10);
+                this.focusCanvas();
                 this.triggerCellSelectEvent();
             }
             catch (error) {
@@ -994,11 +1017,7 @@ export class WasabiTable {
         window.handleEditingTab = () => {
             try {
                 this.wasmTable.handle_editing_tab();
-                // レンダリングはRust側で実行されるため削除
-                // キャンバスにフォーカスを確実に戻す
-                setTimeout(() => {
-                    this.canvas.focus();
-                }, 10);
+                this.focusCanvas();
                 this.triggerCellSelectEvent();
             }
             catch (error) {
@@ -1007,19 +1026,44 @@ export class WasabiTable {
         };
         window.handleEditingEscape = () => {
             try {
-                // handle_editing_escapeを呼び出す（cancel_editingではなく）
                 this.wasmTable.handle_editing_escape();
-                // レンダリングはRust側で実行されるため削除
-                // キャンバスにフォーカスを確実に戻す
-                setTimeout(() => {
-                    this.canvas.focus();
-                }, 10);
+                this.focusCanvas();
                 this.triggerCellSelectEvent();
             }
             catch (error) {
                 console.error('Error handling editing Escape:', error);
             }
         };
+    }
+    getFormulaInputElement() {
+        return document.getElementById('formulaInput');
+    }
+    isTableNavigationTarget() {
+        const active = document.activeElement;
+        if (!active)
+            return false;
+        if (active === this.canvas)
+            return true;
+        if (active instanceof HTMLElement && active.dataset.wasabiEditing === 'true')
+            return true;
+        if (active === this.getFormulaInputElement())
+            return true;
+        return false;
+    }
+    refocusEditingInputIfNeeded() {
+        const input = document.querySelector('[data-wasabi-editing="true"]');
+        if (input && document.activeElement !== input) {
+            input.focus();
+        }
+    }
+    syncActiveFormulaBarValue() {
+        const formulaInput = this.getFormulaInputElement();
+        if (!formulaInput || document.activeElement !== formulaInput)
+            return;
+        const selectedCell = this.getSelectedCell();
+        if (!selectedCell)
+            return;
+        this.setCellValue(selectedCell.row, selectedCell.col, formulaInput.value);
     }
     triggerCellSelectEvent() {
         // 検証エラー吹き出しを更新

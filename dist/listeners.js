@@ -34,11 +34,20 @@ export class WasabiTableListeners {
      */
     setupFormulaBarListeners() {
         const { formulaInput } = this.uiElements;
-        // Enter キー処理
         formulaInput.addEventListener('keydown', (e) => {
+            var _a, _b, _c, _d, _e, _f;
             if (e.key === 'Enter') {
                 e.preventDefault();
                 this.handleFormulaEnter();
+                return;
+            }
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) &&
+                !e.shiftKey &&
+                !((_b = (_a = this.table).isEditing) === null || _b === void 0 ? void 0 : _b.call(_a))) {
+                e.preventDefault();
+                (_d = (_c = this.table).navigateSelectedCell) === null || _d === void 0 ? void 0 : _d.call(_c, e.key);
+                this.updateCellReference();
+                (_f = (_e = this.table).focusCanvas) === null || _f === void 0 ? void 0 : _f.call(_e);
             }
         });
         // リアルタイム検証
@@ -67,12 +76,15 @@ export class WasabiTableListeners {
     setupTableEventHandlers() {
         this.table.setEventHandlers({
             onCellSelect: (position) => {
-                var _a, _b;
+                var _a, _b, _c, _d;
                 this.updateCellReference();
                 this.updateStats();
-                this.focusCanvas();
+                // インライン編集中にキャンバスへフォーカスを奪うとキー操作が壊れる
+                if (!((_b = (_a = this.table).isEditing) === null || _b === void 0 ? void 0 : _b.call(_a))) {
+                    this.focusCanvas();
+                }
                 const reference = getSelectionReference(this.table.getSelectionInfo());
-                (_b = (_a = this.callbacks).onCellReferenceUpdate) === null || _b === void 0 ? void 0 : _b.call(_a, reference);
+                (_d = (_c = this.callbacks).onCellReferenceUpdate) === null || _d === void 0 ? void 0 : _d.call(_c, reference);
             },
             onNotification: (message, type) => {
                 var _a, _b;
@@ -95,9 +107,14 @@ export class WasabiTableListeners {
      * フォーミュラバーのEnter処理
      */
     handleFormulaEnter() {
+        var _a, _b, _c, _d, _e, _f;
         const selectedCell = this.table.getSelectedCell();
         if (!selectedCell)
             return;
+        // インライン編集オーバーレイが残っている場合は先に確定する
+        if ((_b = (_a = this.table).isEditing) === null || _b === void 0 ? void 0 : _b.call(_a)) {
+            (_d = (_c = this.table).finishEditing) === null || _d === void 0 ? void 0 : _d.call(_c);
+        }
         const value = this.uiElements.formulaInput.value;
         try {
             if (this.options.enableValidation) {
@@ -126,6 +143,7 @@ export class WasabiTableListeners {
             this.table.render();
             this.updateCellReference();
         }
+        (_f = (_e = this.table).focusCanvas) === null || _f === void 0 ? void 0 : _f.call(_e);
     }
     /**
      * フォーミュラバーの入力処理（リアルタイム検証）
@@ -261,14 +279,12 @@ export class WasabiTableListeners {
      * キャンバスにフォーカスを設定
      */
     focusCanvas() {
+        var _a, _b, _c, _d;
         if (!this.options.autoFocusCanvas)
             return;
-        setTimeout(() => {
-            const canvas = document.querySelector('canvas');
-            if (canvas) {
-                canvas.focus();
-            }
-        }, 10);
+        if ((_b = (_a = this.table).isEditing) === null || _b === void 0 ? void 0 : _b.call(_a))
+            return;
+        (_d = (_c = this.table).focusCanvas) === null || _d === void 0 ? void 0 : _d.call(_c);
     }
     /**
      * セル参照・統計表示を手動更新（プログラムから値を変更した後など）

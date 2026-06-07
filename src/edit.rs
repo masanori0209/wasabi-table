@@ -14,6 +14,8 @@ impl Editable for crate::table::WasabiTable {
             self.stop_editing()?;
         }
 
+        Self::remove_stale_editing_inputs();
+
         let input = self.create_editing_input(row, col)?;
         let current_value = self.get_cell_data(row, col).unwrap_or_default();
         input.set_value(&current_value);
@@ -47,6 +49,19 @@ impl Editable for crate::table::WasabiTable {
 }
 
 impl crate::table::WasabiTable {
+    pub(crate) fn remove_stale_editing_inputs() {
+        let Some(document) = web_sys::window().and_then(|w| w.document()) else {
+            return;
+        };
+        while let Ok(Some(node)) = document.query_selector("[data-wasabi-editing=\"true\"]") {
+            if let Some(parent) = node.parent_node() {
+                let _ = parent.remove_child(&node);
+            } else {
+                break;
+            }
+        }
+    }
+
     pub fn create_editing_input(&self, row: usize, col: usize) -> Result<HtmlInputElement, JsValue> {
         let document = web_sys::window().unwrap().document().unwrap();
 

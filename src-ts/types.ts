@@ -264,6 +264,10 @@ export interface IWasabiTable {
   getSelectedCellValidationError(): string | undefined;
   getStats(): TableStats;
   getSelectionInfo(): SelectionInfo;
+  isEditing?(): boolean;
+  finishEditing?(): void;
+  focusCanvas?(): void;
+  navigateSelectedCell?(key: string): void;
   setKeyboardShortcutsEnabled?(enabled: boolean): void;
 }
 
