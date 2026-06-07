@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-07
+
+### Added
+- First npm publish via GitHub Actions
+
+## [0.1.0] - 2026-06-07
+
 ### Added
 - Undo/redo with toast notifications
 - Rectangular range selection (Shift+Arrow, mouse drag)
@@ -16,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI workflow (build + unit + Rust + E2E)
 - Filter/sort and header dialog modules
 - Dark theme support in demo
+- Initial public-ready package structure
+- Rust + WASM core with TypeScript wrapper
+- Canvas-based Excel-like table rendering
+- MIT License
 
 ### Security
 - Validation tooltip XSS fix (`textContent` instead of `innerHTML`)
@@ -26,13 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-## [0.1.0] - 2026-06-07
-
-### Added
-- Initial public-ready package structure
-- Rust + WASM core with TypeScript wrapper
-- Canvas-based Excel-like table rendering
-- MIT License
-
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.1
 [0.1.0]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.0
