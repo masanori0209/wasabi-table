@@ -13,13 +13,21 @@
   },
   "files": [
     "dist/",
-    "pkg/",
+    "pkg/wasabi_table.js",
+    "pkg/wasabi_table.d.ts",
+    "pkg/wasabi_table_bg.wasm",
+    "pkg/wasabi_table_bg.wasm.d.ts",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": [
+    "pkg/wasabi_table.js",
+    "dist/index.js"
   ],
   "scripts": {
-    "build": "wasm-pack build --target web --out-dir pkg && npm run build:ts && npm run fix-imports",
-    "build:wasm": "wasm-pack build --target web --out-dir pkg",
+    "build": "wasm-pack build --target web --out-dir pkg && rm -f pkg/.gitignore && npm run build:ts && npm run fix-imports",
+    "build:wasm": "wasm-pack build --target web --out-dir pkg && rm -f pkg/.gitignore",
     "build:ts": "tsc",
     "fix-imports": "node scripts/fix-imports.js",
     "dev": "node scripts/dev.mjs",

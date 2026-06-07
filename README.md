@@ -31,7 +31,15 @@ wasabi-table/
 - Rust 1.70+
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
 
-### インストール・ビルド
+### npm パッケージ（公開後）
+
+```bash
+npm install wasabi-table
+```
+
+**ブラウザ要件**: ES Modules 対応のモダンブラウザ（Chrome, Firefox, Safari, Edge 最新版）。Node.js 単体では動作しません（WASM + Canvas が必要）。
+
+### リポジトリからのビルド
 
 ```bash
 npm install
