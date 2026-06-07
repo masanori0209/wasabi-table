@@ -15,8 +15,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  # Private リポジトリ + GitHub Free では Pages が使えない（Public 化または Pro 以上が必要）
+  check-pages:
     if: github.repository == 'masanori0209/wasabi-table'
+    runs-on: ubuntu-latest
+    outputs:
+      can_deploy: ${{ steps.check.outputs.can_deploy }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event.repository.private }}" = "true" ]; then
+            echo "can_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub Pages は Private リポジトリでは現在のプランでは利用できません。Public 化または GitHub Pro で有効化できます。"
+          else
+            echo "can_deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: check-pages
+    if: needs.check-pages.outputs.can_deploy == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

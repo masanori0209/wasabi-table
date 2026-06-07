@@ -29,7 +29,9 @@ Private → Public 化および npm 初回公開前に確認する項目です�
 ## Phase 3: 公開後
 
 - [x] README・getting-started にデモ URL を追記
-- [ ] GitHub Pages を有効化（Settings → Pages → GitHub Actions）
+- [ ] GitHub Pages を有効化
+  - **Private + GitHub Free**: Pages **不可**（Public 化するか GitHub Pro 以上が必要）
+  - Public 化後: Settings → Pages → Source: **GitHub Actions**
 - [ ] npm ページの説明文・キーワード確認
 - [ ] Issue テンプレート・CONTRIBUTING.md（任意）
 
