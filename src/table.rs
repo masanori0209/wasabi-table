@@ -1652,6 +1652,8 @@ impl WasabiTable {
             self.finish_editing()?;
         }
 
+        Self::remove_stale_editing_inputs();
+
         let input = self.create_editing_input(row, col)?;
         input.set_value(initial_value);
         self.attach_editing_input_listeners(&input)?;

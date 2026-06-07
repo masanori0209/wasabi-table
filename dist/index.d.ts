@@ -142,6 +142,14 @@ export declare class WasabiTable {
      */
     finishEditing(): void;
     /**
+     * キャンバスにフォーカスを戻す
+     */
+    focusCanvas(): void;
+    /**
+     * 矢印キーで選択セルを移動（数式バーからの操作にも使用）
+     */
+    navigateSelectedCell(key: string): void;
+    /**
      * 編集をキャンセル
      */
     cancelEditing(): void;
@@ -251,6 +259,10 @@ export declare class WasabiTable {
      */
     static getCellReference(row: number, col: number): string;
     private setupEventHandlers;
+    private getFormulaInputElement;
+    private isTableNavigationTarget;
+    private refocusEditingInputIfNeeded;
+    private syncActiveFormulaBarValue;
     private triggerCellSelectEvent;
     private ensureInitialized;
     private createTooltipElement;
