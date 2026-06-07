@@ -19,7 +19,8 @@ Private → Public 化および npm 初回公開前に確認する項目です�
 
 ## Phase 2: 公開インフラ
 
-- [ ] GitHub リポジトリを Public に変更
+- [x] `main` ブランチ保護（CI `test` 必須、force push / 削除禁止、admin も適用）
+- [x] GitHub リポジトリを Public に変更
 - [ ] npm 組織・アカウントの 2FA 有効化
 - [ ] `NPM_TOKEN` を GitHub Secrets に登録
 - [x] 公開 CI/CD ワークフロー追加（`.github/workflows/release.yml`）
