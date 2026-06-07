@@ -239,7 +239,8 @@ export class WasabiTable {
     
     const table = new WasabiTable(wasmTable, finalConfig, canvas);
     table.isInitialized = true;
-    
+    table.updateCanvasSize();
+
     return table;
   }
 
@@ -914,33 +915,6 @@ export class WasabiTable {
     let hasActuallyDragged = false; // 実際にマウスが移動したかを追跡
     const suppressClickAfterDragMs = 400;
     
-    // グローバルハンドラー関数を設定
-    (window as any).handleTableClick = (x: number, y: number) => {
-      this.wasmTable.handle_canvas_click(x, y);
-      this.triggerCellSelectEvent();
-    };
-
-    (window as any).handleTableWheel = (deltaX: number, deltaY: number) => {
-      this.wasmTable.handle_canvas_wheel(deltaX, deltaY);
-      // スクロール時は吹き出しを一時的に非表示
-      this.hideValidationTooltip();
-
-      // スクロールバーの表示を更新
-      this.updateScrollbars();
-
-      const triggerRender = (window as any).triggerRender;
-      if (typeof triggerRender === 'function') {
-        triggerRender();
-      } else {
-        this.render();
-      }
-
-      // スクロール完了後に再表示
-      setTimeout(() => {
-        this.updateValidationTooltip();
-      }, 150);
-    };
-
     // handleTableKey関数は不要（Rustのkeydownリスナーを無効化したため）
     // 矢印キー以外のキーは直接handle_canvas_keydownを呼び出す
 
@@ -984,26 +958,21 @@ export class WasabiTable {
       } else {
         // 通常のクリックでは範囲選択をクリアしてから単一セル選択
         // Rustのhandle_canvas_clickで範囲選択クリアが処理されるため、clearSelectionは不要
-        const result = this.wasmTable.handle_canvas_click(x, y);
-        if (result !== undefined) {
-          this.triggerCellSelectEvent();
-          
-          // MenuFieldまたはCheckFieldセルの特別な処理
-          const cellPos = this.wasmTable.pixel_to_cell(x, y);
-          if (cellPos) {
-            const [row, col] = cellPos.split(':').map(Number);
-            const columnHeaders = this.getColumnHeadersAsArray();
-            
-            if (col < columnHeaders.length) {
-              const header = columnHeaders[col];
-              
-              if (header.field_type === FieldType.MenuField) {
-                // MenuFieldの場合はSelectBoxを表示
-                this.showMenuFieldSelectBox(row, col);
-              } else if (header.field_type === FieldType.CheckField || header.field_type === FieldType.BooleanField) {
-                // CheckFieldの場合はチェック状態を切り替え
-                this.toggleCheckField(row, col);
-              }
+        this.wasmTable.handle_canvas_click(x, y);
+        this.triggerCellSelectEvent();
+
+        const cellPos = this.wasmTable.pixel_to_cell(x, y);
+        if (cellPos) {
+          const [row, col] = cellPos.split(':').map(Number);
+          const columnHeaders = this.getColumnHeadersAsArray();
+
+          if (col < columnHeaders.length) {
+            const header = columnHeaders[col];
+
+            if (header.field_type === FieldType.MenuField) {
+              this.showMenuFieldSelectBox(row, col);
+            } else if (header.field_type === FieldType.CheckField || header.field_type === FieldType.BooleanField) {
+              this.toggleCheckField(row, col);
             }
           }
         }
@@ -1040,7 +1009,11 @@ export class WasabiTable {
       if (!cellPos) return;
 
       const [row, col] = cellPos.split(':').map(Number);
-      hasActuallyDragged = true;
+
+      if (!hasActuallyDragged && dragStartCell) {
+        this.startRangeSelection(dragStartCell.row, dragStartCell.col);
+        hasActuallyDragged = true;
+      }
 
       this.updateRangeSelection(row, col);
       this.render();
@@ -1056,8 +1029,6 @@ export class WasabiTable {
         this.endRangeSelection();
         this.triggerCellSelectEvent();
         dragEndedAt = Date.now();
-      } else {
-        this.clearSelection();
       }
 
       isDragging = false;
@@ -1109,13 +1080,27 @@ export class WasabiTable {
           dragStartCell = { row, col };
           hasActuallyDragged = false;
           isDragging = true;
-          this.startRangeSelection(row, col);
           document.addEventListener('mousemove', onDocumentMouseMove);
           document.addEventListener('mouseup', onDocumentMouseUp);
-          event.preventDefault();
         }
       }
     });
+
+    this.canvas.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      this.wasmTable.handle_canvas_wheel(event.deltaX, event.deltaY);
+      this.hideValidationTooltip();
+      this.updateScrollbars();
+      const triggerRender = (window as { triggerRender?: () => void }).triggerRender;
+      if (typeof triggerRender === 'function') {
+        triggerRender();
+      } else {
+        this.render();
+      }
+      setTimeout(() => {
+        this.updateValidationTooltip();
+      }, 150);
+    }, { passive: false });
 
     // 統一されたキーボードイベント処理
     document.addEventListener('keydown', (event) => {
@@ -1326,12 +1311,15 @@ export class WasabiTable {
     const parent = this.canvas.parentElement;
     if (!parent) return;
 
+    const displayWidth = this.canvas.clientWidth || this.canvas.getBoundingClientRect().width || this.canvas.width;
+    const displayHeight = this.canvas.clientHeight || this.canvas.getBoundingClientRect().height || this.canvas.height;
+
     // スクロールコンテナを作成
     this.scrollContainer = document.createElement('div');
     this.scrollContainer.style.cssText = `
       position: relative;
-      width: ${this.canvas.width}px;
-      height: ${this.canvas.height}px;
+      width: ${displayWidth}px;
+      height: ${displayHeight}px;
       overflow: hidden;
     `;
 

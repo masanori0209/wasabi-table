@@ -83,8 +83,18 @@ impl WasabiTable {
             .unwrap()
             .dyn_into::<CanvasRenderingContext2d>()?;
 
-        let canvas_width = canvas.width() as f64;
-        let canvas_height = canvas.height() as f64;
+        // 論理ピクセル（CSS サイズ）を使用。マウス座標と描画座標系を一致させる
+        let rect = canvas.get_bounding_client_rect();
+        let canvas_width = if rect.width() > 0.0 {
+            rect.width()
+        } else {
+            canvas.width() as f64
+        };
+        let canvas_height = if rect.height() > 0.0 {
+            rect.height()
+        } else {
+            canvas.height() as f64
+        };
 
         let mut table = WasabiTable {
             canvas: canvas.clone(),
@@ -130,66 +140,12 @@ impl WasabiTable {
     
     // Rust側でイベントリスナーを設定（簡素化版）
     fn setup_event_listeners(&mut self) -> Result<(), JsValue> {
-        use wasm_bindgen::closure::Closure;
-        use wasm_bindgen::JsCast;
-        
         // キャンバスをフォーカス可能にする
         self.canvas.set_attribute("tabindex", "0")?;
         self.canvas.focus()?;
         
-        // クリックイベント - 座標のみ記録
-        {
-            let click_closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-                let target = event.target().unwrap();
-                let canvas: web_sys::HtmlCanvasElement = target.dyn_into().unwrap();
-                let rect = canvas.get_bounding_client_rect();
-                let x = event.client_x() as f64 - rect.left();
-                let y = event.client_y() as f64 - rect.top();
-                
-                
-                // グローバル関数を呼び出してテーブルを更新
-                if let Some(window) = web_sys::window() {
-                    if let Some(handle_click) = window.get("handleTableClick") {
-                        let js_value: wasm_bindgen::JsValue = handle_click.into();
-                        if let Ok(function) = js_value.dyn_into::<js_sys::Function>() {
-                            let args = js_sys::Array::new();
-                            args.push(&wasm_bindgen::JsValue::from_f64(x));
-                            args.push(&wasm_bindgen::JsValue::from_f64(y));
-                            let _ = function.apply(&window, &args);
-                        }
-                    }
-                }
-            }) as Box<dyn FnMut(_)>);
-            
-            self.canvas.add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
-            self._click_closure = Some(click_closure);
-        }
-        
-        // ホイールイベント
-        {
-            let wheel_closure = Closure::wrap(Box::new(move |event: web_sys::WheelEvent| {
-                event.prevent_default();
-                
-                
-                // グローバル関数を呼び出してスクロール
-                if let Some(window) = web_sys::window() {
-                    if let Some(handle_wheel) = window.get("handleTableWheel") {
-                        let js_value: wasm_bindgen::JsValue = handle_wheel.into();
-                        if let Ok(function) = js_value.dyn_into::<js_sys::Function>() {
-                            let args = js_sys::Array::new();
-                            args.push(&wasm_bindgen::JsValue::from_f64(event.delta_x()));
-                            args.push(&wasm_bindgen::JsValue::from_f64(event.delta_y()));
-                            let _ = function.apply(&window, &args);
-                        }
-                    }
-                }
-            }) as Box<dyn FnMut(_)>);
-            
-            self.canvas.add_event_listener_with_callback("wheel", wheel_closure.as_ref().unchecked_ref())?;
-            self._wheel_closure = Some(wheel_closure);
-        }
-        
-        // キーボードイベント処理はTypeScript側で統一的に処理するため、Rust側では登録しない
+        // クリック・ホイールは TypeScript 側で統一処理（二重発火を防ぐ）
+        // キーボードイベント処理も TypeScript 側で統一的に処理するため、Rust側では登録しない
         
         Ok(())
     }
