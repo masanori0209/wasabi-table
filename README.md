@@ -112,6 +112,12 @@ WASM を変更した場合は `npm run build:wasm` または `npm run build` を
 - [Core API](./docs/api-core.md)
 - [使用例](./examples/usage-examples.md)
 
+## セキュリティ
+
+- API キー・トークン・`.env` などの秘密情報は **リポジトリにコミットしない** でください
+- ローカル用の環境変数テンプレートは [`.env.example`](./.env.example) を参照
+- 脆弱性の報告は [GitHub Issues](https://github.com/masanori0209/wasabi-table/issues) からお願いします
+
 ## ライセンス
 
 [MIT](./LICENSE)

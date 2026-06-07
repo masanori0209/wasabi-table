@@ -4,3 +4,18 @@ node_modules
 playwright-report/
 test-results/
 pkg/
+
+# 環境変数・認証情報（誤コミット防止）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+.npmrc
+
+# ログ
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
