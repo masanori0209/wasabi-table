@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-06-09
+
+### Added
+- Records reference mode (`dataSource.records`) with viewport-only WASM sync for million-row arrays
+- `RecordsDataSource`, `generatePersonRecords`, and `CHEETAH_STYLE_COLUMNS` exports
+- Live performance benchmark page (`examples/npm-package/benchmark.html`) with EN/JA UI
+- Records action E2E coverage and benchmark smoke tests
+
+### Changed
+- Documentation and demo copy: replace ambiguous「統合版」wording with concrete API names
+
+### Fixed
+- Sparse-mode paste now records undo history so Ctrl+Z restores pre-paste cells
+- Records-mode editing, selection, cut/paste, and `dispose()` DOM cleanup
+- Benchmark init loop disposes tables between size trials
+
 ## [0.1.3] - 2026-06-07
 
 ### Added
@@ -56,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/masanori0209/wasabi-table/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.3
 [0.1.2]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.2
 [0.1.1]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.1
