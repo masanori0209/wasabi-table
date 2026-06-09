@@ -5,7 +5,7 @@ import {
 } from '../../dist/index.js';
 import { getLocale, t } from './benchmark-i18n.js';
 
-const PACKAGE_VERSION = '0.1.3';
+const PACKAGE_VERSION = '0.1.4';
 const GRID_SIZES = [
   { rows: 100, cols: 20 },
   { rows: 1000, cols: 20 },
