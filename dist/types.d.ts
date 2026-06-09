@@ -64,6 +64,8 @@ export interface EventHandlers {
     onCellChange?: (position: CellPosition, oldValue: string, newValue: string) => void;
     onNotification?: (message: string, type?: NotificationType) => void;
 }
+/** Width of the filter/sort control zone on the right edge of each column header (px). */
+export declare const HEADER_FILTER_CONTROL_WIDTH = 28;
 export declare const DEFAULT_CONFIG: TableConfig;
 export declare enum FieldType {
     CharField = "CharField",

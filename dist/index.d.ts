@@ -1,6 +1,6 @@
 import type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterResult, ListenerOptions, MenuFieldConfig, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, ValidationError, ValidationResult } from './types';
 export type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterOperator, FilterResult, ListenerOptions, MenuFieldConfig, MenuFieldOption, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, UIElements, ValidationError, ValidationResult, } from './types';
-export { DEFAULT_CONFIG, FieldType, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types';
+export { DEFAULT_CONFIG, FieldType, HEADER_FILTER_CONTROL_WIDTH, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types';
 export { getSelectionReference } from './types';
 export { WasabiTableListeners } from './listeners';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut, } from './utils';
@@ -318,6 +318,18 @@ export declare class WasabiTable {
      */
     endRangeSelection(): void;
     /**
+     * 列全体を選択
+     */
+    selectColumn(col: number): void;
+    /**
+     * 行全体を選択
+     */
+    selectRow(row: number): void;
+    /**
+     * シート全体を選択
+     */
+    selectAll(): void;
+    /**
      * 選択をクリア
      */
     clearSelection(): void;
@@ -525,9 +537,45 @@ export declare class WasabiTable {
      */
     getFilterResult(): FilterResult;
     /**
+     * 列ヘッダー内のクリックゾーン（E2E・テスト用、canvas 座標）
+     */
+    getColumnHeaderZones(columnIndex: number): {
+        select: {
+            x: number;
+            y: number;
+        };
+        filter: {
+            x: number;
+            y: number;
+        };
+        width: number;
+        hasFilterControl: boolean;
+    } | null;
+    /**
+     * 行ヘッダー内のクリックゾーン（canvas 座標）
+     */
+    getRowHeaderZone(dataRow: number): {
+        x: number;
+        y: number;
+    } | null;
+    /**
+     * 左上角（全選択）のクリックゾーン（canvas 座標）
+     */
+    getSelectAllCornerZone(): {
+        x: number;
+        y: number;
+    };
+    private getColumnWidthAt;
+    private getColumnHeaderLayout;
+    private isColumnFilterControlClick;
+    /**
      * X座標から列インデックスを取得
      */
     private getColumnIndexFromX;
+    /**
+     * Y座標からデータ行インデックスを取得
+     */
+    private getRowIndexFromY;
     /**
      * ヘッダークリック処理
      */

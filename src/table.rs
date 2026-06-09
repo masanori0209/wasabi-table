@@ -1121,8 +1121,36 @@ impl WasabiTable {
                     self.config.text_color.as_str()
                 };
                 self.ctx.set_fill_style_str(header_text_color);
-                
-                self.ctx.fill_text(&display_name, x + column_width / 2.0, self.config.header_height / 2.0)?;
+
+                let has_filter_control = self.get_column_header(col).is_some();
+                let label_center_x = if has_filter_control {
+                    x + (column_width - 28.0) / 2.0
+                } else {
+                    x + column_width / 2.0
+                };
+                self.ctx.fill_text(&display_name, label_center_x, self.config.header_height / 2.0)?;
+
+                if has_filter_control {
+                    let filter_x = x + column_width - 28.0;
+                    self.ctx.set_stroke_style_str(&self.config.grid_color);
+                    self.ctx.set_line_width(1.0);
+                    self.ctx.begin_path();
+                    self.ctx.move_to(filter_x, 2.0);
+                    self.ctx.line_to(filter_x, self.config.header_height - 2.0);
+                    self.ctx.stroke();
+
+                    let icon_cx = filter_x + 14.0;
+                    let icon_cy = self.config.header_height / 2.0;
+                    let icon_color = if self.is_column_header_active(col) {
+                        "#ffffff"
+                    } else {
+                        self.config.text_color.as_str()
+                    };
+                    self.ctx.set_fill_style_str(icon_color);
+                    self.ctx.set_font(&format!("{}px {}", self.config.font_size as i32 - 1, self.config.font_family));
+                    self.ctx.fill_text("▾", icon_cx, icon_cy + 1.0)?;
+                    self.ctx.set_font(&format!("bold {}px {}", self.config.font_size, self.config.font_family));
+                }
             }
         }
         
