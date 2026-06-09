@@ -84,6 +84,9 @@ export declare class WasabiTable {
     private notifyUser;
     private applyHistoryChanges;
     private pushUndoChanges;
+    private parseCellPosition;
+    private recordInlineEditUndoIfChanged;
+    private recordInlineEditUndoBeforeClickCommit;
     private collectRangeChanges;
     private parseTsv;
     private getPasteStartPosition;

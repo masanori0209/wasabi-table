@@ -373,6 +373,19 @@ impl WasabiTable {
     pub fn is_editing(&self) -> bool {
         self.editing_cell.is_some()
     }
+
+    /// 編集中のセル位置を取得（"row:col" 形式）
+    #[wasm_bindgen]
+    pub fn get_editing_cell(&self) -> Option<String> {
+        self.editing_cell
+            .map(|(row, col)| format!("{}:{}", row, col))
+    }
+
+    /// 編集中の入力フィールドの現在値を取得
+    #[wasm_bindgen]
+    pub fn get_editing_input_value(&self) -> Option<String> {
+        self.editing_input.as_ref().map(|input| input.value())
+    }
     
     // 選択されたセルの位置を取得
     #[wasm_bindgen]
