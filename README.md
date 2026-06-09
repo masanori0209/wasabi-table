@@ -1,5 +1,7 @@
 # Wasabi Table
 
+**English** | [日本語](./README.ja.md)
+
 A fast, lightweight Excel-like table component built with Rust and WebAssembly, rendered on Canvas.
 
 ## Project Structure
@@ -77,7 +79,7 @@ const { table, listeners } = await createWasabiTableWithListeners(
 
 ### Live Demo
 
-- **Online demo**: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html
+- **Online demo**: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html (`?lang=en` / `?lang=ja`)
 - **Local**:
 
 ```bash
@@ -119,10 +121,10 @@ Re-run `npm run build:wasm` or `npm run build` after changing Rust/WASM code.
 
 ## Documentation
 
-- [Getting Started](./docs/getting-started.md)
-- [Core API](./docs/api-core.md)
-- [npm Publishing Checklist](./docs/publishing-checklist.md)
-- [Usage Examples](./examples/usage-examples.md)
+- [Documentation index](./docs/README.md) (EN / JA)
+- [Getting Started](./docs/getting-started.md) · [はじめに](./docs/getting-started.ja.md)
+- [Core API](./docs/api-core.md) · [コア API](./docs/api-core.ja.md)
+- [Usage Examples](./examples/usage-examples.md) · [使用例](./examples/usage-examples.ja.md)
 
 ## Security
 

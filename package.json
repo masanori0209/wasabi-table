@@ -1,6 +1,6 @@
 {
   "name": "wasabi-table",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "High-performance Excel-like table component built with Rust and WebAssembly",
   "type": "module",
   "main": "dist/index.js",

@@ -1,8 +1,8 @@
-# Getting Started
+# はじめに
 
-[日本語](./getting-started.ja.md)
+[English](./getting-started.md)
 
-## Install from npm
+## npm からインストール（公開後）
 
 ```bash
 npm install wasabi-table
@@ -15,19 +15,20 @@ const canvas = document.getElementById('myCanvas') as HTMLCanvasElement;
 const table = await WasabiTable.create(canvas);
 ```
 
-**Live demo**: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html  
-(Add `?lang=en` or `?lang=ja` to switch UI language.)
+**ライブデモ**: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html?lang=ja
 
-## Build from the repository
+## リポジトリからのビルド
+
+### 1. ビルド
 
 ```bash
 npm install
 npm run build
 ```
 
-This generates `pkg/` (WASM) and `dist/` (TypeScript). Run `npm run build` after cloning.
+`pkg/`（WASM）と `dist/`（TypeScript）が生成されます。clone 直後は `npm run build` が必須です。
 
-## Minimal HTML example
+## 2. 最小 HTML 例
 
 ```html
 <canvas id="table" width="800" height="600" tabindex="0"></canvas>
@@ -45,7 +46,7 @@ This generates `pkg/` (WASM) and `dist/` (TypeScript). Run `npm run build` after
 </script>
 ```
 
-## Integrated API (formula bar)
+## 3. 統合 API（数式バー付き）
 
 ```html
 <span id="cellRef">A1</span>
@@ -65,18 +66,18 @@ This generates `pkg/` (WASM) and `dist/` (TypeScript). Run `npm run build` after
 </script>
 ```
 
-## Local server
+## 4. ローカルサーバー
 
-ES module imports require an HTTP server:
+ES モジュールの import を解決するため HTTP サーバーが必要です。
 
 ```bash
 npm run serve
 # http://localhost:8501/examples/npm-package/index.html
 ```
 
-## Tests
+## 5. テスト
 
 ```bash
 npm run test:unit    # Vitest
-npm run test:e2e     # Playwright
+npm run test:e2e     # Playwright（録画・trace 対応）
 ```

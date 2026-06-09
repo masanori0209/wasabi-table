@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WasabiTable — Retro Data Grid Demo</title>
+    <title data-i18n="meta.title">WasabiTable — Retro Data Grid Demo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -23,13 +23,19 @@
                     <h1>WasabiTable</h1>
                 </div>
             </div>
-            <div class="status-panel" aria-label="system status">
-                <span class="status-item"><span class="led led--on"></span>SYS.ONLINE</span>
-                <span class="status-item"><span class="led led--pulse"></span>WASM.READY</span>
-                <span class="status-item"><span class="led"></span>GRID.IDLE</span>
+            <div class="header-actions">
+                <div class="lang-switch" data-testid="lang-switch" role="group" aria-label="Language">
+                    <button type="button" class="lang-btn" data-lang="en" data-i18n="lang.en">EN</button>
+                    <button type="button" class="lang-btn" data-lang="ja" data-i18n="lang.ja">日本語</button>
+                </div>
+                <div class="status-panel" aria-label="system status">
+                    <span class="status-item"><span class="led led--on"></span>SYS.ONLINE</span>
+                    <span class="status-item"><span class="led led--pulse"></span>WASM.READY</span>
+                    <span class="status-item"><span class="led"></span>GRID.IDLE</span>
+                </div>
             </div>
         </div>
-        <p class="page-header__subtitle">高性能 Excel 風テーブルコンポーネント</p>
+        <p class="page-header__subtitle" data-i18n="header.subtitle">High-performance Excel-like table component</p>
     </header>
 
     <div class="container">
@@ -39,7 +45,7 @@
             <div class="installation terminal-block">
                 <span class="terminal-prompt">root@wasabi:~$</span> npm install wasabi-table
             </div>
-            <p class="section-lead">TypeScript / JavaScript 両対応の高性能グリッド・ライブラリ</p>
+            <p class="section-lead" data-i18n="install.lead">High-performance grid library for TypeScript and JavaScript</p>
         </div>
 
         <!-- ライブデモ -->
@@ -53,7 +59,7 @@
                     <span id="cellReference" data-testid="cell-reference">A1</span>
                 </div>
                 <label class="formula-bar__label" for="formulaInput">DATA</label>
-                <input type="text" id="formulaInput" class="formula-input" placeholder="セルの内容を入力...">
+                <input type="text" id="formulaInput" class="formula-input" data-i18n-placeholder="formula.placeholder" placeholder="Enter cell value...">
             </div>
             
             <div class="table-container crt-frame">
@@ -66,19 +72,19 @@
                     <h3><img src="images/icon-chip.svg" alt="" class="section-icon" width="18" height="18"> GRID CONFIG</h3>
                     <div class="control-row">
                         <div class="control-group">
-                            <label for="rowCount">行数:</label>
+                            <label for="rowCount"><span data-i18n="label.rows">Rows</span>:</label>
                             <input type="number" id="rowCount" value="100" min="1" max="10000">
                         </div>
                         <div class="control-group">
-                            <label for="colCount">列数:</label>
+                            <label for="colCount"><span data-i18n="label.cols">Cols</span>:</label>
                             <input type="number" id="colCount" value="26" min="1" max="100">
                         </div>
                         <div class="control-group">
-                            <label for="colWidth">列幅:</label>
+                            <label for="colWidth"><span data-i18n="label.colWidth">Col width</span>:</label>
                             <input type="number" id="colWidth" value="100" min="50" max="500">
                         </div>
                         <div class="control-group">
-                            <label for="rowHeight">行高:</label>
+                            <label for="rowHeight"><span data-i18n="label.rowHeight">Row height</span>:</label>
                             <input type="number" id="rowHeight" value="25" min="20" max="100">
                         </div>
                     </div>
@@ -88,8 +94,8 @@
                     <h3><img src="images/icon-chip.svg" alt="" class="section-icon" width="18" height="18"> DATA OPS</h3>
                     <div class="control-row">
                         <div class="button-group">
-                            <button class="btn btn-primary" onclick="updateTableConfig()">設定更新</button>
-                            <button class="btn btn-success" onclick="loadSampleData()">サンプルデータ読み込み</button>
+                            <button class="btn btn-primary" data-testid="btn-update-config" onclick="updateTableConfig()" data-i18n="btn.updateConfig">Apply config</button>
+                            <button class="btn btn-success" data-testid="btn-load-sample" onclick="loadSampleData()" data-i18n="btn.loadSample">Load sample data</button>
                         </div>
                     </div>
                 </div>
@@ -98,12 +104,12 @@
                     <h3><img src="images/icon-chip.svg" alt="" class="section-icon" width="18" height="18"> FILTER / SORT</h3>
                     <div class="control-row">
                         <div class="button-group">
-                            <button class="btn btn-secondary" onclick="clearAllFilters()">全フィルタークリア</button>
-                            <button class="btn btn-primary" onclick="testFilterSort()">フィルター・ソートテスト</button>
+                            <button class="btn btn-secondary" data-testid="btn-clear-filters" onclick="clearAllFilters()" data-i18n="btn.clearFilters">Clear all filters</button>
+                            <button class="btn btn-primary" data-testid="btn-filter-sort-test" onclick="testFilterSort()" data-i18n="btn.filterSortTest">Filter & sort test</button>
                         </div>
                     </div>
                     <div class="control-row">
-                        <small>列ヘッダーをクリックすると、ソート・フィルターのダイアログが開きます</small>
+                        <small data-i18n="hint.filterHeader">Click a column header to open sort/filter dialog</small>
                     </div>
                 </div>
 
@@ -111,7 +117,7 @@
                     <h3><img src="images/icon-chip.svg" alt="" class="section-icon" width="18" height="18"> THEME BUS</h3>
                     <div class="control-row">
                         <div class="control-group">
-                            <label for="themeSelect">テーマ選択:</label>
+                            <label for="themeSelect"><span data-i18n="label.theme">Theme</span>:</label>
                             <select id="themeSelect" onchange="applySelectedTheme()">
                                 <option value="retro" selected>Retro Wasabi</option>
                                 <option value="light">Light</option>
@@ -119,16 +125,16 @@
                             </select>
                         </div>
                         <div class="button-group">
-                            <button class="btn btn-secondary" onclick="createCustomTheme()">カスタムテーマ作成</button>
-                            <button class="btn btn-primary" onclick="resetToDefaultTheme()">デフォルトに戻す</button>
+                            <button class="btn btn-secondary" data-testid="btn-custom-theme" onclick="createCustomTheme()" data-i18n="btn.customTheme">Create custom theme</button>
+                            <button class="btn btn-primary" data-testid="btn-reset-theme" onclick="resetToDefaultTheme()" data-i18n="btn.resetTheme">Reset default</button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- 統計情報 -->
-            <div id="stats" class="stats">
-                初期化中...
+            <div id="stats" class="stats" data-i18n="stats.init">
+                Initializing...
             </div>
 
             <!-- 検証エラー表示 -->
@@ -144,7 +150,7 @@
                 <button class="tab active" onclick="showTab('javascript')">JavaScript</button>
                 <button class="tab" onclick="showTab('typescript')">TypeScript</button>
                 <button class="tab" onclick="showTab('react')">React</button>
-                <button class="tab" onclick="showTab('headers')">ヘッダー設定</button>
+                <button class="tab" onclick="showTab('headers')" data-i18n="tab.headers">Headers</button>
             </div>
             <div id="javascript" class="tab-content active">
             </div>
@@ -162,27 +168,27 @@
             <div class="feature-grid">
                 <div class="feature-card">
                     <h3>▸ WASM RENDER</h3>
-                    <p>Rust + WebAssemblyによる最適化されたパフォーマンス。大規模データもスムーズに処理。</p>
+                    <p data-i18n="feature.wasm">Optimized performance with Rust + WebAssembly. Handles large datasets smoothly.</p>
                 </div>
                 <div class="feature-card">
                     <h3>▸ EXCEL UX</h3>
-                    <p>キーボードナビゲーション、セル編集、数式バーなど、Excelライクな操作感。</p>
+                    <p data-i18n="feature.excel">Keyboard navigation, cell editing, and formula bar with an Excel-like feel.</p>
                 </div>
                 <div class="feature-card">
                     <h3>▸ TYPESCRIPT</h3>
-                    <p>完全な型安全性とIntelliSenseサポート。JavaScript/TypeScript両方で利用可能。</p>
+                    <p data-i18n="feature.ts">Full type safety and IntelliSense. Works with JavaScript and TypeScript.</p>
                 </div>
                 <div class="feature-card">
                     <h3>▸ THEMES</h3>
-                    <p>豊富な設定オプションで、デザインや動作を自由にカスタマイズ。</p>
+                    <p data-i18n="feature.themes">Customize appearance and behavior with themes and config options.</p>
                 </div>
                 <div class="feature-card">
                     <h3>▸ RESPONSIVE</h3>
-                    <p>モダンブラウザ対応。WebAssemblyをサポートする環境で動作。</p>
+                    <p data-i18n="feature.responsive">Runs in modern browsers with WebAssembly support.</p>
                 </div>
                 <div class="feature-card">
                     <h3>▸ LIGHTWEIGHT</h3>
-                    <p>最小限の依存関係で、バンドルサイズを抑制。</p>
+                    <p data-i18n="feature.lightweight">Minimal dependencies and a compact bundle footprint.</p>
                 </div>
             </div>
         </div>
@@ -194,30 +200,30 @@
                 <div class="feature-card">
                     <h3>▸ KEYBOARD</h3>
                     <ul>
-                        <li><strong>矢印キー</strong>: セル移動</li>
-                        <li><strong>Enter</strong>: 編集開始 / 下のセルに移動</li>
-                        <li><strong>F2</strong>: 編集開始（既存値保持）</li>
-                        <li><strong>Tab</strong>: 右のセルに移動</li>
-                        <li><strong>Escape</strong>: 編集キャンセル</li>
-                        <li><strong>Delete/Backspace</strong>: セル内容削除</li>
-                        <li><strong>Ctrl+C / Cmd+C</strong>: コピー</li>
-                        <li><strong>Ctrl+X / Cmd+X</strong>: カット</li>
-                        <li><strong>Ctrl+V / Cmd+V</strong>: ペースト</li>
-                        <li><strong>Ctrl+Z / Cmd+Z</strong>: 元に戻す</li>
-                        <li><strong>Ctrl+Y / Cmd+Shift+Z</strong>: やり直し</li>
-                        <li><strong>Ctrl+A / Cmd+A</strong>: 全選択</li>
-                        <li><strong>Ctrl+矢印キー / Cmd+矢印キー</strong>: データの端まで移動（Excel風）</li>
-                        <li><strong>Shift+矢印キー</strong>: 範囲選択</li>
-                        <li><strong>Shift+Ctrl+矢印キー / Shift+Cmd+矢印キー</strong>: データの端まで範囲選択</li>
+                        <li data-i18n-html="kbd.arrows.html"><strong>Arrow keys</strong>: Move selection</li>
+                        <li data-i18n-html="kbd.enter.html"><strong>Enter</strong>: Start editing / move down</li>
+                        <li data-i18n-html="kbd.f2.html"><strong>F2</strong>: Edit (keep value)</li>
+                        <li data-i18n-html="kbd.tab.html"><strong>Tab</strong>: Move right</li>
+                        <li data-i18n-html="kbd.esc.html"><strong>Escape</strong>: Cancel edit</li>
+                        <li data-i18n-html="kbd.del.html"><strong>Delete/Backspace</strong>: Clear cell</li>
+                        <li data-i18n-html="kbd.copy.html"><strong>Ctrl+C / Cmd+C</strong>: Copy</li>
+                        <li data-i18n-html="kbd.cut.html"><strong>Ctrl+X / Cmd+X</strong>: Cut</li>
+                        <li data-i18n-html="kbd.paste.html"><strong>Ctrl+V / Cmd+V</strong>: Paste</li>
+                        <li data-i18n-html="kbd.undo.html"><strong>Ctrl+Z / Cmd+Z</strong>: Undo</li>
+                        <li data-i18n-html="kbd.redo.html"><strong>Ctrl+Y / Cmd+Shift+Z</strong>: Redo</li>
+                        <li data-i18n-html="kbd.selectAll.html"><strong>Ctrl+A / Cmd+A</strong>: Select all</li>
+                        <li data-i18n-html="kbd.jump.html"><strong>Ctrl+Arrow / Cmd+Arrow</strong>: Jump to data edge (Excel-style)</li>
+                        <li data-i18n-html="kbd.range.html"><strong>Shift+Arrow</strong>: Extend range selection</li>
+                        <li data-i18n-html="kbd.rangeJump.html"><strong>Shift+Ctrl+Arrow / Shift+Cmd+Arrow</strong>: Extend selection to data edge</li>
                     </ul>
                 </div>
                 <div class="feature-card">
                     <h3>▸ POINTER</h3>
                     <ul>
-                        <li><strong>クリック</strong>: セル選択</li>
-                        <li><strong>Shift+クリック&ドラッグ</strong>: 範囲選択</li>
-                        <li><strong>ホイール</strong>: スクロール</li>
-                        <li><strong>ダブルクリック</strong>: 編集開始（予定）</li>
+                        <li data-i18n-html="ptr.click.html"><strong>Click</strong>: Select cell</li>
+                        <li data-i18n-html="ptr.drag.html"><strong>Shift+click &amp; drag</strong>: Range selection</li>
+                        <li data-i18n-html="ptr.wheel.html"><strong>Wheel</strong>: Scroll</li>
+                        <li data-i18n-html="ptr.dblclick.html"><strong>Double-click</strong>: Start editing (planned)</li>
                     </ul>
                 </div>
             </div>
@@ -227,6 +233,9 @@
     <script src="./code-loader.js"></script>
     <script type="module">
         import { WasabiTable, createWasabiTableWithListeners } from '../../dist/index.js';
+        import { initI18n, formatStats, t, applyLocale } from './i18n.js';
+
+        initI18n();
 
         let table = null;
         let tableListeners = null;
@@ -282,7 +291,7 @@
         }
 
         function formatStatsSummary(stats) {
-            return `データ ${stats.dataCells} 件 | 表示 ${stats.visibleCells} セル | スクロール (${Math.round(stats.scrollX)}, ${Math.round(stats.scrollY)})`;
+            return formatStats(stats);
         }
 
         function refreshUI() {
@@ -384,7 +393,7 @@
                 refreshUI();
             } catch (error) {
                 console.error('Initialization error:', error);
-                statsElement.textContent = `初期化エラー: ${error.message}`;
+                statsElement.textContent = t('stats.error', { msg: error.message });
             }
         }
 
@@ -439,7 +448,8 @@
                 if (!customOption) {
                     customOption = document.createElement('option');
                     customOption.value = 'custom';
-                    customOption.textContent = 'カスタム';
+                    customOption.textContent = t('theme.custom');
+                    customOption.setAttribute('data-i18n', 'theme.custom');
                     themeSelect.appendChild(customOption);
                 }
                 themeSelect.value = 'custom';
@@ -630,7 +640,7 @@
             refreshUI();
 
             setTimeout(() => {
-                showToast('サンプルデータ 8件を読み込みました。列ヘッダーからフィルター・ソートを試せます。', 'success');
+                showToast(t('toast.sampleLoaded'), 'success');
             }, 100);
         };
 
@@ -739,10 +749,23 @@
 
             const filterResult = table.getFilterResult();
             showToast(
-                `フィルター・ソート適用: 開発部で絞り込み、氏名昇順（${filterResult.filteredCount}/${filterResult.totalRows}行）`,
+                t('toast.filterSort', {
+                    filtered: filterResult.filteredCount,
+                    total: filterResult.totalRows,
+                }),
                 'info'
             );
         };
+
+        window.addEventListener('wasabi-locale-change', () => {
+            if (table) {
+                statsElement.textContent = formatStatsSummary(table.getStats());
+            } else {
+                statsElement.textContent = t('stats.init');
+            }
+            const customOption = document.querySelector('#themeSelect option[value="custom"]');
+            if (customOption) customOption.textContent = t('theme.custom');
+        });
     </script>
 </body>
 </html>
