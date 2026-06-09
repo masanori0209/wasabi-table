@@ -80,6 +80,7 @@ const { table, listeners } = await createWasabiTableWithListeners(
 ### Live Demo
 
 - **Online demo**: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html (`?lang=en` / `?lang=ja`)
+- **Benchmarks**: https://masanori0209.github.io/wasabi-table/examples/npm-package/benchmark.html
 - **Local**:
 
 ```bash
