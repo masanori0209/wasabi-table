@@ -3,49 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WasabiTable NPM Package Example</title>
+    <title>WasabiTable — Retro Data Grid Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="images/wasabi-logo.svg" type="image/svg+xml">
 </head>
 <body>
+    <div class="crt-overlay" aria-hidden="true"></div>
     <div id="toastContainer" class="toast-container" data-testid="toast-container" aria-live="polite"></div>
-    <div class="header">
-        <h1>
-            <img src="images/wasabi.svg" alt="WasabiTable" style="width: 32px; height: 32px; vertical-align: middle; margin-right: 8px;">
-            WasabiTable
-        </h1>
-        <p>高性能なExcel風テーブルコンポーネント</p>
-    </div>
+    <header class="page-header header" data-testid="demo-header">
+        <div class="page-header__grid"></div>
+        <div class="page-header__inner">
+            <div class="brand">
+                <img src="images/wasabi-logo.svg" alt="" class="brand__logo" width="52" height="52">
+                <div class="brand__text">
+                    <p class="brand__eyebrow">WASABI DATA GRID // RETRO-80S BUILD</p>
+                    <h1>WasabiTable</h1>
+                </div>
+            </div>
+            <div class="status-panel" aria-label="system status">
+                <span class="status-item"><span class="led led--on"></span>SYS.ONLINE</span>
+                <span class="status-item"><span class="led led--pulse"></span>WASM.READY</span>
+                <span class="status-item"><span class="led"></span>GRID.IDLE</span>
+            </div>
+        </div>
+        <p class="page-header__subtitle">高性能 Excel 風テーブルコンポーネント</p>
+    </header>
 
     <div class="container">
         <!-- インストール方法 -->
-        <div class="demo-section">
-            <h2>📦 インストール</h2>
-            <div class="installation">
-                npm install wasabi-table
+        <div class="demo-section panel">
+            <h2 class="section-title"><span class="section-tag">MOD-00</span> INSTALL</h2>
+            <div class="installation terminal-block">
+                <span class="terminal-prompt">root@wasabi:~$</span> npm install wasabi-table
             </div>
-            <p>TypeScript/JavaScript両方で利用可能な高性能テーブルライブラリです。</p>
+            <p class="section-lead">TypeScript / JavaScript 両対応の高性能グリッド・ライブラリ</p>
         </div>
 
         <!-- ライブデモ -->
-        <div class="demo-section">
-            <h2>📊 WasabiTable デモ</h2>
+        <div class="demo-section panel demo-section--live" data-testid="demo-live-section">
+            <h2 class="section-title"><span class="section-tag">MOD-01</span> LIVE GRID</h2>
             
             <!-- 数式バー -->
-            <div class="formula-bar">
-                <div class="cell-reference">
+            <div class="formula-bar chassis-bar">
+                <label class="formula-bar__label" for="formulaInput">ADDR</label>
+                <div class="cell-reference led-display">
                     <span id="cellReference" data-testid="cell-reference">A1</span>
                 </div>
+                <label class="formula-bar__label" for="formulaInput">DATA</label>
                 <input type="text" id="formulaInput" class="formula-input" placeholder="セルの内容を入力...">
             </div>
             
-            <div class="table-container">
+            <div class="table-container crt-frame">
                 <canvas id="myCanvas" data-testid="wasabi-canvas"></canvas>
             </div>
 
             <!-- 操作パネル -->
-            <div class="controls">
+            <div class="controls control-deck">
                 <div class="controls-section">
-                    <h3>📊 テーブル設定</h3>
+                    <h3><img src="images/icon-chip.svg" alt="" class="section-icon" width="18" height="18"> GRID CONFIG</h3>
                     <div class="control-row">
                         <div class="control-group">
                             <label for="rowCount">行数:</label>
@@ -67,7 +85,7 @@
                 </div>
                 
                 <div class="controls-section">
-                    <h3>📊 データ操作</h3>
+                    <h3><img src="images/icon-chip.svg" alt="" class="section-icon" width="18" height="18"> DATA OPS</h3>
                     <div class="control-row">
                         <div class="button-group">
                             <button class="btn btn-primary" onclick="updateTableConfig()">設定更新</button>
@@ -77,7 +95,7 @@
                 </div>
 
                 <div class="controls-section">
-                    <h3>🔍 フィルター・ソート機能</h3>
+                    <h3><img src="images/icon-chip.svg" alt="" class="section-icon" width="18" height="18"> FILTER / SORT</h3>
                     <div class="control-row">
                         <div class="button-group">
                             <button class="btn btn-secondary" onclick="clearAllFilters()">全フィルタークリア</button>
@@ -90,12 +108,13 @@
                 </div>
 
                 <div class="controls-section">
-                    <h3>🎨 テーマ設定</h3>
+                    <h3><img src="images/icon-chip.svg" alt="" class="section-icon" width="18" height="18"> THEME BUS</h3>
                     <div class="control-row">
                         <div class="control-group">
                             <label for="themeSelect">テーマ選択:</label>
                             <select id="themeSelect" onchange="applySelectedTheme()">
-                                <option value="light">Light (デフォルト)</option>
+                                <option value="retro" selected>Retro Wasabi</option>
+                                <option value="light">Light</option>
                                 <option value="dark">Dark</option>
                             </select>
                         </div>
@@ -119,8 +138,8 @@
         </div>
 
         <!-- 使用方法 -->
-        <div class="demo-section">
-            <h2>💻 使用方法</h2>
+        <div class="demo-section panel">
+            <h2 class="section-title"><span class="section-tag">MOD-02</span> INTEGRATION</h2>
             <div class="tabs">
                 <button class="tab active" onclick="showTab('javascript')">JavaScript</button>
                 <button class="tab" onclick="showTab('typescript')">TypeScript</button>
@@ -138,42 +157,42 @@
         </div>
 
         <!-- 機能紹介 -->
-        <div class="demo-section">
-            <h2>✨ 主な機能</h2>
+        <div class="demo-section panel">
+            <h2 class="section-title"><span class="section-tag">MOD-03</span> FEATURES</h2>
             <div class="feature-grid">
                 <div class="feature-card">
-                    <h3>🚀 高性能レンダリング</h3>
+                    <h3>▸ WASM RENDER</h3>
                     <p>Rust + WebAssemblyによる最適化されたパフォーマンス。大規模データもスムーズに処理。</p>
                 </div>
                 <div class="feature-card">
-                    <h3>📊 Excel風操作</h3>
+                    <h3>▸ EXCEL UX</h3>
                     <p>キーボードナビゲーション、セル編集、数式バーなど、Excelライクな操作感。</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🎯 TypeScript対応</h3>
+                    <h3>▸ TYPESCRIPT</h3>
                     <p>完全な型安全性とIntelliSenseサポート。JavaScript/TypeScript両方で利用可能。</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🎨 カスタマイズ可能</h3>
+                    <h3>▸ THEMES</h3>
                     <p>豊富な設定オプションで、デザインや動作を自由にカスタマイズ。</p>
                 </div>
                 <div class="feature-card">
-                    <h3>📱 レスポンシブ</h3>
+                    <h3>▸ RESPONSIVE</h3>
                     <p>モダンブラウザ対応。WebAssemblyをサポートする環境で動作。</p>
                 </div>
                 <div class="feature-card">
-                    <h3>🪶 軽量</h3>
+                    <h3>▸ LIGHTWEIGHT</h3>
                     <p>最小限の依存関係で、バンドルサイズを抑制。</p>
                 </div>
             </div>
         </div>
 
         <!-- 操作方法 -->
-        <div class="demo-section">
-            <h2>🎮 操作方法</h2>
+        <div class="demo-section panel">
+            <h2 class="section-title"><span class="section-tag">MOD-04</span> CONTROLS</h2>
             <div class="feature-grid">
                 <div class="feature-card">
-                    <h3>⌨️ キーボード操作</h3>
+                    <h3>▸ KEYBOARD</h3>
                     <ul>
                         <li><strong>矢印キー</strong>: セル移動</li>
                         <li><strong>Enter</strong>: 編集開始 / 下のセルに移動</li>
@@ -193,7 +212,7 @@
                     </ul>
                 </div>
                 <div class="feature-card">
-                    <h3>🖱️ マウス操作</h3>
+                    <h3>▸ POINTER</h3>
                     <ul>
                         <li><strong>クリック</strong>: セル選択</li>
                         <li><strong>Shift+クリック&ドラッグ</strong>: 範囲選択</li>
@@ -247,8 +266,19 @@
             }, 3200);
         }
 
+        const RETRO_WASABI_THEME = () =>
+            WasabiTable.createCustomTheme('dark', {
+                background_color: '#0a100c',
+                text_color: '#b8f070',
+                grid_color: '#2a4030',
+                header_background_color: '#141f19',
+                selected_cell_color: '#7cb342',
+                range_selection_color: 'rgba(124, 179, 66, 0.28)',
+                editing_cell_color: '#9fda6c',
+            });
+
         function syncDemoTheme(theme) {
-            document.body.classList.toggle('theme-dark', theme === 'dark');
+            document.body.classList.toggle('theme-dark', theme === 'dark' || theme === 'retro');
         }
 
         function formatStatsSummary(stats) {
@@ -346,6 +376,10 @@
                     table.updateCanvasSize(initialSize.width, initialSize.height);
                 }
 
+                table.applyTheme(RETRO_WASABI_THEME());
+                syncDemoTheme('retro');
+                document.getElementById('themeSelect').value = 'retro';
+
                 table.render();
                 refreshUI();
             } catch (error) {
@@ -372,7 +406,11 @@
             const selectedTheme = themeSelect.value;
             
             try {
-                table.applyTheme(selectedTheme);
+                if (selectedTheme === 'retro') {
+                    table.applyTheme(RETRO_WASABI_THEME());
+                } else {
+                    table.applyTheme(selectedTheme);
+                }
                 syncDemoTheme(selectedTheme);
                 refreshUI();
             } catch (error) {
@@ -417,9 +455,9 @@
             if (!table) return;
             
             try {
-                table.applyTheme('light');
-                document.getElementById('themeSelect').value = 'light';
-                syncDemoTheme('light');
+                table.applyTheme(RETRO_WASABI_THEME());
+                document.getElementById('themeSelect').value = 'retro';
+                syncDemoTheme('retro');
                 refreshUI();
             } catch (error) {
                 console.error('❌ デフォルトテーマ適用エラー:', error);

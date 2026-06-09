@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="WasabiTable">
+  <defs>
+    <linearGradient id="wasabiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d4f5a8"/>
+      <stop offset="45%" stop-color="#8bc34a"/>
+      <stop offset="100%" stop-color="#33691e"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="4" fill="#0a1410" stroke="#5d8f3e" stroke-width="2"/>
+  <path d="M32 10 L38 22 L50 24 L40 34 L43 48 L32 40 L21 48 L24 34 L14 24 L26 22 Z" fill="url(#wasabiGrad)" filter="url(#glow)" opacity="0.95"/>
+  <rect x="28" y="44" width="8" height="10" rx="1" fill="#689f38"/>
+  <path d="M18 52 H46" stroke="#9fda6c" stroke-width="1.5" stroke-linecap="square"/>
+  <circle cx="12" cy="12" r="2" fill="#ff6f61"/>
+  <circle cx="52" cy="12" r="2" fill="#9fda6c"/>
+</svg>
