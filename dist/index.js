@@ -1,21 +1,21 @@
 import init, { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
-import { DEFAULT_CONFIG, FieldType, PREDEFINED_THEMES, getCellReference as cellReferenceFn, getColumnName as columnNameFn, } from './types';
-export { DEFAULT_CONFIG, FieldType, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types';
-export { getSelectionReference } from './types';
+import { DEFAULT_CONFIG, FieldType, PREDEFINED_THEMES, getCellReference as cellReferenceFn, getColumnName as columnNameFn, } from './types.js';
+export { DEFAULT_CONFIG, FieldType, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types.js';
+export { getSelectionReference } from './types.js';
 // --- 型定義は types.ts に集約 ---
-export { WasabiTableListeners } from './listeners';
-export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut, } from './utils';
-import { applyFilters as runFilterSort, createFilterSortState, getFilterResult as buildFilterResult, } from './filter-sort';
-import { HeaderDialogController } from './header-dialog';
-import { UndoStack } from './undo-stack';
-import { buildValidationTooltipContent } from './utils';
-export { applyFilters as applyFilterSort, createFilterSortState, getFilterResult as buildFilterResult, passesFilter, sortRows as sortRowsByCondition, } from './filter-sort';
+export { WasabiTableListeners } from './listeners.js';
+export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut, } from './utils.js';
+import { applyFilters as runFilterSort, createFilterSortState, getFilterResult as buildFilterResult, } from './filter-sort.js';
+import { HeaderDialogController } from './header-dialog.js';
+import { UndoStack } from './undo-stack.js';
+import { buildValidationTooltipContent } from './utils.js';
+export { applyFilters as applyFilterSort, createFilterSortState, getFilterResult as buildFilterResult, passesFilter, sortRows as sortRowsByCondition, } from './filter-sort.js';
 /**
  * WasabiTableとリスナーを簡単に初期化する関数
  */
 export async function createWasabiTableWithListeners(canvas, config = {}, uiConfig, listenerOptions, callbacks) {
-    const { createUIElements } = await import('./utils');
-    const { WasabiTableListeners } = await import('./listeners');
+    const { createUIElements } = await import('./utils.js');
+    const { WasabiTableListeners } = await import('./listeners.js');
     const table = await WasabiTable.create(canvas, config);
     const uiElements = createUIElements(uiConfig);
     const listeners = new WasabiTableListeners(table, uiElements, listenerOptions, callbacks);
@@ -2671,7 +2671,7 @@ export class WasabiTable {
         return this.headerDialogController;
     }
     /**
-     * ソート/フィルター用ヘッダーダイアログを表示
+     * 統合ヘッダーダイアログを表示
      */
     showHeaderDialog(columnIndex) {
         this.getHeaderDialogController().show(columnIndex);

@@ -1,4 +1,4 @@
-import { getSelectionReference } from './types';
+import { getSelectionReference } from './types.js';
 /**
  * WasabiTableのリスナー管理クラス
  */
