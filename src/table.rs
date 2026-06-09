@@ -19,6 +19,9 @@ pub struct WasabiTable {
     pub config: TableConfig,
     #[wasm_bindgen(skip)]
     pub data: HashMap<String, CellData>,
+    /// 行単位の一括データ（大量行バインド向け）
+    #[wasm_bindgen(skip)]
+    pub row_store: HashMap<usize, Vec<String>>,
     #[wasm_bindgen(skip)]
     pub selected_cell: Option<(usize, usize)>,
     #[wasm_bindgen(skip)]
@@ -101,6 +104,7 @@ impl WasabiTable {
             ctx,
             config,
             data: HashMap::new(),
+            row_store: HashMap::new(),
             selected_cell: Some((0, 0)), // 初期選択セル
             selected_range: None,
             is_selecting: false,
@@ -393,10 +397,31 @@ impl WasabiTable {
         self.selected_cell.map(|(row, col)| format!("{}:{}", row, col))
     }
 
+    fn stored_cell_value(&self, row: usize, col: usize) -> Option<String> {
+        if let Some(row_values) = self.row_store.get(&row) {
+            return row_values.get(col).cloned();
+        }
+        let key = format!("{}:{}", row, col);
+        self.data.get(&key).map(|cell| cell.value.clone())
+    }
+
+    fn stored_data_cell_count(&self) -> usize {
+        let row_cells: usize = self.row_store.values().map(|values| values.len()).sum();
+        self.data.len() + row_cells
+    }
+
     #[wasm_bindgen]
     pub fn set_cell_data(&mut self, row: usize, col: usize, value: String) -> Result<(), JsValue> {
         if row >= self.config.row_count || col >= self.config.col_count {
             return Err(JsValue::from_str("Row or column index out of bounds"));
+        }
+
+        if let Some(row_values) = self.row_store.get_mut(&row) {
+            if col < row_values.len() {
+                row_values[col] = value;
+                self.mark_render_dirty();
+                return Ok(());
+            }
         }
 
         // 検証を実行
@@ -454,8 +479,46 @@ impl WasabiTable {
 
     #[wasm_bindgen]
     pub fn get_cell_data(&self, row: usize, col: usize) -> Option<String> {
-        let key = format!("{}:{}", row, col);
-        self.data.get(&key).map(|cell| cell.value.clone())
+        self.stored_cell_value(row, col)
+    }
+
+    /// records モードのビューポート同期前に row_store をクリア
+    #[wasm_bindgen]
+    pub fn clear_row_store(&mut self) {
+        self.row_store.clear();
+        self.mark_render_dirty();
+    }
+
+    /// 行単位でセル値を一括設定（CheetahGrid records 相当の大量バインド向け）
+    #[wasm_bindgen]
+    pub fn set_row_batch(&mut self, json: &str) -> Result<(), JsValue> {
+        #[derive(serde::Deserialize)]
+        struct RowBatchPayload {
+            start_row: usize,
+            values: Vec<Vec<String>>,
+        }
+
+        let batch: RowBatchPayload = serde_json::from_str(json)
+            .map_err(|e| JsValue::from_str(&format!("Failed to parse row batch: {}", e)))?;
+
+        for (offset, row_values) in batch.values.into_iter().enumerate() {
+            let row = batch.start_row + offset;
+            if row >= self.config.row_count {
+                break;
+            }
+            if row_values.len() != self.config.col_count {
+                return Err(JsValue::from_str(&format!(
+                    "Row {} has {} values, expected {}",
+                    row,
+                    row_values.len(),
+                    self.config.col_count
+                )));
+            }
+            self.row_store.insert(row, row_values);
+        }
+
+        self.mark_render_dirty();
+        Ok(())
     }
 
     fn ensure_column_headers_capacity(&mut self, col: usize) {
@@ -746,7 +809,7 @@ impl WasabiTable {
         let stats = serde_json::json!({
             "totalCells": total_cells,
             "visibleCells": visible_cells,
-            "dataCells": self.data.len(),
+            "dataCells": self.stored_data_cell_count(),
             "scrollX": self.scroll_x,
             "scrollY": self.scroll_y,
             "visibleRows": {
@@ -1202,7 +1265,7 @@ impl WasabiTable {
 
         // セルの値を取得
         let key = format!("{}:{}", data_row, col);
-        let cell_value = self.data.get(&key).map(|data| data.value.clone()).unwrap_or_default();
+        let cell_value = self.stored_cell_value(data_row, col).unwrap_or_default();
         let has_validation_error = self.data.get(&key).and_then(|data| data.validation_error.as_ref()).is_some();
 
         // 条件付き書式を適用

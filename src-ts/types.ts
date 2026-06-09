@@ -38,6 +38,10 @@ export const PREDEFINED_THEMES: Record<PredefinedTheme, ThemeColors> = {
   },
 };
 
+export interface WasabiTableCreateOptions extends Partial<TableConfig> {
+  dataSource?: import('./records-data-source').RecordsDataSourceConfig;
+}
+
 export interface TableConfig {
   row_count: number;
   col_count: number;

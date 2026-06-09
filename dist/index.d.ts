@@ -1,14 +1,17 @@
-import type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterResult, ListenerOptions, MenuFieldConfig, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, ValidationError, ValidationResult } from './types';
-export type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterOperator, FilterResult, ListenerOptions, MenuFieldConfig, MenuFieldOption, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, UIElements, ValidationError, ValidationResult, } from './types';
+import type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterResult, ListenerOptions, MenuFieldConfig, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, ValidationError, ValidationResult, WasabiTableCreateOptions } from './types';
+export type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterOperator, FilterResult, ListenerOptions, MenuFieldConfig, MenuFieldOption, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, UIElements, ValidationError, ValidationResult, WasabiTableCreateOptions, } from './types';
 export { DEFAULT_CONFIG, FieldType, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types';
 export { getSelectionReference } from './types';
 export { WasabiTableListeners } from './listeners';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut, } from './utils';
+import { type RecordRow } from './records-data-source';
+export type { RecordRow, RecordColumnDef, RecordsDataSourceConfig, } from './records-data-source';
+export { RecordsDataSource, CHEETAH_STYLE_COLUMNS, generatePersonRecords, buildColumnHeadersFromRecords, } from './records-data-source';
 export { applyFilters as applyFilterSort, createFilterSortState, getFilterResult as buildFilterResult, passesFilter, sortRows as sortRowsByCondition, } from './filter-sort';
 /**
  * WasabiTableとリスナーを簡単に初期化する関数
  */
-export declare function createWasabiTableWithListeners(canvas: HTMLCanvasElement, config: Partial<TableConfig> | undefined, uiConfig: CreateWasabiTableUIConfig, listenerOptions?: ListenerOptions, callbacks?: EventCallbacks): Promise<{
+export declare function createWasabiTableWithListeners(canvas: HTMLCanvasElement, config: WasabiTableCreateOptions | undefined, uiConfig: CreateWasabiTableUIConfig, listenerOptions?: ListenerOptions, callbacks?: EventCallbacks): Promise<{
     table: WasabiTable;
     listeners: import('./listeners').WasabiTableListeners;
 }>;
@@ -54,6 +57,8 @@ export declare class WasabiTable {
     private activeTheme;
     private undoStack;
     private applyingHistory;
+    private recordsSource;
+    private viewportSyncRange;
     private constructor();
     /**
      * WasabiTableインスタンスを作成
@@ -62,7 +67,12 @@ export declare class WasabiTable {
      * @param config - テーブル設定（オプション）
      * @returns WasabiTableインスタンス
      */
-    static create(canvas: HTMLCanvasElement, config?: Partial<TableConfig>): Promise<WasabiTable>;
+    static create(canvas: HTMLCanvasElement, options?: WasabiTableCreateOptions): Promise<WasabiTable>;
+    isRecordsMode(): boolean;
+    getRecords(): RecordRow[];
+    setRecords(records: RecordRow[]): void;
+    /** 外部から records を in-place 変更したあとに呼ぶ */
+    refresh(): void;
     /**
      * イベントハンドラーを設定
      */
@@ -98,12 +108,27 @@ export declare class WasabiTable {
      * @returns セルの値（存在しない場合はundefined）
      */
     getCellValue(row: number, col: number): string | undefined;
+    private writeCellValue;
+    /** インライン編集の入力値を records に反映（WASM finish 前に呼ぶ） */
+    private commitEditingToRecordsIfNeeded;
+    private clearCellsInSelection;
+    private invalidateRecordsViewport;
+    private estimateViewportRowRange;
+    private syncRecordsViewport;
+    private syncRecordsRowToWasm;
     /**
      * 複数のセルデータを一括設定
      *
      * @param data - セルデータの配列
+     * @param options.recordUndo - undo 履歴に記録するか（大量投入時は false 推奨）
      */
-    setBatchData(data: CellData[]): void;
+    setBatchData(data: CellData[], options?: {
+        recordUndo?: boolean;
+    }): void;
+    /**
+     * 行単位でセル値を一括設定（大量行バインド向け）
+     */
+    setRowBatch(startRow: number, rows: string[][]): void;
     /**
      * テーブルをレンダリング
      */
@@ -242,6 +267,10 @@ export declare class WasabiTable {
      * 選択されたセルの検証エラーを確認して吹き出しを表示
      */
     private updateValidationTooltip;
+    private static readonly SCROLL_CONTAINER_ATTR;
+    private tearDownScrollbars;
+    /** dispose 漏れなどで残ったスクロールコンテナを除去 */
+    private unwrapOrphanedScrollContainers;
     /**
      * リソースを解放
      */

@@ -1,4 +1,8 @@
-import { WasabiTable } from '../../dist/index.js';
+import {
+  WasabiTable,
+  generatePersonRecords,
+  CHEETAH_STYLE_COLUMNS,
+} from '../../dist/index.js';
 import { getLocale, t } from './benchmark-i18n.js';
 
 const PACKAGE_VERSION = '0.1.3';
@@ -7,7 +11,12 @@ const GRID_SIZES = [
   { rows: 1000, cols: 20 },
   { rows: 5000, cols: 20 },
   { rows: 10000, cols: 20 },
+  { rows: 1_000_000, cols: 20 },
 ];
+
+function formatCount(n) {
+  return n.toLocaleString(getLocale() === 'ja' ? 'ja-JP' : 'en-US');
+}
 
 const RETRO_THEME = () =>
   WasabiTable.createCustomTheme('dark', {
@@ -132,7 +141,7 @@ export async function runBenchmarkSuite(hooks = {}) {
   if (!canvas) throw new Error('benchCanvas not found');
 
   const results = [];
-  const totalSteps = GRID_SIZES.length + 5;
+  const totalSteps = GRID_SIZES.length + 7;
   let step = 0;
 
   const progress = (ratio) => hooks.onProgress?.(ratio);
@@ -143,28 +152,39 @@ export async function runBenchmarkSuite(hooks = {}) {
     hooks.onRow?.(row);
   };
 
-  let scrollTable = null;
+  let lastInitTable = null;
 
   for (const { rows, cols } of GRID_SIZES) {
+    if (lastInitTable) {
+      lastInitTable.dispose();
+      lastInitTable = null;
+    }
+
     const id = `init-${rows}x${cols}`;
-    emit({ id, status: 'running', label: t('test.init', { rows, cols }), result: '…', detail: '' });
+    const sizeLabel = { rows: formatCount(rows), cols };
+    emit({ id, status: 'running', label: t('test.init', sizeLabel), result: '…', detail: '' });
     const { table, initMs, renderMs } = await createSizedTable(canvas, rows, cols);
+    lastInitTable = table;
     const total = initMs + renderMs;
     emit({
       id,
       status: 'pass',
-      label: t('test.init', { rows, cols }),
+      label: t('test.init', sizeLabel),
       result: formatMs(total),
       detail: t('detail.init', { init: formatMs(initMs), render: formatMs(renderMs) }),
       ms: total,
     });
-    if (rows === 1000) scrollTable = table;
     step += 1;
     progress(step / totalSteps);
     await new Promise((r) => requestAnimationFrame(r));
   }
 
-  const benchTable = scrollTable ?? (await createSizedTable(canvas, 1000, 20)).table;
+  if (lastInitTable) {
+    lastInitTable.dispose();
+    lastInitTable = null;
+  }
+
+  const { table: benchTable } = await createSizedTable(canvas, 1000, 20);
 
   // Fill cells
   {
@@ -276,8 +296,91 @@ export async function runBenchmarkSuite(hooks = {}) {
       extra: `scrollY=${scrollY}`,
     });
     step += 1;
-    progress(1);
+    progress(step / totalSteps);
   }
+
+  // Records reference init (1M rows)
+  {
+    const rows = 1_000_000;
+    const cols = CHEETAH_STYLE_COLUMNS.length;
+    const id = `init-records-${rows}x${cols}`;
+    const sizeLabel = { rows: formatCount(rows), cols };
+    emit({
+      id,
+      status: 'running',
+      label: t('test.recordsInit', sizeLabel),
+      result: '…',
+      detail: '',
+    });
+
+    let recordsTable = null;
+    try {
+      const records = generatePersonRecords(rows);
+      const createStart = performance.now();
+      recordsTable = await WasabiTable.create(canvas, {
+        dataSource: { records, columns: CHEETAH_STYLE_COLUMNS },
+        default_col_width: 100,
+        default_row_height: 25,
+      });
+      recordsTable.applyTheme(RETRO_THEME());
+      const createMs = performance.now() - createStart;
+
+      const renderStart = performance.now();
+      recordsTable.render();
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+      const renderMs = performance.now() - renderStart;
+      const total = createMs + renderMs;
+
+      emit({
+        id,
+        status: 'pass',
+        label: t('test.recordsInit', sizeLabel),
+        result: formatMs(total),
+        detail: t('detail.recordsInit', {
+          create: formatMs(createMs),
+          render: formatMs(renderMs),
+          records: formatCount(rows),
+          mode: t('detail.recordsMode'),
+        }),
+        ms: total,
+      });
+      step += 1;
+      progress(step / totalSteps);
+
+      const scrollId = `scroll-fps-records-${rows}`;
+      emit({
+        id: scrollId,
+        status: 'running',
+        label: t('test.recordsScroll', sizeLabel),
+        result: '…',
+        detail: '',
+      });
+      recordsTable.selectCell(0, 0);
+      recordsTable.render();
+      const { fps, frames, scrollY } = await measureScrollFps(canvas, recordsTable);
+      emit({
+        id: scrollId,
+        status: 'pass',
+        label: t('test.recordsScroll', sizeLabel),
+        result: `${fps.toFixed(1)} FPS`,
+        detail: t('detail.scroll', { fps: fps.toFixed(1), frames }) + ` · scrollY=${scrollY}`,
+        ms: null,
+      });
+      step += 1;
+      progress(step / totalSteps);
+    } finally {
+      recordsTable?.dispose();
+    }
+  }
+
+  progress(1);
+
+  // 計測後にライブグリッドを初期状態へ復元（スクロール位置・DOM をリセット）
+  benchTable.dispose();
+  const { table: liveTable } = await createSizedTable(canvas, 1000, 20);
+  liveTable.selectCell(0, 0);
+  liveTable.render();
 
   return results;
 }

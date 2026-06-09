@@ -21,6 +21,7 @@ import type {
   ThemeColors,
   ValidationError,
   ValidationResult,
+  WasabiTableCreateOptions,
 } from './types';
 import {
   DEFAULT_CONFIG,
@@ -54,6 +55,7 @@ export type {
   UIElements,
   ValidationError,
   ValidationResult,
+  WasabiTableCreateOptions,
 } from './types';
 export {
   DEFAULT_CONFIG,
@@ -83,7 +85,27 @@ import {
 } from './filter-sort';
 import { HeaderDialogController } from './header-dialog';
 import { UndoStack, type CellChange } from './undo-stack';
+import {
+  RecordsDataSource,
+  buildColumnHeadersFromRecords,
+  type RecordRow,
+  type RecordsDataSourceConfig,
+} from './records-data-source';
 import { buildValidationTooltipContent } from './utils';
+
+export type {
+  RecordRow,
+  RecordColumnDef,
+  RecordsDataSourceConfig,
+} from './records-data-source';
+export {
+  RecordsDataSource,
+  CHEETAH_STYLE_COLUMNS,
+  generatePersonRecords,
+  buildColumnHeadersFromRecords,
+} from './records-data-source';
+
+const RECORDS_VIEWPORT_BUFFER_ROWS = 40;
 export {
   applyFilters as applyFilterSort,
   createFilterSortState,
@@ -97,7 +119,7 @@ export {
  */
 export async function createWasabiTableWithListeners(
   canvas: HTMLCanvasElement,
-  config: Partial<TableConfig> = {},
+  config: WasabiTableCreateOptions = {},
   uiConfig: CreateWasabiTableUIConfig,
   listenerOptions?: ListenerOptions,
   callbacks?: EventCallbacks
@@ -143,6 +165,8 @@ interface ExtendedWasmWasabiTable extends WasmWasabiTable {
   set_filtered_rows(filtered_rows_json: string): void;
   clear_filter(): void;
   get_filter_info(): string;
+  set_row_batch(json: string): void;
+  clear_row_store(): void;
   handle_canvas_click(canvasX: number, canvasY: number): void;
   handle_canvas_keydown(key: string): void;
 }
@@ -197,15 +221,19 @@ export class WasabiTable {
   private activeTheme: PredefinedTheme = 'light';
   private undoStack = new UndoStack();
   private applyingHistory = false;
+  private recordsSource: RecordsDataSource | null = null;
+  private viewportSyncRange: { start: number; end: number } | null = null;
 
   private constructor(
     wasmTable: ExtendedWasmWasabiTable,
     config: TableConfig,
-    canvas: HTMLCanvasElement
+    canvas: HTMLCanvasElement,
+    recordsSource: RecordsDataSource | null = null
   ) {
     this.wasmTable = wasmTable;
     this.config = config;
     this.canvas = canvas;
+    this.recordsSource = recordsSource;
     
     // キャンバスをフォーカス可能にする
     this.canvas.tabIndex = 0;
@@ -231,19 +259,63 @@ export class WasabiTable {
    */
   public static async create(
     canvas: HTMLCanvasElement,
-    config: Partial<TableConfig> = {}
+    options: WasabiTableCreateOptions = {}
   ): Promise<WasabiTable> {
     // WebAssemblyモジュールを初期化
     await init();
 
-    const finalConfig: TableConfig = { ...DEFAULT_CONFIG, ...config };
+    const { dataSource, ...configPartial } = options;
+    const finalConfig: TableConfig = { ...DEFAULT_CONFIG, ...configPartial };
+
+    let recordsSource: RecordsDataSource | null = null;
+    if (dataSource) {
+      recordsSource = new RecordsDataSource(dataSource.columns, dataSource.records);
+      finalConfig.row_count = recordsSource.getRowCount();
+      finalConfig.col_count = recordsSource.getColCount();
+      finalConfig.column_headers = buildColumnHeadersFromRecords(
+        dataSource.columns,
+        finalConfig.default_col_width
+      );
+    }
+
     const wasmTable = new WasmWasabiTable(canvas, JSON.stringify(finalConfig)) as ExtendedWasmWasabiTable;
-    
-    const table = new WasabiTable(wasmTable, finalConfig, canvas);
+
+    const table = new WasabiTable(wasmTable, finalConfig, canvas, recordsSource);
     table.isInitialized = true;
     table.updateCanvasSize();
 
     return table;
+  }
+
+  public isRecordsMode(): boolean {
+    return this.recordsSource != null;
+  }
+
+  public getRecords(): RecordRow[] {
+    this.ensureInitialized();
+    if (!this.recordsSource) {
+      throw new Error('Records data source is not configured');
+    }
+    return this.recordsSource.getRecords();
+  }
+
+  public setRecords(records: RecordRow[]): void {
+    this.ensureInitialized();
+    if (!this.recordsSource) {
+      throw new Error('Records data source is not configured');
+    }
+    this.recordsSource.setRecords(records);
+    this.config.row_count = records.length;
+    this.invalidateRecordsViewport();
+    this.render();
+  }
+
+  /** 外部から records を in-place 変更したあとに呼ぶ */
+  public refresh(): void {
+    this.ensureInitialized();
+    if (!this.recordsSource) return;
+    this.invalidateRecordsViewport();
+    this.render();
   }
 
   /**
@@ -263,15 +335,7 @@ export class WasabiTable {
   public setCellValue(row: number, col: number, value: string, options?: { recordUndo?: boolean }): void {
     this.ensureInitialized();
     const recordUndo = options?.recordUndo ?? true;
-    if (recordUndo && !this.applyingHistory) {
-      const oldValue = this.getCellValue(row, col) ?? '';
-      if (oldValue !== value) {
-        this.undoStack.push({
-          changes: [{ row, col, oldValue, newValue: value }],
-        });
-      }
-    }
-    this.wasmTable.set_cell_data(row, col, value);
+    this.writeCellValue(row, col, value, { recordUndo });
 
     setTimeout(() => {
       this.updateValidationTooltip();
@@ -319,7 +383,7 @@ export class WasabiTable {
     try {
       for (const change of changes) {
         const value = useNewValues ? change.newValue : change.oldValue;
-        this.wasmTable.set_cell_data(change.row, change.col, value);
+        this.writeCellValue(change.row, change.col, value);
       }
       this.render();
       this.triggerCellSelectEvent();
@@ -438,16 +502,175 @@ export class WasabiTable {
    */
   public getCellValue(row: number, col: number): string | undefined {
     this.ensureInitialized();
+    if (this.recordsSource) {
+      const value = this.recordsSource.getCellValue(row, col);
+      return value === '' ? undefined : value;
+    }
     return this.wasmTable.get_cell_data(row, col) || undefined;
+  }
+
+  private writeCellValue(
+    row: number,
+    col: number,
+    value: string,
+    options?: { recordUndo?: boolean }
+  ): void {
+    const recordUndo = options?.recordUndo ?? false;
+    if (recordUndo && !this.applyingHistory) {
+      const oldValue = this.getCellValue(row, col) ?? '';
+      if (oldValue !== value) {
+        this.pushUndoChanges([{ row, col, oldValue, newValue: value }]);
+      }
+    }
+
+    if (this.recordsSource) {
+      this.recordsSource.setCellValue(row, col, value);
+      this.syncRecordsRowToWasm(row);
+      return;
+    }
+    this.wasmTable.set_cell_data(row, col, value);
+  }
+
+  /** インライン編集の入力値を records に反映（WASM finish 前に呼ぶ） */
+  private commitEditingToRecordsIfNeeded(): void {
+    if (!this.recordsSource || !this.isEditing()) return;
+
+    const editingPosition = this.wasmTable.get_editing_cell();
+    const value = this.wasmTable.get_editing_input_value() ?? '';
+    const cell = editingPosition ? this.parseCellPosition(editingPosition) : undefined;
+    if (!cell) return;
+
+    this.writeCellValue(cell.row, cell.col, value);
+  }
+
+  private clearCellsInSelection(recordUndo: boolean): void {
+    const selectionInfo = this.getSelectionInfo();
+    if (!selectionInfo.hasSelection) return;
+
+    const changes: CellChange[] = [];
+    const queueClear = (row: number, col: number) => {
+      const oldValue = this.getCellValue(row, col) ?? '';
+      if (oldValue !== '') {
+        changes.push({ row, col, oldValue, newValue: '' });
+      }
+    };
+
+    if (
+      selectionInfo.isRange &&
+      selectionInfo.start_row != null &&
+      selectionInfo.end_row != null &&
+      selectionInfo.start_col != null &&
+      selectionInfo.end_col != null
+    ) {
+      for (let row = selectionInfo.start_row; row <= selectionInfo.end_row; row += 1) {
+        for (let col = selectionInfo.start_col; col <= selectionInfo.end_col; col += 1) {
+          queueClear(row, col);
+        }
+      }
+    } else if (selectionInfo.row != null && selectionInfo.col != null) {
+      queueClear(selectionInfo.row, selectionInfo.col);
+    }
+
+    if (recordUndo && changes.length > 0) {
+      this.pushUndoChanges(changes);
+    }
+
+    this.applyingHistory = true;
+    try {
+      for (const change of changes) {
+        this.writeCellValue(change.row, change.col, '');
+      }
+      if (changes.length === 0 && selectionInfo.row != null && selectionInfo.col != null) {
+        this.writeCellValue(selectionInfo.row, selectionInfo.col, '');
+      }
+    } finally {
+      this.applyingHistory = false;
+    }
+
+    // 選択状態の更新は WASM 側に委譲
+    this.wasmTable.handle_canvas_keydown('Delete');
+    this.render();
+  }
+
+  private invalidateRecordsViewport(): void {
+    this.viewportSyncRange = null;
+  }
+
+  private estimateViewportRowRange(): { start: number; end: number } {
+    const stats = this.getStats();
+    const canvasHeight =
+      parseFloat(this.canvas.style.height) ||
+      this.canvas.getBoundingClientRect().height ||
+      this.canvas.height;
+    const viewportRows =
+      Math.ceil(
+        Math.max(0, canvasHeight - this.config.header_height) / this.config.default_row_height
+      ) + 1;
+    const firstRow = Math.max(
+      0,
+      Math.floor(stats.scrollY / this.config.default_row_height) - RECORDS_VIEWPORT_BUFFER_ROWS
+    );
+    const lastRow = Math.min(
+      this.config.row_count - 1,
+      firstRow + viewportRows + RECORDS_VIEWPORT_BUFFER_ROWS * 2
+    );
+    return { start: firstRow, end: lastRow };
+  }
+
+  private syncRecordsViewport(): void {
+    if (!this.recordsSource) return;
+
+    const { start, end } = this.estimateViewportRowRange();
+    if (
+      this.viewportSyncRange &&
+      this.viewportSyncRange.start === start &&
+      this.viewportSyncRange.end === end
+    ) {
+      return;
+    }
+
+    this.wasmTable.clear_row_store();
+    const CHUNK = 500;
+    for (let chunkStart = start; chunkStart <= end; chunkStart += CHUNK) {
+      const chunkEnd = Math.min(end, chunkStart + CHUNK - 1);
+      const values: string[][] = [];
+      for (let row = chunkStart; row <= chunkEnd; row += 1) {
+        values.push(this.recordsSource.getRowValues(row));
+      }
+      this.wasmTable.set_row_batch(
+        JSON.stringify({
+          start_row: chunkStart,
+          values,
+        })
+      );
+    }
+
+    this.viewportSyncRange = { start, end };
+  }
+
+  private syncRecordsRowToWasm(row: number): void {
+    if (!this.recordsSource) return;
+    this.wasmTable.set_row_batch(
+      JSON.stringify({
+        start_row: row,
+        values: [this.recordsSource.getRowValues(row)],
+      })
+    );
   }
 
   /**
    * 複数のセルデータを一括設定
    * 
    * @param data - セルデータの配列
+   * @param options.recordUndo - undo 履歴に記録するか（大量投入時は false 推奨）
    */
-  public setBatchData(data: CellData[]): void {
+  public setBatchData(data: CellData[], options?: { recordUndo?: boolean }): void {
     this.ensureInitialized();
+    if (this.recordsSource) {
+      throw new Error(
+        'setBatchData() is not supported in records mode. Update records in place and call refresh().'
+      );
+    }
     const jsonData = JSON.stringify(data.map(cell => ({
       value: cell.value,
       row: cell.row,
@@ -461,7 +684,8 @@ export class WasabiTable {
       text_decoration: null,
       format: null
     })));
-    if (!this.applyingHistory) {
+    const recordUndo = options?.recordUndo ?? true;
+    if (recordUndo && !this.applyingHistory) {
       const changes: CellChange[] = data
         .map((cell) => ({
           row: cell.row,
@@ -476,21 +700,42 @@ export class WasabiTable {
   }
 
   /**
+   * 行単位でセル値を一括設定（大量行バインド向け）
+   */
+  public setRowBatch(startRow: number, rows: string[][]): void {
+    this.ensureInitialized();
+    if (this.recordsSource) {
+      throw new Error(
+        'setRowBatch() is not supported in records mode. Use setRecords() or mutate records and refresh().'
+      );
+    }
+    this.wasmTable.set_row_batch(
+      JSON.stringify({
+        start_row: startRow,
+        values: rows,
+      })
+    );
+  }
+
+  /**
    * テーブルをレンダリング
    */
   public render(): void {
     this.ensureInitialized();
-    
-    // レンダリング最適化: requestAnimationFrameを使用
-    if ('requestAnimationFrame' in window) {
-      requestAnimationFrame(() => {
-        this.wasmTable.render();
-        this.updateScrollbars();
-      });
-    } else {
-      // フォールバック
+
+    const draw = () => {
+      if (this.recordsSource) {
+        this.syncRecordsViewport();
+      }
       this.wasmTable.render();
       this.updateScrollbars();
+    };
+
+    // レンダリング最適化: requestAnimationFrameを使用
+    if ('requestAnimationFrame' in window) {
+      requestAnimationFrame(draw);
+    } else {
+      draw();
     }
   }
 
@@ -507,6 +752,9 @@ export class WasabiTable {
     if (this.isEditing()) {
       this.finishEditing();
     }
+
+    // 範囲選択を解除してから単一セルを選択（ペースト先のずれを防ぐ）
+    this.wasmTable.clear_selection();
     
     // 直接行・列番号でセルを選択する方法を使用
     // 座標計算に依存せず、Rust側のselect_cell_by_positionメソッドを使用
@@ -673,6 +921,7 @@ export class WasabiTable {
       return;
     }
     this.recordInlineEditUndoIfChanged();
+    this.commitEditingToRecordsIfNeeded();
     this.wasmTable.finish_editing();
     this.focusCanvas();
     
@@ -941,6 +1190,36 @@ export class WasabiTable {
     }
   }
 
+  private static readonly SCROLL_CONTAINER_ATTR = 'data-wasabi-scroll-container';
+
+  private tearDownScrollbars(): void {
+    if (!this.scrollContainer) return;
+
+    const parent = this.scrollContainer.parentElement;
+    if (parent) {
+      parent.insertBefore(this.canvas, this.scrollContainer);
+      parent.removeChild(this.scrollContainer);
+    }
+
+    this.scrollContainer = null;
+    this.horizontalScrollbar = null;
+    this.verticalScrollbar = null;
+    this.horizontalThumb = null;
+    this.verticalThumb = null;
+  }
+
+  /** dispose 漏れなどで残ったスクロールコンテナを除去 */
+  private unwrapOrphanedScrollContainers(): void {
+    let parent = this.canvas.parentElement;
+    while (parent?.getAttribute(WasabiTable.SCROLL_CONTAINER_ATTR) === 'true') {
+      const grandParent = parent.parentElement;
+      if (!grandParent) break;
+      grandParent.insertBefore(this.canvas, parent);
+      grandParent.removeChild(parent);
+      parent = this.canvas.parentElement;
+    }
+  }
+
   /**
    * リソースを解放
    */
@@ -959,6 +1238,8 @@ export class WasabiTable {
 
     // MenuField SelectBoxを削除
     this.hideMenuFieldSelectBox();
+
+    this.tearDownScrollbars();
 
     if (this.wasmTable) {
       this.wasmTable.free();
@@ -1211,8 +1492,12 @@ export class WasabiTable {
         if (event.key === 'Delete' || event.key === 'Backspace') {
           const selectionInfo = this.getSelectionInfo();
           if (selectionInfo && selectionInfo.isRange) {
-            this.wasmTable.handle_canvas_keydown(event.key);
-            this.render();
+            if (this.recordsSource) {
+              this.clearCellsInSelection(true);
+            } else {
+              this.wasmTable.handle_canvas_keydown(event.key);
+              this.render();
+            }
             event.preventDefault();
             return;
           }
@@ -1294,7 +1579,15 @@ export class WasabiTable {
       // ただし、Rustのkeydownリスナーを無効化したため、直接Rustのメソッドを呼び出す
       if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Tab'].includes(event.key)) {
         try {
-          this.wasmTable.handle_canvas_keydown(event.key);
+          if (
+            this.recordsSource &&
+            !this.isEditing() &&
+            (event.key === 'Delete' || event.key === 'Backspace')
+          ) {
+            this.clearCellsInSelection(true);
+          } else {
+            this.wasmTable.handle_canvas_keydown(event.key);
+          }
           this.triggerCellSelectEvent();
         } catch (error) {
           console.warn('Failed to handle key in Rust:', error);
@@ -1315,6 +1608,7 @@ export class WasabiTable {
     (window as any).handleEditingEnter = () => {
       try {
         this.recordInlineEditUndoIfChanged();
+        this.commitEditingToRecordsIfNeeded();
         this.wasmTable.handle_editing_enter();
         this.focusCanvas();
         this.triggerCellSelectEvent();
@@ -1326,6 +1620,7 @@ export class WasabiTable {
     (window as any).handleEditingTab = () => {
       try {
         this.recordInlineEditUndoIfChanged();
+        this.commitEditingToRecordsIfNeeded();
         this.wasmTable.handle_editing_tab();
         this.focusCanvas();
         this.triggerCellSelectEvent();
@@ -1410,6 +1705,8 @@ export class WasabiTable {
    * スクロールバーのHTML構造を作成
    */
   private setupScrollbars(): void {
+    this.unwrapOrphanedScrollContainers();
+
     // 既存のキャンバスの親要素を取得
     const parent = this.canvas.parentElement;
     if (!parent) return;
@@ -1419,6 +1716,7 @@ export class WasabiTable {
 
     // スクロールコンテナを作成
     this.scrollContainer = document.createElement('div');
+    this.scrollContainer.setAttribute(WasabiTable.SCROLL_CONTAINER_ATTR, 'true');
     this.scrollContainer.style.cssText = `
       position: relative;
       width: ${displayWidth}px;
@@ -1875,7 +2173,30 @@ export class WasabiTable {
    */
   public copySelection(): string {
     this.ensureInitialized();
-    return this.wasmTable.copy_selection();
+    if (!this.recordsSource) {
+      return this.wasmTable.copy_selection();
+    }
+
+    const sel = this.getSelectionInfo();
+    const lines: string[] = [];
+    if (
+      sel.isRange &&
+      sel.start_row != null &&
+      sel.end_row != null &&
+      sel.start_col != null &&
+      sel.end_col != null
+    ) {
+      for (let row = sel.start_row; row <= sel.end_row; row += 1) {
+        const cols: string[] = [];
+        for (let col = sel.start_col; col <= sel.end_col; col += 1) {
+          cols.push(this.recordsSource.getCellValue(row, col));
+        }
+        lines.push(cols.join('\t'));
+      }
+    } else if (sel.row != null && sel.col != null) {
+      lines.push(this.recordsSource.getCellValue(sel.row, sel.col));
+    }
+    return lines.join('\n');
   }
 
   /**
@@ -1883,7 +2204,36 @@ export class WasabiTable {
    */
   public pasteFromClipboard(tsvData: string): void {
     this.ensureInitialized();
-    this.wasmTable.paste_from_clipboard(tsvData);
+    if (!this.recordsSource) {
+      this.wasmTable.paste_from_clipboard(tsvData);
+      return;
+    }
+
+    const rows = tsvData.split('\n').filter((line) => line.trim().length > 0);
+    if (rows.length === 0) return;
+
+    const sel = this.getSelectionInfo();
+    const startRow = sel.start_row ?? sel.row ?? 0;
+    const startCol = sel.start_col ?? sel.col ?? 0;
+    const changes: CellChange[] = [];
+
+    for (let rowOffset = 0; rowOffset < rows.length; rowOffset += 1) {
+      const cols = rows[rowOffset].split('\t');
+      for (let colOffset = 0; colOffset < cols.length; colOffset += 1) {
+        const row = startRow + rowOffset;
+        const col = startCol + colOffset;
+        if (row >= this.config.row_count || col >= this.config.col_count) continue;
+        const oldValue = this.getCellValue(row, col) ?? '';
+        const newValue = cols[colOffset];
+        if (oldValue !== newValue) {
+          changes.push({ row, col, oldValue, newValue });
+        }
+        this.writeCellValue(row, col, newValue);
+      }
+    }
+
+    this.pushUndoChanges(changes);
+    this.render();
   }
 
   /**
@@ -2031,11 +2381,6 @@ export class WasabiTable {
       
       if (pasteData) {
         const selectedCell = this.getSelectedCell();
-        const { row: startRow, col: startCol } = this.getPasteStartPosition();
-        const parsed = this.parseTsv(pasteData);
-        const changes = this.collectRangeChanges(startRow, startCol, parsed);
-        this.pushUndoChanges(changes);
-
         this.pasteFromClipboard(pasteData);
 
         // レンダリングを更新
@@ -2104,7 +2449,7 @@ export class WasabiTable {
         this.applyingHistory = true;
         try {
           for (const change of changes) {
-            this.wasmTable.set_cell_data(change.row, change.col, '');
+            this.writeCellValue(change.row, change.col, '');
           }
         } finally {
           this.applyingHistory = false;
