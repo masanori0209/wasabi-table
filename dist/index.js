@@ -1647,7 +1647,6 @@ export class WasabiTable {
                 this.wasmTable.update_canvas_size(actualWidth, actualHeight);
             }
             catch (error) {
-                console.error('🔧 Error updating WASM canvas size:', error);
                 // フォールバック: 直接プロパティを更新
                 try {
                     if ('canvas_width' in this.wasmTable && 'canvas_height' in this.wasmTable) {
@@ -1656,7 +1655,6 @@ export class WasabiTable {
                     }
                 }
                 catch (fallbackError) {
-                    console.error('🔧 Fallback canvas size update also failed:', fallbackError);
                 }
             }
         }
@@ -1730,7 +1728,6 @@ export class WasabiTable {
             this.wasmTable.start_range_selection(row, col);
         }
         catch (error) {
-            console.error('❌ Failed to start range selection:', error);
         }
     }
     /**
@@ -1742,7 +1739,6 @@ export class WasabiTable {
             this.wasmTable.update_range_selection(row, col);
         }
         catch (error) {
-            console.error('❌ Failed to update range selection:', error);
         }
     }
     /**
@@ -1754,7 +1750,6 @@ export class WasabiTable {
             this.wasmTable.end_range_selection();
         }
         catch (error) {
-            console.error('❌ Failed to end range selection:', error);
         }
     }
     /**
@@ -1766,7 +1761,6 @@ export class WasabiTable {
             this.wasmTable.clear_selection();
         }
         catch (error) {
-            console.error('❌ Failed to clear selection:', error);
         }
     }
     /**
@@ -1937,7 +1931,6 @@ export class WasabiTable {
             }
         }
         catch (error) {
-            console.error('❌ Copy failed:', error);
             // エラー時はフォールバックを試行
             try {
                 const copiedData = this.copySelection();
@@ -1946,7 +1939,6 @@ export class WasabiTable {
                 }
             }
             catch (fallbackError) {
-                console.error('❌ Fallback copy also failed:', fallbackError);
             }
         }
     }
@@ -1981,7 +1973,6 @@ export class WasabiTable {
             }
         }
         catch (error) {
-            console.error('❌ Paste failed:', error);
         }
     }
     /**
@@ -2040,7 +2031,6 @@ export class WasabiTable {
             }
         }
         catch (error) {
-            console.error('❌ Cut failed:', error);
         }
     }
     /**
@@ -2055,7 +2045,6 @@ export class WasabiTable {
             this.render();
         }
         catch (error) {
-            console.error('❌ Select all failed:', error);
         }
     }
     /**
@@ -2075,11 +2064,9 @@ export class WasabiTable {
             if (successful) {
             }
             else {
-                console.error('❌ Fallback copy failed');
             }
         }
         catch (err) {
-            console.error('❌ Fallback copy error:', err);
         }
         finally {
             document.body.removeChild(textArea);
