@@ -200,7 +200,7 @@ export class HeaderDialogController {
         this.show(columnIndex);
     }
     /**
-     * 統合ヘッダーダイアログを作成
+     * ソート/フィルター用ヘッダーダイアログを作成
      */
     createHeaderDialog(columnIndex, header) {
         const dialog = document.createElement('div');

@@ -1,0 +1,24 @@
+import { describe, expect, it } from 'vitest';
+import {
+  RecordsDataSource,
+  generatePersonRecords,
+  CHEETAH_STYLE_COLUMNS,
+} from './records-data-source';
+
+describe('RecordsDataSource', () => {
+  it('reads and writes cell values via field mapping', () => {
+    const source = new RecordsDataSource(CHEETAH_STYLE_COLUMNS, [
+      { personid: 1, fname: 'Alice', lname: 'Smith', email: 'a@x.com', check: true },
+    ]);
+
+    expect(source.getCellValue(0, 1)).toBe('Alice');
+    source.setCellValue(0, 1, 'Alicia');
+    expect(source.getRecords()[0].fname).toBe('Alicia');
+  });
+
+  it('generates person records with expected shape', () => {
+    const records = generatePersonRecords(3);
+    expect(records).toHaveLength(3);
+    expect(records[2].email).toBe('user2@example.com');
+  });
+});
