@@ -45,7 +45,7 @@ This generates `pkg/` (WASM) and `dist/` (TypeScript). Run `npm run build` after
 </script>
 ```
 
-## Integrated API (formula bar)
+## Listener API (formula bar)
 
 ```html
 <span id="cellRef">A1</span>

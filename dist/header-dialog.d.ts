@@ -27,7 +27,7 @@ export declare class HeaderDialogController {
      */
     showFilterDialog(columnIndex: number): void;
     /**
-     * 統合ヘッダーダイアログを作成
+     * ソート/フィルター用ヘッダーダイアログを作成
      */
     createHeaderDialog(columnIndex: number, header: ColumnHeader): HTMLElement;
     /**

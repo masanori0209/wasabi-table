@@ -501,7 +501,7 @@ export declare class WasabiTable {
     private headerDialogController;
     private getHeaderDialogController;
     /**
-     * 統合ヘッダーダイアログを表示
+     * ソート/フィルター用ヘッダーダイアログを表示
      */
     showHeaderDialog(columnIndex: number): void;
     /**

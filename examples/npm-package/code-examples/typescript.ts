@@ -23,7 +23,7 @@ class SpreadsheetApp {
       font_size: 12
     };
 
-    // 統合された初期化
+    // createWasabiTableWithListeners で初期化
     const { table, listeners } = await createWasabiTableWithListeners(
       canvas,
       config,

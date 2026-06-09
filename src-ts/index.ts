@@ -3160,7 +3160,7 @@ export class WasabiTable {
   }
 
   /**
-   * 統合ヘッダーダイアログを表示
+   * ソート/フィルター用ヘッダーダイアログを表示
    */
   public showHeaderDialog(columnIndex: number): void {
     this.getHeaderDialogController().show(columnIndex);

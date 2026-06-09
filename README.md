@@ -61,7 +61,7 @@ table.setCellValue(0, 1, 'World');
 table.render();
 ```
 
-### Listener Integration (Formula Bar & Stats)
+### Listener API (Formula Bar & Stats)
 
 ```typescript
 import { createWasabiTableWithListeners } from 'wasabi-table';

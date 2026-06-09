@@ -1,4 +1,4 @@
-// React での WasabiTable 使用例（統合版）
+// React での WasabiTable 使用例
 // 実際の使用時は以下のパッケージをインストールしてください:
 // npm install wasabi-table react @types/react
 

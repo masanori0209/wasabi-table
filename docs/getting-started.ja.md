@@ -46,7 +46,7 @@ npm run build
 </script>
 ```
 
-## 3. 統合 API（数式バー付き）
+## 3. リスナー API（数式バー付き）
 
 ```html
 <span id="cellRef">A1</span>
