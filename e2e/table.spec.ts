@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-const DEMO_PATH = '/examples/npm-package/index.html';
+const DEMO_PATH = '/examples/npm-package/index.html?lang=ja';
+
+async function getDataCellCount(page: import('@playwright/test').Page): Promise<number> {
+  return page.evaluate(() => {
+    const table = (window as Window & { __wasabiTable?: { getStats: () => { dataCells: number } } }).__wasabiTable;
+    return table?.getStats()?.dataCells ?? 0;
+  });
+}
 
 async function clickFirstCell(page: import('@playwright/test').Page) {
   const canvas = page.locator('[data-testid="wasabi-canvas"]');
@@ -146,12 +153,12 @@ test.describe('WasabiTable demo', () => {
     await clickFirstCell(page);
     await setCellViaFormulaBar(page, 'Hello Wasabi');
     await expect(page.locator('[data-testid="cell-reference"]')).toHaveText('A2');
-    await expect(page.locator('#stats')).toContainText('データ 1 件');
+    await expect.poll(() => getDataCellCount(page)).toBe(1);
   });
 
   test('sample data load button works', async ({ page }) => {
-    await page.getByRole('button', { name: 'サンプルデータ読み込み' }).click();
-    await expect(page.locator('#stats')).toContainText(/データ [1-9]\d* 件/, { timeout: 15_000 });
+    await page.locator('[data-testid="btn-load-sample"]').click();
+    await expect.poll(() => getDataCellCount(page), { timeout: 15_000 }).toBeGreaterThan(10);
   });
 
   test('keyboard navigation moves selection', async ({ page }) => {
@@ -193,7 +200,7 @@ test.describe('WasabiTable demo', () => {
     await page.evaluate(() => navigator.clipboard.writeText('PastedValue'));
     await page.keyboard.press('ControlOrMeta+V');
     await expect(page.locator('#formulaInput')).toHaveValue('PastedValue');
-    await expect(page.locator('#stats')).toContainText('データ 1 件');
+    await expect.poll(() => getDataCellCount(page)).toBe(1);
     });
 
     test('rectangular range copy and paste', async ({ page }) => {
@@ -328,19 +335,19 @@ test.describe('WasabiTable demo', () => {
   });
 
   test('filter and sort test button runs after sample data load', async ({ page }) => {
-    await page.getByRole('button', { name: 'サンプルデータ読み込み' }).click();
-    await expect(page.locator('#stats')).toContainText(/データ [1-9]\d* 件/, { timeout: 15_000 });
+    await page.locator('[data-testid="btn-load-sample"]').click();
+    await expect.poll(() => getDataCellCount(page), { timeout: 15_000 }).toBeGreaterThan(10);
 
-    await page.getByRole('button', { name: 'フィルター・ソートテスト' }).click();
+    await page.locator('[data-testid="btn-filter-sort-test"]').click();
     await expect(page.locator('[data-testid="wasabi-canvas"]')).toBeVisible();
   });
 
   test('clear all filters button works after filter test', async ({ page }) => {
-    await page.getByRole('button', { name: 'サンプルデータ読み込み' }).click();
-    await expect(page.locator('#stats')).toContainText(/データ [1-9]\d* 件/, { timeout: 15_000 });
+    await page.locator('[data-testid="btn-load-sample"]').click();
+    await expect.poll(() => getDataCellCount(page), { timeout: 15_000 }).toBeGreaterThan(10);
 
-    await page.getByRole('button', { name: 'フィルター・ソートテスト' }).click();
-    await page.getByRole('button', { name: '全フィルタークリア' }).click();
+    await page.locator('[data-testid="btn-filter-sort-test"]').click();
+    await page.locator('[data-testid="btn-clear-filters"]').click();
     await expect(page.locator('[data-testid="wasabi-canvas"]')).toBeVisible();
   });
 });

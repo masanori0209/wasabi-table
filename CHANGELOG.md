@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-06-07
+
+### Added
+- Bilingual documentation (English / Japanese) for README, docs, and usage examples
+- Demo page i18n with EN/JA language switcher and `?lang=en` / `?lang=ja` URL support
+
+### Changed
+- E2E tests use `data-testid` and `getStats()` instead of localized UI strings
+
 ## [0.1.2] - 2026-06-07
 
 ### Fixed
@@ -47,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.3
 [0.1.2]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.2
 [0.1.1]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.1
 [0.1.0]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.0
