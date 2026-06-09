@@ -2204,10 +2204,6 @@ export class WasabiTable {
    */
   public pasteFromClipboard(tsvData: string): void {
     this.ensureInitialized();
-    if (!this.recordsSource) {
-      this.wasmTable.paste_from_clipboard(tsvData);
-      return;
-    }
 
     const rows = tsvData.split('\n').filter((line) => line.trim().length > 0);
     if (rows.length === 0) return;
@@ -2228,8 +2224,15 @@ export class WasabiTable {
         if (oldValue !== newValue) {
           changes.push({ row, col, oldValue, newValue });
         }
-        this.writeCellValue(row, col, newValue);
       }
+    }
+
+    if (this.recordsSource) {
+      for (const change of changes) {
+        this.writeCellValue(change.row, change.col, change.newValue);
+      }
+    } else {
+      this.wasmTable.paste_from_clipboard(tsvData);
     }
 
     this.pushUndoChanges(changes);
