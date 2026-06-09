@@ -10,7 +10,7 @@ const WasabiTableComponent = () => {
   useEffect(() => {
     const initTable = async () => {
       if (canvasRef.current) {
-        // 統合された初期化
+        // createWasabiTableWithListeners で初期化
         const { table: tableInstance, listeners: listenersInstance } = 
           await createWasabiTableWithListeners(
             canvasRef.current,

@@ -61,7 +61,7 @@ table.setCellValue(0, 1, 'World');
 table.render();
 ```
 
-### リスナー統合（数式バー・統計）
+### リスナー API（数式バー・統計）
 
 ```typescript
 import { createWasabiTableWithListeners } from 'wasabi-table';

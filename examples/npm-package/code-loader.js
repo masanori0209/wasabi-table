@@ -3,17 +3,17 @@ class CodeExampleLoader {
   constructor() {
     this.examples = {
       javascript: {
-        title: 'JavaScript での使用例（統合版）',
+        title: 'JavaScript での使用例',
         file: './code-examples/javascript.js',
         language: 'javascript'
       },
       typescript: {
-        title: 'TypeScript での使用例（統合版）',
+        title: 'TypeScript での使用例',
         file: './code-examples/typescript.ts',
         language: 'typescript'
       },
       react: {
-        title: 'React での使用例（統合版）',
+        title: 'React での使用例',
         file: './code-examples/react.jsx',
         language: 'javascript'
       },
