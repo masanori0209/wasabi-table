@@ -188,6 +188,46 @@ export class WasabiTable {
             return;
         this.undoStack.push({ changes });
     }
+    parseCellPosition(position) {
+        const [row, col] = position.split(':').map(Number);
+        if (Number.isNaN(row) || Number.isNaN(col)) {
+            return undefined;
+        }
+        return { row, col };
+    }
+    recordInlineEditUndoIfChanged() {
+        var _a, _b;
+        if (this.applyingHistory || !this.isEditing()) {
+            return;
+        }
+        const editingPosition = this.wasmTable.get_editing_cell();
+        if (!editingPosition) {
+            return;
+        }
+        const cell = this.parseCellPosition(editingPosition);
+        if (!cell) {
+            return;
+        }
+        const oldValue = (_a = this.getCellValue(cell.row, cell.col)) !== null && _a !== void 0 ? _a : '';
+        const newValue = (_b = this.wasmTable.get_editing_input_value()) !== null && _b !== void 0 ? _b : '';
+        if (oldValue === newValue) {
+            return;
+        }
+        this.pushUndoChanges([
+            { row: cell.row, col: cell.col, oldValue, newValue },
+        ]);
+    }
+    recordInlineEditUndoBeforeClickCommit(canvasX, canvasY) {
+        if (!this.isEditing()) {
+            return;
+        }
+        const editingPosition = this.wasmTable.get_editing_cell();
+        const targetPosition = this.wasmTable.pixel_to_cell(canvasX, canvasY);
+        if (!editingPosition || !targetPosition || editingPosition === targetPosition) {
+            return;
+        }
+        this.recordInlineEditUndoIfChanged();
+    }
     collectRangeChanges(startRow, startCol, values) {
         var _a;
         const changes = [];
@@ -437,6 +477,10 @@ export class WasabiTable {
      */
     finishEditing() {
         this.ensureInitialized();
+        if (!this.isEditing()) {
+            return;
+        }
+        this.recordInlineEditUndoIfChanged();
         this.wasmTable.finish_editing();
         this.focusCanvas();
         // 編集完了後に検証エラーを更新
@@ -763,6 +807,7 @@ export class WasabiTable {
             else {
                 // 通常のクリックでは範囲選択をクリアしてから単一セル選択
                 // Rustのhandle_canvas_clickで範囲選択クリアが処理されるため、clearSelectionは不要
+                this.recordInlineEditUndoBeforeClickCommit(x, y);
                 this.wasmTable.handle_canvas_click(x, y);
                 this.triggerCellSelectEvent();
                 const cellPos = this.wasmTable.pixel_to_cell(x, y);
@@ -1006,6 +1051,7 @@ export class WasabiTable {
         // 編集中のキーイベントハンドラー（改善版）
         window.handleEditingEnter = () => {
             try {
+                this.recordInlineEditUndoIfChanged();
                 this.wasmTable.handle_editing_enter();
                 this.focusCanvas();
                 this.triggerCellSelectEvent();
@@ -1016,6 +1062,7 @@ export class WasabiTable {
         };
         window.handleEditingTab = () => {
             try {
+                this.recordInlineEditUndoIfChanged();
                 this.wasmTable.handle_editing_tab();
                 this.focusCanvas();
                 this.triggerCellSelectEvent();
