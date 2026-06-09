@@ -2,7 +2,8 @@ const STORAGE_KEY = 'wasabi-demo-locale';
 
 export const messages = {
   en: {
-    'meta.title': 'WasabiTable — Retro Data Grid Demo',
+    'meta.title': 'WasabiTable — Live Demo',
+    'brand.eyebrow': 'HIGH-PERFORMANCE DATA GRID // WASM + CANVAS',
     'header.subtitle': 'High-performance Excel-like table component',
     'install.lead': 'High-performance grid library for TypeScript and JavaScript',
     'formula.placeholder': 'Enter cell value...',
@@ -54,7 +55,8 @@ export const messages = {
     'lang.ja': '日本語',
   },
   ja: {
-    'meta.title': 'WasabiTable — レトロデータグリッド デモ',
+    'meta.title': 'WasabiTable — ライブデモ',
+    'brand.eyebrow': '高性能データグリッド // WASM + Canvas',
     'header.subtitle': '高性能 Excel 風テーブルコンポーネント',
     'install.lead': 'TypeScript / JavaScript 両対応の高性能グリッド・ライブラリ',
     'formula.placeholder': 'セルの内容を入力...',
