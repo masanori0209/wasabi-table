@@ -7,42 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- Excel-compatible clipboard TSV: CRLF normalization, preserve empty rows on paste, `\r\n` copy format
-- Demo sample data load: clear prior cells, sync column count to header schema, remove async race (no ghost columns/data)
-
-## [1.0.0] - TBD
+## [1.0.0] - 2026-06-10
 
 ### Added
-- Stable public API declaration (see [api-stability](./docs/api-stability.ja.md))
-- Migration guide ([migration-1.0](./docs/migration-1.0.ja.md))
-
-### Changed
-- README finalization: Tier journey, benchmark link, docs index
-
-## [0.9.0] - TBD
-
-### Changed
-- Public API audit: `setColumnWidth`, `getColumnWidth`, row selection, `freeze_cols` documented in api-core
-
-## [0.3.0] - TBD
-
-### Added
+- Column resize via header edge drag; `setColumnWidth` / `getColumnWidth` public API
 - Row selection via row header click (Shift to extend)
 - `freeze_cols` config — freeze first N data columns on horizontal scroll
 - Basic touch support (touch → mouse forwarding)
-- E2E: row selection, freeze columns, touch
-
-## [0.2.0] - TBD
-
-### Added
-- Column resize via header edge drag
-- `setColumnWidth` / `getColumnWidth` public API
-- records mode filter/sort E2E coverage
-- README Tier 1/2/3 journey and benchmark section (JA/EN)
+- `clearAllCellData`, `resetScroll` public API
+- Excel-compatible clipboard TSV (`\r\n` copy, CRLF normalize, empty-row preserve)
+- Product & direction docs (roadmap, positioning, architecture, api-stability, migration-1.0, JA/EN)
+- E2E: column resize, records filter/sort, freeze, row selection, touch, clipboard round-trip
 
 ### Changed
-- `Cargo.toml` version synced with npm
+- README: Tier 1/2/3 journey, benchmark summary, bundle size note, out-of-scope section
+- Public API documented in api-core (resize, freeze, row select, CSV export)
+- `Cargo.toml` / npm version synced at 1.0.0
+
+### Fixed
+- Demo sample data load: clear prior cells, sync column count to headers, remove async race
+- Prune cell data outside `row_count` / `col_count` on config and header changes
 
 ## [0.1.4] - 2026-06-09
 
@@ -109,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/masanori0209/wasabi-table/compare/v0.1.4...v1.0.0
 [0.1.4]: https://github.com/masanori0209/wasabi-table/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.3
 [0.1.2]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.2
