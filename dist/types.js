@@ -41,6 +41,8 @@ export const DEFAULT_CONFIG = {
     selected_cell_color: '#3498db',
     show_grid: true,
     column_headers: [],
+    freeze_cols: 0,
+    freeze_rows: 0,
 };
 export var FieldType;
 (function (FieldType) {

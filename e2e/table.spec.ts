@@ -161,6 +161,36 @@ test.describe('WasabiTable demo', () => {
     await expect.poll(() => getDataCellCount(page), { timeout: 15_000 }).toBeGreaterThan(10);
   });
 
+  test('sample data load replaces prior input and hides extra columns', async ({ page }) => {
+    await setCellViaFormulaBar(page, 'BeforeSample');
+    await page.evaluate(() => {
+      const table = (window as { __wasabiTable?: { setCellValue: (r: number, c: number, v: string) => void } })
+        .__wasabiTable;
+      table?.setCellValue(0, 15, 'FarCol');
+    });
+
+    await page.locator('[data-testid="btn-load-sample"]').click();
+    await expect.poll(() => getDataCellCount(page), { timeout: 15_000 }).toBeGreaterThan(10);
+
+    await expect.poll(() => getCellValue(page, 0, 0)).toBe('1001');
+    await expect.poll(() => getCellValue(page, 0, 1)).toBe('田中太郎');
+
+    const config = await page.evaluate(() => {
+      const table = (window as { __wasabiTable?: { getConfig: () => { col_count: number } } }).__wasabiTable;
+      return table?.getConfig();
+    });
+    expect(config?.col_count).toBe(10);
+
+    const farCol = await page.evaluate(() => {
+      const table = (window as {
+        __wasabiTable?: { getCellValue: (r: number, c: number) => string; getConfig: () => { col_count: number } };
+      }).__wasabiTable;
+      if (!table || table.getConfig().col_count <= 15) return '';
+      return table.getCellValue(0, 15);
+    });
+    expect(farCol).toBe('');
+  });
+
   test('keyboard navigation moves selection', async ({ page }) => {
     await clickFirstCell(page);
     await page.keyboard.press('ArrowRight');
@@ -192,7 +222,7 @@ test.describe('WasabiTable demo', () => {
       await page.keyboard.press('ControlOrMeta+C');
       await expect
         .poll(async () => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('CopyMe');
+        .toBe('CopyMe\r\n');
     });
 
     test('paste via keyboard shortcut', async ({ page }) => {
@@ -220,7 +250,7 @@ test.describe('WasabiTable demo', () => {
       await page.keyboard.press('ControlOrMeta+C');
       await expect
         .poll(async () => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('Alpha\tBeta\nGamma\tDelta');
+        .toBe('Alpha\tBeta\r\nGamma\tDelta\r\n');
 
       await focusCanvas(page);
       for (let i = 0; i < 3; i++) {
@@ -261,11 +291,55 @@ test.describe('WasabiTable demo', () => {
       await expect(page.locator('#formulaInput')).toHaveValue('');
       await expect
         .poll(async () => page.evaluate(() => navigator.clipboard.readText()))
-        .toBe('CutTarget');
+        .toBe('CutTarget\r\n');
 
       await focusCanvas(page);
       await page.keyboard.press('ControlOrMeta+Z');
       await expect.poll(() => getCellValue(page, 0, 0)).toBe('CutTarget');
+    });
+
+    test('paste from Excel CRLF does not leave CR in cell values', async ({ page }) => {
+      await focusCanvas(page);
+      await page.evaluate(() => navigator.clipboard.writeText('Alpha\tBeta\r\nGamma\tDelta\r\n'));
+      await page.keyboard.press('ControlOrMeta+V');
+      await expect.poll(() => getCellValue(page, 0, 0)).toBe('Alpha');
+      await expect.poll(() => getCellValue(page, 0, 1)).toBe('Beta');
+      await expect.poll(() => getCellValue(page, 1, 0)).toBe('Gamma');
+      await expect.poll(() => getCellValue(page, 1, 1)).toBe('Delta');
+    });
+
+    test('copy-paste preserves empty row between data', async ({ page }) => {
+      const result = await page.evaluate(() => {
+        const table = (window as { __wasabiTable?: {
+          setCellValue: (r: number, c: number, v: string) => void;
+          startRangeSelection: (r: number, c: number) => void;
+          updateRangeSelection: (r: number, c: number) => void;
+          endRangeSelection: () => void;
+          copySelection: () => string;
+          selectCell: (r: number, c: number) => void;
+          pasteFromClipboard: (tsv: string) => void;
+          getCellValue: (r: number, c: number) => string;
+        } }).__wasabiTable!;
+        table.setCellValue(0, 0, 'Top');
+        table.setCellValue(2, 0, 'Bottom');
+        table.startRangeSelection(0, 0);
+        table.updateRangeSelection(2, 0);
+        table.endRangeSelection();
+        const copied = table.copySelection();
+        table.selectCell(0, 5);
+        table.pasteFromClipboard(copied);
+        return {
+          copied,
+          top: table.getCellValue(0, 5),
+          mid: table.getCellValue(1, 5),
+          bottom: table.getCellValue(2, 5),
+        };
+      });
+
+      expect(result.copied).toBe('Top\r\n\r\nBottom\r\n');
+      expect(result.top).toBe('Top');
+      expect(result.mid ?? '').toBe('');
+      expect(result.bottom).toBe('Bottom');
     });
   });
 

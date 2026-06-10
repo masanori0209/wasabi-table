@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Excel-compatible clipboard TSV: CRLF normalization, preserve empty rows on paste, `\r\n` copy format
+- Demo sample data load: clear prior cells, sync column count to header schema, remove async race (no ghost columns/data)
+
+## [1.0.0] - TBD
+
+### Added
+- Stable public API declaration (see [api-stability](./docs/api-stability.ja.md))
+- Migration guide ([migration-1.0](./docs/migration-1.0.ja.md))
+
+### Changed
+- README finalization: Tier journey, benchmark link, docs index
+
+## [0.9.0] - TBD
+
+### Changed
+- Public API audit: `setColumnWidth`, `getColumnWidth`, row selection, `freeze_cols` documented in api-core
+
+## [0.3.0] - TBD
+
+### Added
+- Row selection via row header click (Shift to extend)
+- `freeze_cols` config — freeze first N data columns on horizontal scroll
+- Basic touch support (touch → mouse forwarding)
+- E2E: row selection, freeze columns, touch
+
+## [0.2.0] - TBD
+
+### Added
+- Column resize via header edge drag
+- `setColumnWidth` / `getColumnWidth` public API
+- records mode filter/sort E2E coverage
+- README Tier 1/2/3 journey and benchmark section (JA/EN)
+
+### Changed
+- `Cargo.toml` version synced with npm
+
 ## [0.1.4] - 2026-06-09
 
 ### Added

@@ -98,8 +98,6 @@ export declare class WasabiTable {
     private recordInlineEditUndoIfChanged;
     private recordInlineEditUndoBeforeClickCommit;
     private collectRangeChanges;
-    private parseTsv;
-    private getPasteStartPosition;
     /**
      * セルの値を取得
      *
@@ -198,6 +196,14 @@ export declare class WasabiTable {
      */
     setColumnHeaders(headers: string | ColumnHeader[]): void;
     /**
+     * 全セルデータをクリア（列ヘッダー・設定は維持）
+     */
+    clearAllCellData(): void;
+    /**
+     * スクロール位置を先頭に戻す
+     */
+    resetScroll(): void;
+    /**
      * 列ヘッダー設定を取得
      *
      * @returns 列ヘッダー設定のJSON文字列
@@ -209,6 +215,15 @@ export declare class WasabiTable {
      * @returns 列ヘッダー設定のオブジェクト配列
      */
     getColumnHeadersAsArray(): ColumnHeader[];
+    /**
+     * 列幅を設定（px）
+     */
+    setColumnWidth(col: number, width: number): void;
+    /**
+     * 列幅を取得（px）
+     */
+    getColumnWidth(col: number): number;
+    private syncColumnHeadersFromWasm;
     /**
      * セルの値を検証
      *

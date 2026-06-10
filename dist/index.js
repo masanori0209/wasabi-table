@@ -5,6 +5,7 @@ export { getSelectionReference } from './types.js';
 // --- 型定義は types.ts に集約 ---
 export { WasabiTableListeners } from './listeners.js';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut, } from './utils.js';
+import { parseTsvRows, serializeTsvRows } from './clipboard-tsv.js';
 import { applyFilters as runFilterSort, createFilterSortState, getFilterResult as buildFilterResult, } from './filter-sort.js';
 import { HeaderDialogController } from './header-dialog.js';
 import { UndoStack } from './undo-stack.js';
@@ -24,6 +25,8 @@ export async function createWasabiTableWithListeners(canvas, config = {}, uiConf
     const listeners = new WasabiTableListeners(table, uiElements, listenerOptions, callbacks);
     return { table, listeners };
 }
+const COLUMN_RESIZE_HANDLE_PX = 6;
+const MIN_COLUMN_WIDTH_PX = 40;
 /**
  * WasabiTable - 高性能なExcel風テーブルコンポーネント
  *
@@ -279,25 +282,6 @@ export class WasabiTable {
             }
         }
         return changes;
-    }
-    parseTsv(tsvData) {
-        return tsvData
-            .split('\n')
-            .filter((row) => row.trim().length > 0)
-            .map((row) => row.split('\t'));
-    }
-    getPasteStartPosition() {
-        const selectionInfo = this.getSelectionInfo();
-        if (selectionInfo.isRange &&
-            selectionInfo.start_row !== undefined &&
-            selectionInfo.start_col !== undefined) {
-            return { row: selectionInfo.start_row, col: selectionInfo.start_col };
-        }
-        const selectedCell = this.getSelectedCell();
-        if (selectedCell) {
-            return { row: selectedCell.row, col: selectedCell.col };
-        }
-        return { row: 0, col: 0 };
     }
     /**
      * セルの値を取得
@@ -722,6 +706,34 @@ export class WasabiTable {
         this.ensureInitialized();
         const headersJson = typeof headers === 'string' ? headers : JSON.stringify(headers);
         this.wasmTable.set_column_headers(headersJson);
+        this.syncColumnHeadersFromWasm();
+        if (this.config.column_headers.length > 0) {
+            this.config.col_count = this.config.column_headers.length;
+        }
+    }
+    /**
+     * 全セルデータをクリア（列ヘッダー・設定は維持）
+     */
+    clearAllCellData() {
+        this.ensureInitialized();
+        this.wasmTable.clear_all_cell_data();
+        if (this.recordsSource) {
+            for (let row = 0; row < this.recordsSource.getRowCount(); row += 1) {
+                for (let col = 0; col < this.recordsSource.getColCount(); col += 1) {
+                    this.recordsSource.setCellValue(row, col, '');
+                }
+            }
+            this.invalidateRecordsViewport();
+        }
+        this.render();
+    }
+    /**
+     * スクロール位置を先頭に戻す
+     */
+    resetScroll() {
+        this.ensureInitialized();
+        this.wasmTable.reset_scroll();
+        this.render();
     }
     /**
      * 列ヘッダー設定を取得
@@ -740,6 +752,29 @@ export class WasabiTable {
     getColumnHeadersAsArray() {
         const headersJson = this.getColumnHeaders();
         return JSON.parse(headersJson);
+    }
+    /**
+     * 列幅を設定（px）
+     */
+    setColumnWidth(col, width) {
+        this.ensureInitialized();
+        this.wasmTable.set_column_width(col, Math.max(MIN_COLUMN_WIDTH_PX, width));
+        this.syncColumnHeadersFromWasm();
+    }
+    /**
+     * 列幅を取得（px）
+     */
+    getColumnWidth(col) {
+        this.ensureInitialized();
+        return this.wasmTable.get_column_width_at(col);
+    }
+    syncColumnHeadersFromWasm() {
+        try {
+            this.config.column_headers = this.getColumnHeadersAsArray();
+        }
+        catch (_a) {
+            // keep existing config on parse failure
+        }
     }
     /**
      * セルの値を検証
@@ -976,6 +1011,10 @@ export class WasabiTable {
         let dragEndedAt = 0;
         let hasActuallyDragged = false; // 実際にマウスが移動したかを追跡
         const suppressClickAfterDragMs = 400;
+        let isResizingColumn = false;
+        let resizeColumnIndex = -1;
+        let resizeStartX = 0;
+        let resizeStartWidth = 0;
         // handleTableKey関数は不要（Rustのkeydownリスナーを無効化したため）
         // 矢印キー以外のキーは直接handle_canvas_keydownを呼び出す
         // 基本的なマウスクリック
@@ -1088,10 +1127,41 @@ export class WasabiTable {
         const onDocumentMouseUp = () => {
             finishDragSelection();
         };
+        const onColumnResizeMove = (event) => {
+            if (!isResizingColumn || resizeColumnIndex < 0)
+                return;
+            const rect = this.canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const delta = x - resizeStartX;
+            this.wasmTable.set_column_width(resizeColumnIndex, Math.max(MIN_COLUMN_WIDTH_PX, resizeStartWidth + delta));
+            this.syncColumnHeadersFromWasm();
+            this.updateScrollbars();
+            this.render();
+        };
+        const finishColumnResize = () => {
+            if (!isResizingColumn)
+                return;
+            document.removeEventListener('mousemove', onColumnResizeMove);
+            document.removeEventListener('mouseup', finishColumnResize);
+            isResizingColumn = false;
+            resizeColumnIndex = -1;
+            this.canvas.style.cursor = '';
+            dragEndedAt = Date.now();
+        };
         this.canvas.addEventListener('mousemove', (event) => {
+            if (isResizingColumn) {
+                onColumnResizeMove(event);
+                return;
+            }
             if (isDragging) {
                 updateDragSelectionAt(event.clientX, event.clientY);
+                return;
             }
+            const rect = this.canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const resizeHit = this.wasmTable.hit_test_column_resize(x, y, COLUMN_RESIZE_HANDLE_PX);
+            this.canvas.style.cursor = resizeHit >= 0 ? 'col-resize' : '';
         });
         this.canvas.addEventListener('mouseup', () => {
             finishDragSelection();
@@ -1100,6 +1170,27 @@ export class WasabiTable {
             const rect = this.canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
+            const resizeCol = this.wasmTable.hit_test_column_resize(x, y, COLUMN_RESIZE_HANDLE_PX);
+            if (resizeCol >= 0) {
+                isResizingColumn = true;
+                resizeColumnIndex = resizeCol;
+                resizeStartX = x;
+                resizeStartWidth = this.wasmTable.get_column_width_at(resizeCol);
+                event.preventDefault();
+                document.addEventListener('mousemove', onColumnResizeMove);
+                document.addEventListener('mouseup', finishColumnResize);
+                return;
+            }
+            if (x < this.config.row_header_width && y > this.config.header_height) {
+                const rowIndex = this.wasmTable.hit_test_row_header(x, y);
+                if (rowIndex >= 0) {
+                    this.wasmTable.select_entire_row(rowIndex, event.shiftKey);
+                    this.triggerCellSelectEvent();
+                    this.render();
+                    event.preventDefault();
+                    return;
+                }
+            }
             if (y <= this.config.header_height && x > this.config.row_header_width) {
                 const columnIndex = this.getColumnIndexFromX(x);
                 if (columnIndex !== -1) {
@@ -1302,6 +1393,35 @@ export class WasabiTable {
                 console.error('Error handling editing Escape:', error);
             }
         };
+        const forwardTouchAsMouse = (touch, type) => {
+            this.canvas.dispatchEvent(new MouseEvent(type, {
+                bubbles: true,
+                cancelable: true,
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                button: 0,
+                buttons: type === 'mouseup' ? 0 : 1,
+            }));
+        };
+        this.canvas.addEventListener('touchstart', (event) => {
+            if (event.touches.length !== 1)
+                return;
+            event.preventDefault();
+            this.canvas.focus();
+            forwardTouchAsMouse(event.touches[0], 'mousedown');
+        }, { passive: false });
+        this.canvas.addEventListener('touchmove', (event) => {
+            if (event.touches.length !== 1)
+                return;
+            event.preventDefault();
+            forwardTouchAsMouse(event.touches[0], 'mousemove');
+        }, { passive: false });
+        this.canvas.addEventListener('touchend', (event) => {
+            if (event.changedTouches.length !== 1)
+                return;
+            event.preventDefault();
+            forwardTouchAsMouse(event.changedTouches[0], 'mouseup');
+        }, { passive: false });
     }
     getFormulaInputElement() {
         return document.getElementById('formulaInput');
@@ -1647,6 +1767,7 @@ export class WasabiTable {
                 this.wasmTable.update_canvas_size(actualWidth, actualHeight);
             }
             catch (error) {
+                console.error('🔧 Error updating WASM canvas size:', error);
                 // フォールバック: 直接プロパティを更新
                 try {
                     if ('canvas_width' in this.wasmTable && 'canvas_height' in this.wasmTable) {
@@ -1655,6 +1776,7 @@ export class WasabiTable {
                     }
                 }
                 catch (fallbackError) {
+                    console.error('🔧 Fallback canvas size update also failed:', fallbackError);
                 }
             }
         }
@@ -1728,6 +1850,7 @@ export class WasabiTable {
             this.wasmTable.start_range_selection(row, col);
         }
         catch (error) {
+            console.error('❌ Failed to start range selection:', error);
         }
     }
     /**
@@ -1739,6 +1862,7 @@ export class WasabiTable {
             this.wasmTable.update_range_selection(row, col);
         }
         catch (error) {
+            console.error('❌ Failed to update range selection:', error);
         }
     }
     /**
@@ -1750,6 +1874,7 @@ export class WasabiTable {
             this.wasmTable.end_range_selection();
         }
         catch (error) {
+            console.error('❌ Failed to end range selection:', error);
         }
     }
     /**
@@ -1761,6 +1886,7 @@ export class WasabiTable {
             this.wasmTable.clear_selection();
         }
         catch (error) {
+            console.error('❌ Failed to clear selection:', error);
         }
     }
     /**
@@ -1772,7 +1898,7 @@ export class WasabiTable {
             return this.wasmTable.copy_selection();
         }
         const sel = this.getSelectionInfo();
-        const lines = [];
+        const rows = [];
         if (sel.isRange &&
             sel.start_row != null &&
             sel.end_row != null &&
@@ -1783,21 +1909,21 @@ export class WasabiTable {
                 for (let col = sel.start_col; col <= sel.end_col; col += 1) {
                     cols.push(this.recordsSource.getCellValue(row, col));
                 }
-                lines.push(cols.join('\t'));
+                rows.push(cols);
             }
         }
         else if (sel.row != null && sel.col != null) {
-            lines.push(this.recordsSource.getCellValue(sel.row, sel.col));
+            rows.push([this.recordsSource.getCellValue(sel.row, sel.col)]);
         }
-        return lines.join('\n');
+        return serializeTsvRows(rows);
     }
     /**
      * クリップボードからペースト
      */
     pasteFromClipboard(tsvData) {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f;
         this.ensureInitialized();
-        const rows = tsvData.split('\n').filter((line) => line.trim().length > 0);
+        const rows = parseTsvRows(tsvData);
         if (rows.length === 0)
             return;
         const sel = this.getSelectionInfo();
@@ -1805,14 +1931,14 @@ export class WasabiTable {
         const startCol = (_d = (_c = sel.start_col) !== null && _c !== void 0 ? _c : sel.col) !== null && _d !== void 0 ? _d : 0;
         const changes = [];
         for (let rowOffset = 0; rowOffset < rows.length; rowOffset += 1) {
-            const cols = rows[rowOffset].split('\t');
+            const cols = rows[rowOffset];
             for (let colOffset = 0; colOffset < cols.length; colOffset += 1) {
                 const row = startRow + rowOffset;
                 const col = startCol + colOffset;
                 if (row >= this.config.row_count || col >= this.config.col_count)
                     continue;
                 const oldValue = (_e = this.getCellValue(row, col)) !== null && _e !== void 0 ? _e : '';
-                const newValue = cols[colOffset];
+                const newValue = (_f = cols[colOffset]) !== null && _f !== void 0 ? _f : '';
                 if (oldValue !== newValue) {
                     changes.push({ row, col, oldValue, newValue });
                 }
@@ -1931,6 +2057,7 @@ export class WasabiTable {
             }
         }
         catch (error) {
+            console.error('❌ Copy failed:', error);
             // エラー時はフォールバックを試行
             try {
                 const copiedData = this.copySelection();
@@ -1939,6 +2066,7 @@ export class WasabiTable {
                 }
             }
             catch (fallbackError) {
+                console.error('❌ Fallback copy also failed:', fallbackError);
             }
         }
     }
@@ -1973,6 +2101,7 @@ export class WasabiTable {
             }
         }
         catch (error) {
+            console.error('❌ Paste failed:', error);
         }
     }
     /**
@@ -2031,6 +2160,7 @@ export class WasabiTable {
             }
         }
         catch (error) {
+            console.error('❌ Cut failed:', error);
         }
     }
     /**
@@ -2045,6 +2175,7 @@ export class WasabiTable {
             this.render();
         }
         catch (error) {
+            console.error('❌ Select all failed:', error);
         }
     }
     /**
@@ -2064,9 +2195,11 @@ export class WasabiTable {
             if (successful) {
             }
             else {
+                console.error('❌ Fallback copy failed');
             }
         }
         catch (err) {
+            console.error('❌ Fallback copy error:', err);
         }
         finally {
             document.body.removeChild(textArea);

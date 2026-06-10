@@ -134,7 +134,7 @@ test.describe('Records mode action matrix', () => {
       return { copied, cleared, restored };
     `
     );
-    expect(result.copied).toBe('Alice');
+    expect(result.copied).toBe('Alice\r\n');
     expect(result.cleared).toBe('');
     expect(result.restored).toBe('Alice');
   });

@@ -410,6 +410,51 @@ impl WasabiTable {
         self.data.len() + row_cells
     }
 
+    fn parse_cell_key(key: &str) -> Option<(usize, usize)> {
+        let mut parts = key.split(':');
+        let row: usize = parts.next()?.parse().ok()?;
+        let col: usize = parts.next()?.parse().ok()?;
+        Some((row, col))
+    }
+
+    /// 現在の row_count / col_count 外のセルデータを除去
+    fn prune_stored_data_beyond_bounds(&mut self) {
+        self.data.retain(|key, _| {
+            Self::parse_cell_key(key)
+                .map(|(row, col)| row < self.config.row_count && col < self.config.col_count)
+                .unwrap_or(false)
+        });
+        self.conditional_formats.retain(|key, _| {
+            Self::parse_cell_key(key)
+                .map(|(row, col)| row < self.config.row_count && col < self.config.col_count)
+                .unwrap_or(false)
+        });
+        self.row_store.retain(|&row, values| {
+            if row >= self.config.row_count {
+                return false;
+            }
+            values.truncate(self.config.col_count);
+            values.iter().any(|v| !v.is_empty())
+        });
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_all_cell_data(&mut self) -> Result<(), JsValue> {
+        self.data.clear();
+        self.row_store.clear();
+        self.conditional_formats.clear();
+        self.mark_render_dirty();
+        Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn reset_scroll(&mut self) {
+        self.scroll_x = 0.0;
+        self.scroll_y = 0.0;
+        self.calculate_visible_range();
+        self.mark_render_dirty();
+    }
+
     #[wasm_bindgen]
     pub fn set_cell_data(&mut self, row: usize, col: usize, value: String) -> Result<(), JsValue> {
         if row >= self.config.row_count || col >= self.config.col_count {
@@ -563,6 +608,9 @@ impl WasabiTable {
         match serde_json::from_str::<TableConfig>(config_json) {
             Ok(config) => {
                 self.config = config;
+                self.prune_stored_data_beyond_bounds();
+                self.scroll_x = self.scroll_x.min(self.calculate_max_scroll_x());
+                self.scroll_y = self.scroll_y.min(self.calculate_max_scroll_y());
                 self.calculate_visible_range();
                 self.mark_render_dirty();
                 Ok(())
@@ -679,18 +727,23 @@ impl WasabiTable {
             display_row
         };
 
-        // 列の計算（カスタム幅対応）
-        // スクロールを考慮した絶対X座標を計算（get_column_x_positionと一貫性を保つ）
+        // 列の計算（カスタム幅・固定列対応）
+        let freeze = self.config.freeze_cols.min(self.config.col_count);
         let mut accumulated_width = self.config.row_header_width;
-        let absolute_x = x + self.scroll_x; // 画面座標を絶対座標に変換
-        
-        for col in 0..self.config.col_count {
-            let column_width = if let Some(header) = self.get_column_header(col) {
-                header.width
-            } else {
-                self.config.default_col_width
-            };
-            
+
+        for col in 0..freeze {
+            let column_width = self.get_column_width(col);
+            if x >= accumulated_width && x < accumulated_width + column_width {
+                if row < self.config.row_count {
+                    return Some((row, col));
+                }
+            }
+            accumulated_width += column_width;
+        }
+
+        let absolute_x = x + self.scroll_x;
+        for col in freeze..self.config.col_count {
+            let column_width = self.get_column_width(col);
             if absolute_x >= accumulated_width && absolute_x < accumulated_width + column_width {
                 if row < self.config.row_count {
                     return Some((row, col));
@@ -862,19 +915,18 @@ impl WasabiTable {
     }
 
     fn get_column_x_position(&self, col: usize) -> f64 {
+        let freeze = self.config.freeze_cols.min(self.config.col_count);
         let mut accumulated_width = self.config.row_header_width;
-        
-        // 指定した列までの幅を累積計算
+
         for prev_col in 0..col {
-            if let Some(header) = self.get_column_header(prev_col) {
-                accumulated_width += header.width;
-            } else {
-                accumulated_width += self.config.default_col_width;
-            }
+            accumulated_width += self.get_column_width(prev_col);
         }
-        
-        // スクロール位置を考慮して最終位置を計算
-        accumulated_width - self.scroll_x
+
+        if col < freeze {
+            accumulated_width
+        } else {
+            accumulated_width - self.scroll_x
+        }
     }
 
     fn get_cell_y_for_editing(&self, row: usize) -> f64 {
@@ -1140,26 +1192,8 @@ impl WasabiTable {
         // 列ヘッダーテキストを描画（スクロール対応）
         let max_col = self.visible_cols.1.min(self.config.col_count);
         for col in self.visible_cols.0..max_col {
-            let column_width = if let Some(header) = self.get_column_header(col) {
-                header.width
-            } else {
-                self.config.default_col_width
-            };
-            
-            let x = if col == 0 {
-                self.config.row_header_width
-            } else {
-                // 前の列までの幅を累積計算
-                let mut accumulated_width = self.config.row_header_width;
-                for prev_col in 0..col {
-                    if let Some(prev_header) = self.get_column_header(prev_col) {
-                        accumulated_width += prev_header.width;
-                    } else {
-                        accumulated_width += self.config.default_col_width;
-                    }
-                }
-                accumulated_width - self.scroll_x
-            };
+            let column_width = self.get_column_width(col);
+            let x = self.get_column_x_position(col);
             
             // 列ヘッダーは画面内に表示される場合のみ描画
             if x + column_width > self.config.row_header_width && x < self.canvas_width {
@@ -1607,8 +1641,11 @@ impl WasabiTable {
         match serde_json::from_str::<Vec<crate::types::ColumnHeader>>(headers_json) {
             Ok(headers) => {
                 self.config.column_headers = headers;
-                // 列数を更新
+                // 列数をヘッダー定義に合わせる（サンプル列のみ表示）
                 self.config.col_count = self.config.column_headers.len().max(1);
+                self.prune_stored_data_beyond_bounds();
+                self.scroll_x = 0.0;
+                self.scroll_y = 0.0;
                 self.calculate_visible_range();
                 self.mark_render_dirty();
                 Ok(())
@@ -1697,9 +1734,7 @@ impl WasabiTable {
             }
         }
         let absolute_y = (row as f64 * self.config.default_row_height as f64) + self.config.header_height as f64;
-        
-        // 画面座標（スクロールを考慮した位置）を計算
-        let screen_x = absolute_x - self.scroll_x;
+        let screen_x = self.get_column_x_position(col);
         let screen_y = absolute_y - self.scroll_y;
         
         let width = self.get_column_width(col);
@@ -1887,28 +1922,13 @@ impl WasabiTable {
 
         self.clipboard_data = copied_data.clone();
         
-        // TSV形式で返す（タブ区切り）
-        let tsv = copied_data.iter()
-            .map(|row| row.join("\t"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        
-        
-        Ok(tsv)
+        Ok(crate::clipboard_tsv::serialize_tsv_rows(&copied_data))
     }
 
     // クリップボードからペースト
     #[wasm_bindgen]
     pub fn paste_from_clipboard(&mut self, tsv_data: &str) -> Result<(), JsValue> {
-        let rows: Vec<&str> = tsv_data.split('\n').collect();
-        let mut paste_data = Vec::new();
-        
-        for row_str in rows {
-            if !row_str.trim().is_empty() {
-                let cols: Vec<String> = row_str.split('\t').map(|s| s.to_string()).collect();
-                paste_data.push(cols);
-            }
-        }
+        let paste_data = crate::clipboard_tsv::parse_tsv_rows(tsv_data);
 
         if paste_data.is_empty() {
             return Ok(());
@@ -2063,6 +2083,135 @@ impl WasabiTable {
             "filteredRowCount": self.filtered_rows.len(),
             "totalRowCount": self.config.row_count
         })).unwrap_or_else(|_| "{}".to_string())
+    }
+
+    /// 列ヘッダー右端のリサイズハンドル hit-test（canvas 座標）
+    #[wasm_bindgen]
+    pub fn hit_test_column_resize(&self, canvas_x: f64, canvas_y: f64, zone: f64) -> i32 {
+        let header_height = self.config.header_height as f64;
+        let row_header_width = self.config.row_header_width as f64;
+
+        if canvas_y < 0.0 || canvas_y > header_height || canvas_x <= row_header_width {
+            return -1;
+        }
+
+        let zone = if zone > 0.0 { zone } else { 6.0 };
+        let mut absolute_x = row_header_width;
+
+        for col in 0..self.config.col_count {
+            let w = self.get_column_width(col);
+            let screen_left = absolute_x - self.scroll_x;
+            let screen_right = screen_left + w;
+
+            if screen_right > row_header_width && screen_left < self.canvas_width {
+                if canvas_x >= screen_right - zone && canvas_x <= screen_right + zone {
+                    return col as i32;
+                }
+            }
+            absolute_x += w;
+        }
+
+        -1
+    }
+
+    /// 列幅を更新（最小 40px）
+    #[wasm_bindgen]
+    pub fn set_column_width(&mut self, col: usize, width: f64) -> Result<(), JsValue> {
+        if col >= self.config.col_count {
+            return Err(JsValue::from_str("Column index out of range"));
+        }
+
+        let width = width.max(40.0);
+
+        while self.config.column_headers.len() <= col {
+            let idx = self.config.column_headers.len();
+            let mut header = crate::types::ColumnHeader::default();
+            header.name = format!("col_{}", idx);
+            header.display_name = self.get_column_name(idx);
+            header.width = self.config.default_col_width;
+            header.order = idx;
+            self.config.column_headers.push(header);
+        }
+
+        self.config.column_headers[col].width = width;
+        self.calculate_visible_range();
+        self.mark_render_dirty();
+        self.render()?;
+        Ok(())
+    }
+
+    /// 列幅を取得（px）
+    #[wasm_bindgen]
+    pub fn get_column_width_at(&self, col: usize) -> f64 {
+        if col >= self.config.col_count {
+            return self.config.default_col_width;
+        }
+        self.get_column_width(col)
+    }
+
+    /// 行ヘッダー hit-test（行番号領域クリック）
+    #[wasm_bindgen]
+    pub fn hit_test_row_header(&self, canvas_x: f64, canvas_y: f64) -> i32 {
+        if canvas_x >= self.config.row_header_width as f64
+            || canvas_y <= self.config.header_height as f64
+        {
+            return -1;
+        }
+
+        let display_row = ((canvas_y - self.config.header_height as f64 + self.scroll_y)
+            / self.config.default_row_height as f64)
+            .floor() as usize;
+
+        let row = if self.is_filtered && !self.filtered_rows.is_empty() {
+            if display_row < self.filtered_rows.len() {
+                self.filtered_rows[display_row]
+            } else {
+                return -1;
+            }
+        } else if display_row < self.config.row_count {
+            display_row
+        } else {
+            return -1;
+        };
+
+        row as i32
+    }
+
+    /// 行全体を選択（Shift で範囲拡張）
+    #[wasm_bindgen]
+    pub fn select_entire_row(&mut self, row: usize, extend: bool) -> Result<(), JsValue> {
+        if row >= self.config.row_count {
+            return Err(JsValue::from_str("Row index out of range"));
+        }
+
+        let last_col = self.config.col_count.saturating_sub(1);
+
+        if extend {
+            if let Some(range) = self.selected_range {
+                self.selected_range = Some(crate::types::CellRange::new(
+                    range.start_row.min(row),
+                    0,
+                    range.end_row.max(row),
+                    last_col,
+                ));
+            } else if let Some((sel_row, _)) = self.selected_cell {
+                self.selected_range = Some(crate::types::CellRange::new(
+                    sel_row.min(row),
+                    0,
+                    sel_row.max(row),
+                    last_col,
+                ));
+            } else {
+                self.selected_range =
+                    Some(crate::types::CellRange::new(row, 0, row, last_col));
+            }
+        } else {
+            self.selected_range = Some(crate::types::CellRange::new(row, 0, row, last_col));
+            self.selected_cell = Some((row, 0));
+        }
+
+        self.render()?;
+        Ok(())
     }
 
     // 列名を生成する関数 (A, B, C, ..., Z, AA, AB, ...)
