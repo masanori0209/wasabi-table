@@ -18,7 +18,7 @@ export declare function exportTableToCSV(table: IWasabiTable, filename?: string)
  */
 export declare function clearTable(table: IWasabiTable): void;
 /**
- * サンプルデータを読み込むユーティリティ
+ * サンプルデータを読み込むユーティリティ（既存セルは上書きのみ — 事前に clearTable を推奨）
  */
 export declare function loadSampleData(table: IWasabiTable, data: string[][]): void;
 /**

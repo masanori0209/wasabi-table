@@ -94,6 +94,10 @@ pub struct TableConfig {
     pub font_style: String,
     pub font_weight: String,
     pub column_headers: Vec<ColumnHeader>,  // 列ヘッダー設定
+    #[serde(default)]
+    pub freeze_cols: usize,
+    #[serde(default)]
+    pub freeze_rows: usize,
 }
 
 impl Default for TableConfig {
@@ -116,6 +120,8 @@ impl Default for TableConfig {
             font_style: "normal".to_string(),
             font_weight: "normal".to_string(),
             column_headers: Vec::new(),
+            freeze_cols: 0,
+            freeze_rows: 0,
         }
     }
 }

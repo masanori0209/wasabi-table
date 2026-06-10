@@ -480,26 +480,28 @@
 
         window.showAvailableThemes = () => WasabiTable.getAvailableThemes();
 
-        window.loadSampleData = () => {
+        window.loadSampleData = async () => {
             if (!table) return;
             
-            // Step 1: サンプルデータに合わせてUI設定を更新
             const newConfig = {
-                row_count: 15,  // サンプルデータ8行 + 統計行 + 余裕
-                col_count: 10,  // サンプルデータの列数に合わせる
+                row_count: 15,
+                col_count: 10,
                 default_col_width: 100,
                 default_row_height: 25
             };
             
-            // UI要素を更新
             document.getElementById('rowCount').value = newConfig.row_count;
             document.getElementById('colCount').value = newConfig.col_count;
             document.getElementById('colWidth').value = newConfig.default_col_width;
             document.getElementById('rowHeight').value = newConfig.default_row_height;
             
-            updateTableConfig();
+            currentConfig.row_count = newConfig.row_count;
+            currentConfig.col_count = newConfig.col_count;
+            currentConfig.default_col_width = newConfig.default_col_width;
+            currentConfig.default_row_height = newConfig.default_row_height;
             
-            // Step 3: 新しいヘッダー設定を定義
+            await initTable();
+            
             const columnHeaders = [
                 {
                     name: "employee_id",
@@ -604,20 +606,20 @@
                 }
             ];
 
-            // Step 4: ヘッダー設定を遅延適用（テーブル再作成完了後）
-            setTimeout(() => {
-                try {
-                    table.setColumnHeaders(JSON.stringify(columnHeaders));
-                    loadSampleDataContent();
-                } catch (error) {
-                    console.error('❌ Failed to set column headers:', error);
-                }
-            }, 500); // 500ms遅延でテーブル再作成を待つ
+            try {
+                table.setColumnHeaders(JSON.stringify(columnHeaders));
+                currentConfig.column_headers = columnHeaders;
+                currentConfig.col_count = columnHeaders.length;
+                table.clearAllCellData();
+                table.resetScroll();
+                loadSampleDataContent();
+            } catch (error) {
+                console.error('❌ Failed to load sample data:', error);
+            }
         };
         
         // サンプルデータ設定を別関数に分離
         function loadSampleDataContent() {
-
             // サンプルデータ
             const sampleData = [
                 ['1001', '田中太郎', '28', 'エンジニア', '500000', '開発部', 'tanaka@example.com', '2020-04-01', 'A', 'true'],
@@ -650,14 +652,7 @@
 
         window.clearTable = () => {
             if (!table) return;
-            
-            const config = table.getConfig();
-            for (let row = 0; row < config.row_count; row++) {
-                for (let col = 0; col < config.col_count; col++) {
-                    table.setCellValue(row, col, '');
-                }
-            }
-            table.render();
+            table.clearAllCellData();
             refreshUI();
         };
 

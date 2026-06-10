@@ -73,7 +73,7 @@ export function clearTable(table) {
     table.render();
 }
 /**
- * サンプルデータを読み込むユーティリティ
+ * サンプルデータを読み込むユーティリティ（既存セルは上書きのみ — 事前に clearTable を推奨）
  */
 export function loadSampleData(table, data) {
     data.forEach((row, rowIndex) => {

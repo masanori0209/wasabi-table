@@ -34,6 +34,8 @@ export interface TableConfig {
     selected_cell_color: string;
     show_grid: boolean;
     column_headers: ColumnHeader[];
+    freeze_cols?: number;
+    freeze_rows?: number;
 }
 export interface CellData {
     value: string;

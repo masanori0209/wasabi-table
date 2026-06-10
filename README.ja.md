@@ -2,7 +2,21 @@
 
 [English](./README.md)
 
-Rust と WebAssembly で構築された、Canvas 上に描画する高速・軽量な Excel 風テーブルコンポーネントです。
+Rust と WebAssembly で構築された、Canvas 上に描画する高速・軽量な Excel 風テーブルコンポーネントです。**SaaS 管理画面のマスタ一覧/編集**向けに、シンプルに始めて段階的に深掘りできる API を提供します。
+
+## 使い方の 3 Tier
+
+| Tier | 用途 | 例 |
+|------|------|-----|
+| **1** | 最小表示（30秒） | `WasabiTable.create(canvas)` → `setCellValue` → `render()` |
+| **2** | 業務画面 | 列定義・バリデーション、`createWasabiTableWithListeners` |
+| **3** | 大規模データ | `dataSource.records`、フィルター/ソート、列リサイズ |
+
+詳細: [docs/roadmap.ja.md](./docs/roadmap.ja.md) · [Getting Started](./docs/getting-started.ja.md)
+
+## ベンチマーク
+
+[benchmark.html](https://masanori0209.github.io/wasabi-table/examples/npm-package/benchmark.html) でブラウザ上の計測が可能です（100行〜100万行 records、初期化・スクロール等）。数値は環境依存 — 再現手順はページ内に記載。
 
 ## プロジェクト構成
 
@@ -23,6 +37,8 @@ wasabi-table/
 - **Excel 風操作**: セル選択、範囲選択、キーボードナビゲーション
 - **編集**: インライン編集、コピー＆ペースト、カット、元に戻す/やり直し
 - **フィルター・ソート**、条件付き書式、セル検証
+- **列リサイズ**（ヘッダー端ドラッグ）
+- **行選択**（行ヘッダークリック）、**列固定**（`freeze_cols`）
 - **テーマ**: ライト / ダーク
 
 ## クイックスタート
@@ -122,10 +138,32 @@ Rust/WASM の変更後は `npm run build:wasm` または `npm run build` を再�
 
 ## ドキュメント
 
-- [ドキュメント一覧](./docs/README.md)（英語 / 日本語）
+- [ドキュメント一覧](./docs/README.md)（製品方針・ロードマップ・アーキテクチャ含む）
 - [Getting Started](./docs/getting-started.md) · [はじめに](./docs/getting-started.ja.md)
 - [Core API](./docs/api-core.md) · [コア API](./docs/api-core.ja.md)
 - [Usage Examples](./examples/usage-examples.md) · [使用例](./examples/usage-examples.ja.md)
+- [グリッド選定ガイド](./docs/choosing-a-grid.ja.md) · [Browser support](./docs/browser-support.ja.md)
+
+## バンドルサイズ（目安）
+
+`npm run build` 後の参考値（gzip 前）:
+
+| 成果物 | サイズ |
+|--------|--------|
+| WASM (`pkg/wasabi_table_bg.wasm`) | ~1.2 MB |
+| JS ラッパー (`dist/`) | ~250 KB |
+
+WASM は初回ロード時にキャッシュされます。Tree-shaking 対象外のため、必要 API のみ import しても WASM 本体は同梱されます。
+
+## 1.0 スコープ外
+
+- 数式エンジン（`=SUM` 等）— 数式バーはセル値エディタ
+- ピボット・チャート
+- セル結合、リアルタイム共同編集
+- SSR / Node.js 単体実行
+- 公式 React パッケージ（docs + サンプルのみ）
+
+詳細: [positioning.ja.md](./docs/positioning.ja.md)
 
 ## セキュリティ
 
