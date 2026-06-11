@@ -73,6 +73,7 @@ export class WasabiTable {
         this.applyingHistory = false;
         this.recordsSource = null;
         this.viewportSyncRange = null;
+        this.eventAbortController = null;
         /**
          * SelectBoxのキーダウンハンドラー
          */
@@ -967,7 +968,18 @@ export class WasabiTable {
     /**
      * リソースを解放
      */
+    tearDownEventHandlers() {
+        var _a;
+        (_a = this.eventAbortController) === null || _a === void 0 ? void 0 : _a.abort();
+        this.eventAbortController = null;
+        const win = window;
+        delete win.handleEditingEnter;
+        delete win.handleEditingTab;
+        delete win.handleEditingEscape;
+        delete win.triggerRender;
+    }
     dispose() {
+        this.tearDownEventHandlers();
         // ResizeObserverを停止
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
@@ -1006,6 +1018,9 @@ export class WasabiTable {
         return cellReferenceFn(row, col);
     }
     setupEventHandlers() {
+        this.tearDownEventHandlers();
+        this.eventAbortController = new AbortController();
+        const { signal } = this.eventAbortController;
         let isDragging = false;
         let dragStartCell = null;
         let dragEndedAt = 0;
@@ -1071,7 +1086,7 @@ export class WasabiTable {
                     }
                 }
             }
-        });
+        }, { signal });
         // ダブルクリックで編集開始（MenuFieldは除く）
         this.canvas.addEventListener('dblclick', (event) => {
             const rect = this.canvas.getBoundingClientRect();
@@ -1088,7 +1103,7 @@ export class WasabiTable {
                 }
                 this.startEditing(row, col);
             }
-        });
+        }, { signal });
         // マウスドラッグによる範囲選択
         const updateDragSelectionAt = (clientX, clientY) => {
             const rect = this.canvas.getBoundingClientRect();
@@ -1162,10 +1177,10 @@ export class WasabiTable {
             const y = event.clientY - rect.top;
             const resizeHit = this.wasmTable.hit_test_column_resize(x, y, COLUMN_RESIZE_HANDLE_PX);
             this.canvas.style.cursor = resizeHit >= 0 ? 'col-resize' : '';
-        });
+        }, { signal });
         this.canvas.addEventListener('mouseup', () => {
             finishDragSelection();
-        });
+        }, { signal });
         this.canvas.addEventListener('mousedown', (event) => {
             const rect = this.canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
@@ -1224,7 +1239,7 @@ export class WasabiTable {
                     document.addEventListener('mouseup', onDocumentMouseUp);
                 }
             }
-        });
+        }, { signal });
         this.canvas.addEventListener('wheel', (event) => {
             event.preventDefault();
             this.wasmTable.handle_canvas_wheel(event.deltaX, event.deltaY);
@@ -1240,7 +1255,7 @@ export class WasabiTable {
             setTimeout(() => {
                 this.updateValidationTooltip();
             }, 150);
-        }, { passive: false });
+        }, { passive: false, signal });
         // 統一されたキーボードイベント処理
         document.addEventListener('keydown', (event) => {
             if (this.isComposing) {
@@ -1361,14 +1376,14 @@ export class WasabiTable {
                     console.warn('Failed to handle key in Rust:', error);
                 }
             }
-        });
+        }, { signal });
         // IME状態を監視
         document.addEventListener('compositionstart', () => {
             this.isComposing = true;
-        });
+        }, { signal });
         document.addEventListener('compositionend', () => {
             this.isComposing = false;
-        });
+        }, { signal });
         // 編集中のキーイベントハンドラー（改善版）
         window.handleEditingEnter = () => {
             try {
@@ -1420,19 +1435,19 @@ export class WasabiTable {
             event.preventDefault();
             this.canvas.focus();
             forwardTouchAsMouse(event.touches[0], 'mousedown');
-        }, { passive: false });
+        }, { passive: false, signal });
         this.canvas.addEventListener('touchmove', (event) => {
             if (event.touches.length !== 1)
                 return;
             event.preventDefault();
             forwardTouchAsMouse(event.touches[0], 'mousemove');
-        }, { passive: false });
+        }, { passive: false, signal });
         this.canvas.addEventListener('touchend', (event) => {
             if (event.changedTouches.length !== 1)
                 return;
             event.preventDefault();
             forwardTouchAsMouse(event.changedTouches[0], 'mouseup');
-        }, { passive: false });
+        }, { passive: false, signal });
     }
     getFormulaInputElement() {
         return document.getElementById('formulaInput');

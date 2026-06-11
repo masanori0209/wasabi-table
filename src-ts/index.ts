@@ -236,6 +236,7 @@ export class WasabiTable {
   private applyingHistory = false;
   private recordsSource: RecordsDataSource | null = null;
   private viewportSyncRange: { start: number; end: number } | null = null;
+  private eventAbortController: AbortController | null = null;
 
   private constructor(
     wasmTable: ExtendedWasmWasabiTable,
@@ -1268,7 +1269,25 @@ export class WasabiTable {
   /**
    * リソースを解放
    */
+  private tearDownEventHandlers(): void {
+    this.eventAbortController?.abort();
+    this.eventAbortController = null;
+
+    const win = window as Window & {
+      handleEditingEnter?: () => void;
+      handleEditingTab?: () => void;
+      handleEditingEscape?: () => void;
+      triggerRender?: () => void;
+    };
+    delete win.handleEditingEnter;
+    delete win.handleEditingTab;
+    delete win.handleEditingEscape;
+    delete win.triggerRender;
+  }
+
   public dispose(): void {
+    this.tearDownEventHandlers();
+
     // ResizeObserverを停止
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -1314,6 +1333,10 @@ export class WasabiTable {
   }
 
   private setupEventHandlers(): void {
+    this.tearDownEventHandlers();
+    this.eventAbortController = new AbortController();
+    const { signal } = this.eventAbortController;
+
     let isDragging = false;
     let dragStartCell: { row: number; col: number } | null = null;
     let dragEndedAt = 0;
@@ -1387,7 +1410,7 @@ export class WasabiTable {
           }
         }
       }
-    });
+    }, { signal });
 
     // ダブルクリックで編集開始（MenuFieldは除く）
     this.canvas.addEventListener('dblclick', (event) => {
@@ -1408,7 +1431,7 @@ export class WasabiTable {
         
         this.startEditing(row, col);
       }
-    });
+    }, { signal });
 
     // マウスドラッグによる範囲選択
     const updateDragSelectionAt = (clientX: number, clientY: number): void => {
@@ -1498,11 +1521,11 @@ export class WasabiTable {
         COLUMN_RESIZE_HANDLE_PX
       );
       this.canvas.style.cursor = resizeHit >= 0 ? 'col-resize' : '';
-    });
+    }, { signal });
 
     this.canvas.addEventListener('mouseup', () => {
       finishDragSelection();
-    });
+    }, { signal });
 
     this.canvas.addEventListener('mousedown', (event) => {
       const rect = this.canvas.getBoundingClientRect();
@@ -1571,7 +1594,7 @@ export class WasabiTable {
           document.addEventListener('mouseup', onDocumentMouseUp);
         }
       }
-    });
+    }, { signal });
 
     this.canvas.addEventListener('wheel', (event) => {
       event.preventDefault();
@@ -1587,7 +1610,7 @@ export class WasabiTable {
       setTimeout(() => {
         this.updateValidationTooltip();
       }, 150);
-    }, { passive: false });
+    }, { passive: false, signal });
 
     // 統一されたキーボードイベント処理
     document.addEventListener('keydown', (event) => {
@@ -1719,16 +1742,16 @@ export class WasabiTable {
           console.warn('Failed to handle key in Rust:', error);
         }
       }
-    });
+    }, { signal });
 
     // IME状態を監視
     document.addEventListener('compositionstart', () => {
       this.isComposing = true;
-    });
+    }, { signal });
 
     document.addEventListener('compositionend', () => {
       this.isComposing = false;
-    });
+    }, { signal });
 
     // 編集中のキーイベントハンドラー（改善版）
     (window as any).handleEditingEnter = () => {
@@ -1786,7 +1809,7 @@ export class WasabiTable {
         this.canvas.focus();
         forwardTouchAsMouse(event.touches[0], 'mousedown');
       },
-      { passive: false }
+      { passive: false, signal }
     );
 
     this.canvas.addEventListener(
@@ -1796,7 +1819,7 @@ export class WasabiTable {
         event.preventDefault();
         forwardTouchAsMouse(event.touches[0], 'mousemove');
       },
-      { passive: false }
+      { passive: false, signal }
     );
 
     this.canvas.addEventListener(
@@ -1806,7 +1829,7 @@ export class WasabiTable {
         event.preventDefault();
         forwardTouchAsMouse(event.changedTouches[0], 'mouseup');
       },
-      { passive: false }
+      { passive: false, signal }
     );
   }
 

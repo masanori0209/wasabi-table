@@ -59,6 +59,7 @@ export declare class WasabiTable {
     private applyingHistory;
     private recordsSource;
     private viewportSyncRange;
+    private eventAbortController;
     private constructor();
     /**
      * WasabiTableインスタンスを作成
@@ -289,6 +290,7 @@ export declare class WasabiTable {
     /**
      * リソースを解放
      */
+    private tearDownEventHandlers;
     dispose(): void;
     /**
      * 列名を生成（A, B, C, ..., Z, AA, AB, ...）

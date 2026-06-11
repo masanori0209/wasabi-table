@@ -659,9 +659,7 @@ impl WasabiTable {
         let visible_area_width = self.canvas_width - self.config.row_header_width;
         
         // 最大スクロール値 = 総コンテンツ幅 - 表示領域幅 + 余白（ただし0未満にならないように）
-        // 余白を追加して最後のセルが完全に表示されるようにする
-        let margin = 50.0; // 50px の余白に増加
-        (total_width - visible_area_width + margin).max(0.0)
+        (total_width - visible_area_width).max(0.0)
     }
 
     // 垂直スクロールの最大値を計算
@@ -1128,6 +1126,9 @@ impl WasabiTable {
         } else {
             self.render_selection_overlay()?;
         }
+
+        // テーブル範囲外の余白を単色で塗りつぶし（幽霊グリッド・選択の防止）
+        self.fill_viewport_margins()?;
         
         // スクロール可能なヘッダー部分を最後に描画（セルとグリッドの上に重ねる）
         self.render_scrollable_headers()?;
@@ -1544,6 +1545,38 @@ impl WasabiTable {
             self.ctx.stroke();
         }
         
+        Ok(())
+    }
+
+    /// テーブル右端・下端より外側のキャンバス余白を背景色で塗る
+    fn fill_viewport_margins(&mut self) -> Result<(), JsValue> {
+        let table_right = (self.get_table_width() + self.config.row_header_width as f64 - self.scroll_x)
+            .max(self.config.row_header_width as f64);
+        let table_bottom = (self.get_table_height()
+            + self.config.header_height as f64
+            - self.scroll_y)
+            .max(self.config.header_height as f64);
+
+        self.ctx.set_fill_style_str(&self.config.background_color);
+
+        if table_right < self.canvas_width {
+            self.ctx.fill_rect(
+                table_right,
+                self.config.header_height as f64,
+                self.canvas_width - table_right,
+                self.canvas_height - self.config.header_height as f64,
+            );
+        }
+
+        if table_bottom < self.canvas_height {
+            self.ctx.fill_rect(
+                self.config.row_header_width as f64,
+                table_bottom,
+                self.canvas_width - self.config.row_header_width as f64,
+                self.canvas_height - table_bottom,
+            );
+        }
+
         Ok(())
     }
 
