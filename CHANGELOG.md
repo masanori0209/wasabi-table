@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-06-11
+
+### Added
+- `selectColumn()`, `selectRow()`, `selectAll()` public APIs
+- Column header split: body click selects column, `▾` zone opens filter/sort dialog
+- Top-left corner click selects entire sheet; filter affordance on configured column headers
+- E2E: header row/column/all selection (`e2e/header-selection.spec.ts`)
+
+### Changed
+- Row header click uses WASM `select_entire_row` (Shift to extend) alongside programmatic `selectRow()`
+- `Ctrl/Cmd+A` refreshes formula bar reference via `selectAll()`
+
 ## [1.0.0] - 2026-06-10
 
 ### Added
@@ -93,7 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/masanori0209/wasabi-table/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/masanori0209/wasabi-table/compare/v0.1.4...v1.0.0
 [0.1.4]: https://github.com/masanori0209/wasabi-table/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/masanori0209/wasabi-table/releases/tag/v0.1.3
