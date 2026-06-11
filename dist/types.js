@@ -23,6 +23,8 @@ export const PREDEFINED_THEMES = {
         editing_cell_color: '#f6ad55',
     },
 };
+/** Width of the filter/sort control zone on the right edge of each column header (px). */
+export const HEADER_FILTER_CONTROL_WIDTH = 28;
 export const DEFAULT_CONFIG = {
     row_count: 100,
     col_count: 26,

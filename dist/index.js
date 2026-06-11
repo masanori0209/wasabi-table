@@ -1,6 +1,6 @@
 import init, { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
-import { DEFAULT_CONFIG, FieldType, PREDEFINED_THEMES, getCellReference as cellReferenceFn, getColumnName as columnNameFn, } from './types.js';
-export { DEFAULT_CONFIG, FieldType, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types.js';
+import { DEFAULT_CONFIG, FieldType, HEADER_FILTER_CONTROL_WIDTH, PREDEFINED_THEMES, getCellReference as cellReferenceFn, getColumnName as columnNameFn, } from './types.js';
+export { DEFAULT_CONFIG, FieldType, HEADER_FILTER_CONTROL_WIDTH, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types.js';
 export { getSelectionReference } from './types.js';
 // --- 型定義は types.ts に集約 ---
 export { WasabiTableListeners } from './listeners.js';
@@ -1170,6 +1170,11 @@ export class WasabiTable {
             const rect = this.canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
+            if (y <= this.config.header_height && x <= this.config.row_header_width) {
+                event.preventDefault();
+                this.selectAll();
+                return;
+            }
             const resizeCol = this.wasmTable.hit_test_column_resize(x, y, COLUMN_RESIZE_HANDLE_PX);
             if (resizeCol >= 0) {
                 isResizingColumn = true;
@@ -1181,20 +1186,26 @@ export class WasabiTable {
                 document.addEventListener('mouseup', finishColumnResize);
                 return;
             }
-            if (x < this.config.row_header_width && y > this.config.header_height) {
-                const rowIndex = this.wasmTable.hit_test_row_header(x, y);
-                if (rowIndex >= 0) {
-                    this.wasmTable.select_entire_row(rowIndex, event.shiftKey);
-                    this.triggerCellSelectEvent();
-                    this.render();
-                    event.preventDefault();
-                    return;
-                }
-            }
             if (y <= this.config.header_height && x > this.config.row_header_width) {
                 const columnIndex = this.getColumnIndexFromX(x);
                 if (columnIndex !== -1) {
-                    this.handleHeaderClick(columnIndex, event);
+                    event.preventDefault();
+                    if (this.isColumnFilterControlClick(x, columnIndex)) {
+                        this.handleHeaderClick(columnIndex, event);
+                    }
+                    else {
+                        this.selectColumn(columnIndex);
+                    }
+                    return;
+                }
+            }
+            if (x <= this.config.row_header_width && y > this.config.header_height) {
+                const rowIndex = this.wasmTable.hit_test_row_header(x, y);
+                if (rowIndex >= 0) {
+                    event.preventDefault();
+                    this.wasmTable.select_entire_row(rowIndex, event.shiftKey);
+                    this.triggerCellSelectEvent();
+                    this.render();
                     return;
                 }
             }
@@ -1878,6 +1889,43 @@ export class WasabiTable {
         }
     }
     /**
+     * 列全体を選択
+     */
+    selectColumn(col) {
+        this.ensureInitialized();
+        const config = this.getConfig();
+        if (col < 0 || col >= config.col_count)
+            return;
+        this.getHeaderDialogController().hideAll();
+        this.startRangeSelection(0, col);
+        this.updateRangeSelection(config.row_count - 1, col);
+        this.endRangeSelection();
+        this.render();
+        this.triggerCellSelectEvent();
+    }
+    /**
+     * 行全体を選択
+     */
+    selectRow(row) {
+        this.ensureInitialized();
+        const config = this.getConfig();
+        if (row < 0 || row >= config.row_count)
+            return;
+        this.getHeaderDialogController().hideAll();
+        this.startRangeSelection(row, 0);
+        this.updateRangeSelection(row, config.col_count - 1);
+        this.endRangeSelection();
+        this.render();
+        this.triggerCellSelectEvent();
+    }
+    /**
+     * シート全体を選択
+     */
+    selectAll() {
+        this.handleSelectAll();
+        this.triggerCellSelectEvent();
+    }
+    /**
      * 選択をクリア
      */
     clearSelection() {
@@ -2004,7 +2052,7 @@ export class WasabiTable {
                 case 'a':
                     // Ctrl+A / Cmd+A で全選択
                     event.preventDefault();
-                    this.handleSelectAll();
+                    this.selectAll();
                     return true;
                 case 'z':
                     event.preventDefault();
@@ -2169,6 +2217,7 @@ export class WasabiTable {
     handleSelectAll() {
         try {
             const config = this.getConfig();
+            this.getHeaderDialogController().hideAll();
             this.startRangeSelection(0, 0);
             this.updateRangeSelection(config.row_count - 1, config.col_count - 1);
             this.endRangeSelection();
@@ -3111,21 +3160,122 @@ export class WasabiTable {
         return buildFilterResult(this.filterSortState, this.getConfig().row_count);
     }
     /**
+     * 列ヘッダー内のクリックゾーン（E2E・テスト用、canvas 座標）
+     */
+    getColumnHeaderZones(columnIndex) {
+        const layout = this.getColumnHeaderLayout(columnIndex);
+        if (!layout)
+            return null;
+        const y = this.config.header_height / 2;
+        const hasFilterControl = columnIndex < this.getColumnHeadersAsArray().length;
+        const selectX = layout.startX + (hasFilterControl
+            ? (layout.width - HEADER_FILTER_CONTROL_WIDTH) / 2
+            : layout.width / 2);
+        const filterX = layout.startX + layout.width - HEADER_FILTER_CONTROL_WIDTH / 2;
+        return {
+            select: { x: selectX, y },
+            filter: { x: filterX, y },
+            width: layout.width,
+            hasFilterControl,
+        };
+    }
+    /**
+     * 行ヘッダー内のクリックゾーン（canvas 座標）
+     */
+    getRowHeaderZone(dataRow) {
+        const stats = this.getStats();
+        const { isFiltered, filteredRows } = this.filterSortState;
+        let displayRow = dataRow;
+        if (isFiltered && filteredRows.length > 0) {
+            displayRow = filteredRows.indexOf(dataRow);
+            if (displayRow === -1)
+                return null;
+        }
+        const y = displayRow * this.config.default_row_height +
+            this.config.header_height -
+            stats.scrollY +
+            this.config.default_row_height / 2;
+        if (y < this.config.header_height)
+            return null;
+        return {
+            x: this.config.row_header_width / 2,
+            y,
+        };
+    }
+    /**
+     * 左上角（全選択）のクリックゾーン（canvas 座標）
+     */
+    getSelectAllCornerZone() {
+        return {
+            x: this.config.row_header_width / 2,
+            y: this.config.header_height / 2,
+        };
+    }
+    getColumnWidthAt(col) {
+        const headers = this.getColumnHeadersAsArray();
+        return col < headers.length ? headers[col].width : this.config.default_col_width;
+    }
+    getColumnHeaderLayout(columnIndex) {
+        if (columnIndex < 0 || columnIndex >= this.config.col_count)
+            return null;
+        const stats = this.getStats();
+        let startX = this.config.row_header_width;
+        for (let col = 0; col < columnIndex; col++) {
+            startX += this.getColumnWidthAt(col);
+        }
+        startX -= stats.scrollX;
+        return {
+            startX,
+            width: this.getColumnWidthAt(columnIndex),
+        };
+    }
+    isColumnFilterControlClick(canvasX, columnIndex) {
+        const headers = this.getColumnHeadersAsArray();
+        if (columnIndex >= headers.length)
+            return false;
+        const layout = this.getColumnHeaderLayout(columnIndex);
+        if (!layout)
+            return false;
+        const filterZoneStart = layout.startX + layout.width - HEADER_FILTER_CONTROL_WIDTH;
+        return canvasX >= filterZoneStart;
+    }
+    /**
      * X座標から列インデックスを取得
      */
     getColumnIndexFromX(canvasX) {
         const stats = this.getStats();
         const adjustedX = canvasX + stats.scrollX - this.config.row_header_width;
+        if (adjustedX < 0)
+            return -1;
         let currentX = 0;
-        const headers = this.getColumnHeadersAsArray();
-        for (let col = 0; col < headers.length; col++) {
-            const colWidth = headers[col].width;
+        const colCount = this.config.col_count;
+        for (let col = 0; col < colCount; col++) {
+            const colWidth = this.getColumnWidthAt(col);
             if (adjustedX >= currentX && adjustedX < currentX + colWidth) {
                 return col;
             }
             currentX += colWidth;
         }
         return -1;
+    }
+    /**
+     * Y座標からデータ行インデックスを取得
+     */
+    getRowIndexFromY(canvasY) {
+        const stats = this.getStats();
+        const adjustedY = canvasY + stats.scrollY - this.config.header_height;
+        if (adjustedY < 0)
+            return -1;
+        const displayRow = Math.floor(adjustedY / this.config.default_row_height);
+        const { isFiltered, filteredRows } = this.filterSortState;
+        if (isFiltered && filteredRows.length > 0) {
+            if (displayRow >= filteredRows.length)
+                return -1;
+            return filteredRows[displayRow];
+        }
+        if (displayRow >= this.config.row_count)
+            return -1;
+        return displayRow;
     }
     /**
      * ヘッダークリック処理

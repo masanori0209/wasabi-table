@@ -78,6 +78,21 @@ Field types include `CharField`, `EmailField`, `IntegerField`, `DecimalField`, `
 
 Logic lives in `filter-sort.ts` (unit-tested, reusable).
 
+## Row / column / sheet selection
+
+| Method / action | Description |
+|-----------------|-------------|
+| `selectColumn(col)` | Select an entire column |
+| `selectRow(row)` | Select an entire row |
+| `selectAll()` | Select the whole sheet |
+| Click column header (left area) | Column select |
+| Click column header (right `▾` zone) | Filter/sort dialog (requires column headers) |
+| Click row header | Row select |
+| Click top-left corner | Sheet select |
+| `Ctrl/Cmd+A` | Sheet select |
+
+Column headers split into a **selection zone** (left) and a **filter control zone** (28px right edge) so filter UI does not conflict with column selection.
+
 ## Clipboard & editing
 
 | Shortcut | Action |

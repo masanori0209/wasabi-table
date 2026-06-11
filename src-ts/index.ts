@@ -27,6 +27,7 @@ import {
   DEFAULT_CONFIG,
   FieldType,
   FilterOperator,
+  HEADER_FILTER_CONTROL_WIDTH,
   PREDEFINED_THEMES,
   getCellReference as cellReferenceFn,
   getColumnName as columnNameFn,
@@ -60,6 +61,7 @@ export type {
 export {
   DEFAULT_CONFIG,
   FieldType,
+  HEADER_FILTER_CONTROL_WIDTH,
   PREDEFINED_THEMES,
   getCellReference,
   getColumnName,
@@ -1507,6 +1509,12 @@ export class WasabiTable {
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
 
+      if (y <= this.config.header_height && x <= this.config.row_header_width) {
+        event.preventDefault();
+        this.selectAll();
+        return;
+      }
+
       const resizeCol = this.wasmTable.hit_test_column_resize(
         x,
         y,
@@ -1523,22 +1531,27 @@ export class WasabiTable {
         return;
       }
 
-      if (x < this.config.row_header_width && y > this.config.header_height) {
-        const rowIndex = this.wasmTable.hit_test_row_header(x, y);
-        if (rowIndex >= 0) {
-          this.wasmTable.select_entire_row(rowIndex, event.shiftKey);
-          this.triggerCellSelectEvent();
-          this.render();
-          event.preventDefault();
-          return;
-        }
-      }
-
       if (y <= this.config.header_height && x > this.config.row_header_width) {
         const columnIndex = this.getColumnIndexFromX(x);
 
         if (columnIndex !== -1) {
-          this.handleHeaderClick(columnIndex, event);
+          event.preventDefault();
+          if (this.isColumnFilterControlClick(x, columnIndex)) {
+            this.handleHeaderClick(columnIndex, event);
+          } else {
+            this.selectColumn(columnIndex);
+          }
+          return;
+        }
+      }
+
+      if (x <= this.config.row_header_width && y > this.config.header_height) {
+        const rowIndex = this.wasmTable.hit_test_row_header(x, y);
+        if (rowIndex >= 0) {
+          event.preventDefault();
+          this.wasmTable.select_entire_row(rowIndex, event.shiftKey);
+          this.triggerCellSelectEvent();
+          this.render();
           return;
         }
       }
@@ -2314,6 +2327,46 @@ export class WasabiTable {
   }
 
   /**
+   * 列全体を選択
+   */
+  public selectColumn(col: number): void {
+    this.ensureInitialized();
+    const config = this.getConfig();
+    if (col < 0 || col >= config.col_count) return;
+
+    this.getHeaderDialogController().hideAll();
+    this.startRangeSelection(0, col);
+    this.updateRangeSelection(config.row_count - 1, col);
+    this.endRangeSelection();
+    this.render();
+    this.triggerCellSelectEvent();
+  }
+
+  /**
+   * 行全体を選択
+   */
+  public selectRow(row: number): void {
+    this.ensureInitialized();
+    const config = this.getConfig();
+    if (row < 0 || row >= config.row_count) return;
+
+    this.getHeaderDialogController().hideAll();
+    this.startRangeSelection(row, 0);
+    this.updateRangeSelection(row, config.col_count - 1);
+    this.endRangeSelection();
+    this.render();
+    this.triggerCellSelectEvent();
+  }
+
+  /**
+   * シート全体を選択
+   */
+  public selectAll(): void {
+    this.handleSelectAll();
+    this.triggerCellSelectEvent();
+  }
+
+  /**
    * 選択をクリア
    */
   public clearSelection(): void {
@@ -2453,7 +2506,7 @@ export class WasabiTable {
         case 'a':
           // Ctrl+A / Cmd+A で全選択
           event.preventDefault();
-          this.handleSelectAll();
+          this.selectAll();
           return true;
 
         case 'z':
@@ -2628,6 +2681,7 @@ export class WasabiTable {
   private handleSelectAll(): void {
     try {
       const config = this.getConfig();
+      this.getHeaderDialogController().hideAll();
       this.startRangeSelection(0, 0);
       this.updateRangeSelection(config.row_count - 1, config.col_count - 1);
       this.endRangeSelection();
@@ -3724,17 +3778,114 @@ export class WasabiTable {
   }
 
   /**
+   * 列ヘッダー内のクリックゾーン（E2E・テスト用、canvas 座標）
+   */
+  public getColumnHeaderZones(columnIndex: number): {
+    select: { x: number; y: number };
+    filter: { x: number; y: number };
+    width: number;
+    hasFilterControl: boolean;
+  } | null {
+    const layout = this.getColumnHeaderLayout(columnIndex);
+    if (!layout) return null;
+
+    const y = this.config.header_height / 2;
+    const hasFilterControl = columnIndex < this.getColumnHeadersAsArray().length;
+    const selectX = layout.startX + (hasFilterControl
+      ? (layout.width - HEADER_FILTER_CONTROL_WIDTH) / 2
+      : layout.width / 2);
+    const filterX = layout.startX + layout.width - HEADER_FILTER_CONTROL_WIDTH / 2;
+
+    return {
+      select: { x: selectX, y },
+      filter: { x: filterX, y },
+      width: layout.width,
+      hasFilterControl,
+    };
+  }
+
+  /**
+   * 行ヘッダー内のクリックゾーン（canvas 座標）
+   */
+  public getRowHeaderZone(dataRow: number): { x: number; y: number } | null {
+    const stats = this.getStats();
+    const { isFiltered, filteredRows } = this.filterSortState;
+
+    let displayRow = dataRow;
+    if (isFiltered && filteredRows.length > 0) {
+      displayRow = filteredRows.indexOf(dataRow);
+      if (displayRow === -1) return null;
+    }
+
+    const y =
+      displayRow * this.config.default_row_height +
+      this.config.header_height -
+      stats.scrollY +
+      this.config.default_row_height / 2;
+
+    if (y < this.config.header_height) return null;
+
+    return {
+      x: this.config.row_header_width / 2,
+      y,
+    };
+  }
+
+  /**
+   * 左上角（全選択）のクリックゾーン（canvas 座標）
+   */
+  public getSelectAllCornerZone(): { x: number; y: number } {
+    return {
+      x: this.config.row_header_width / 2,
+      y: this.config.header_height / 2,
+    };
+  }
+
+  private getColumnWidthAt(col: number): number {
+    const headers = this.getColumnHeadersAsArray();
+    return col < headers.length ? headers[col].width : this.config.default_col_width;
+  }
+
+  private getColumnHeaderLayout(columnIndex: number): { startX: number; width: number } | null {
+    if (columnIndex < 0 || columnIndex >= this.config.col_count) return null;
+
+    const stats = this.getStats();
+    let startX = this.config.row_header_width;
+    for (let col = 0; col < columnIndex; col++) {
+      startX += this.getColumnWidthAt(col);
+    }
+    startX -= stats.scrollX;
+
+    return {
+      startX,
+      width: this.getColumnWidthAt(columnIndex),
+    };
+  }
+
+  private isColumnFilterControlClick(canvasX: number, columnIndex: number): boolean {
+    const headers = this.getColumnHeadersAsArray();
+    if (columnIndex >= headers.length) return false;
+
+    const layout = this.getColumnHeaderLayout(columnIndex);
+    if (!layout) return false;
+
+    const filterZoneStart = layout.startX + layout.width - HEADER_FILTER_CONTROL_WIDTH;
+    return canvasX >= filterZoneStart;
+  }
+
+  /**
    * X座標から列インデックスを取得
    */
   private getColumnIndexFromX(canvasX: number): number {
     const stats = this.getStats();
     const adjustedX = canvasX + stats.scrollX - this.config.row_header_width;
+    if (adjustedX < 0) return -1;
 
     let currentX = 0;
-    const headers = this.getColumnHeadersAsArray();
+    const colCount = this.config.col_count;
 
-    for (let col = 0; col < headers.length; col++) {
-      const colWidth = headers[col].width;
+    for (let col = 0; col < colCount; col++) {
+      const colWidth = this.getColumnWidthAt(col);
 
       if (adjustedX >= currentX && adjustedX < currentX + colWidth) {
         return col;
@@ -3743,6 +3894,26 @@ export class WasabiTable {
     }
 
     return -1;
+  }
+
+  /**
+   * Y座標からデータ行インデックスを取得
+   */
+  private getRowIndexFromY(canvasY: number): number {
+    const stats = this.getStats();
+    const adjustedY = canvasY + stats.scrollY - this.config.header_height;
+    if (adjustedY < 0) return -1;
+
+    const displayRow = Math.floor(adjustedY / this.config.default_row_height);
+    const { isFiltered, filteredRows } = this.filterSortState;
+
+    if (isFiltered && filteredRows.length > 0) {
+      if (displayRow >= filteredRows.length) return -1;
+      return filteredRows[displayRow];
+    }
+
+    if (displayRow >= this.config.row_count) return -1;
+    return displayRow;
   }
 
   /**
