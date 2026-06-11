@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-06-11
+
+### Added
+- Excel-compatible paste: single copied cell fills entire multi-cell selection; block paste anchors at active cell
+- Autofill (fill handle): drag to extend series, double-click to fill down to adjacent column data
+- Series detection for numbers, text-with-number suffix, and literal repeat
+- Public APIs: `applyAutofill()`, `applyAutofillDoubleClickDown()`
+- Unit/E2E tests for paste and autofill
+
 ## [1.0.2] - 2026-06-11
 
 ### Fixed
@@ -116,7 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/masanori0209/wasabi-table/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/masanori0209/wasabi-table/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/masanori0209/wasabi-table/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/masanori0209/wasabi-table/compare/v0.1.4...v1.0.0

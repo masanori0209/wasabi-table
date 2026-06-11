@@ -233,6 +233,46 @@ test.describe('WasabiTable demo', () => {
     await expect.poll(() => getDataCellCount(page)).toBe(1);
     });
 
+    test('single cell copy fills multi-cell selection on paste (Excel)', async ({ page }) => {
+      await focusCanvas(page);
+      await setCellViaFormulaBar(page, 'FillAll');
+      await clickCell(page, 0, 0);
+      await page.keyboard.press('ControlOrMeta+C');
+
+      await clickCell(page, 1, 0);
+      await page.keyboard.press('Shift+ArrowRight');
+      await page.keyboard.press('Shift+ArrowDown');
+
+      await page.keyboard.press('ControlOrMeta+V');
+      await expect.poll(() => getCellValue(page, 1, 0)).toBe('FillAll');
+      await expect.poll(() => getCellValue(page, 1, 1)).toBe('FillAll');
+      await expect.poll(() => getCellValue(page, 2, 0)).toBe('FillAll');
+      await expect.poll(() => getCellValue(page, 2, 1)).toBe('FillAll');
+    });
+
+    test('autofill extends numeric series downward', async ({ page }) => {
+      await page.evaluate(() => {
+        const table = (window as {
+          __wasabiTable?: {
+            setCellValue: (r: number, c: number, v: string) => void;
+            startRangeSelection: (r: number, c: number) => void;
+            updateRangeSelection: (r: number, c: number) => void;
+            endRangeSelection: () => void;
+            applyAutofill: (r: number, c: number) => void;
+          };
+        }).__wasabiTable!;
+        table.setCellValue(0, 0, '1');
+        table.setCellValue(1, 0, '2');
+        table.startRangeSelection(0, 0);
+        table.updateRangeSelection(1, 0);
+        table.endRangeSelection();
+        table.applyAutofill(4, 0);
+      });
+      await expect.poll(() => getCellValue(page, 2, 0)).toBe('3');
+      await expect.poll(() => getCellValue(page, 3, 0)).toBe('4');
+      await expect.poll(() => getCellValue(page, 4, 0)).toBe('5');
+    });
+
     test('rectangular range copy and paste', async ({ page }) => {
       await focusCanvas(page);
       await page.evaluate(() => navigator.clipboard.writeText('Alpha\tBeta\nGamma\tDelta'));

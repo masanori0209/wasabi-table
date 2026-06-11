@@ -222,4 +222,8 @@ impl CellRange {
         }
         cells
     }
+
+    pub fn cell_count(&self) -> usize {
+        (self.end_row - self.start_row + 1) * (self.end_col - self.start_col + 1)
+    }
 } 

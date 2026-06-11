@@ -1693,6 +1693,8 @@ impl WasabiTable {
             }
         }
 
+        self.draw_fill_handle()?;
+
         Ok(())
     }
 
@@ -1995,27 +1997,144 @@ impl WasabiTable {
             return Ok(());
         }
 
-        // ペースト開始位置を決定
-        let (start_row, start_col) = if let Some(range) = self.selected_range {
-            (range.start_row, range.start_col)
-        } else if let Some((row, col)) = self.selected_cell {
-            (row, col)
-        } else {
-            (0, 0)
-        };
+        let writes = crate::clipboard_paste::plan_excel_paste(
+            &paste_data,
+            self.selected_range.as_ref(),
+            self.selected_cell,
+            self.config.row_count,
+            self.config.col_count,
+        );
 
-        // データをペースト
-        for (row_offset, row_data) in paste_data.iter().enumerate() {
-            for (col_offset, value) in row_data.iter().enumerate() {
-                let target_row = start_row + row_offset;
-                let target_col = start_col + col_offset;
-                
-                if target_row < self.config.row_count && target_col < self.config.col_count {
-                    self.set_cell_data(target_row, target_col, value.clone())?;
-                }
-            }
+        for (target_row, target_col, value) in writes {
+            self.set_cell_data(target_row, target_col, value)?;
         }
 
+        self.render()?;
+        Ok(())
+    }
+
+    fn current_selection_range(&self) -> Option<crate::types::CellRange> {
+        if let Some(range) = self.selected_range {
+            Some(range)
+        } else if let Some((row, col)) = self.selected_cell {
+            Some(crate::types::CellRange::new(row, col, row, col))
+        } else {
+            None
+        }
+    }
+
+    fn collect_range_values(&self, range: crate::types::CellRange) -> Vec<Vec<String>> {
+        let rows = range.end_row - range.start_row + 1;
+        let cols = range.end_col - range.start_col + 1;
+        let mut values = vec![vec![String::new(); cols]; rows];
+        for r in 0..rows {
+            for c in 0..cols {
+                values[r][c] = self
+                    .stored_cell_value(range.start_row + r, range.start_col + c)
+                    .unwrap_or_default();
+            }
+        }
+        values
+    }
+
+    fn fill_handle_screen_position(&self) -> Option<(f64, f64)> {
+        let range = self.current_selection_range()?;
+        let x = self.get_column_x_position(range.end_col);
+        let y = self.row_to_screen_y(range.end_row)?;
+        let width = self.get_column_width(range.end_col);
+        let height = self.config.default_row_height;
+        Some((x + width, y + height))
+    }
+
+    fn draw_fill_handle(&mut self) -> Result<(), JsValue> {
+        let Some((hx, hy)) = self.fill_handle_screen_position() else {
+            return Ok(());
+        };
+        if hx < self.config.row_header_width
+            || hy < self.config.header_height
+            || hx > self.canvas_width
+            || hy > self.canvas_height
+        {
+            return Ok(());
+        }
+
+        const SIZE: f64 = 6.0;
+        self.ctx.set_fill_style_str(&self.config.selected_cell_color);
+        self.ctx.fill_rect(hx - SIZE / 2.0, hy - SIZE / 2.0, SIZE, SIZE);
+        self.ctx.set_stroke_style_str("#ffffff");
+        self.ctx.set_line_width(1.0);
+        self.ctx.stroke_rect(hx - SIZE / 2.0, hy - SIZE / 2.0, SIZE, SIZE);
+        Ok(())
+    }
+
+    /// Fill handle hit-test (canvas coordinates).
+    #[wasm_bindgen]
+    pub fn hit_test_fill_handle(&self, canvas_x: f64, canvas_y: f64) -> bool {
+        const HIT: f64 = 10.0;
+        let Some((hx, hy)) = self.fill_handle_screen_position() else {
+            return false;
+        };
+        (canvas_x - hx).abs() <= HIT && (canvas_y - hy).abs() <= HIT
+    }
+
+    /// Apply Excel-style autofill by dragging the fill handle to `(fill_end_row, fill_end_col)`.
+    #[wasm_bindgen]
+    pub fn apply_autofill(&mut self, fill_end_row: usize, fill_end_col: usize) -> Result<(), JsValue> {
+        let Some(source) = self.current_selection_range() else {
+            return Ok(());
+        };
+        let source_values = self.collect_range_values(source);
+        let writes = crate::autofill::plan_autofill(
+            source,
+            &source_values,
+            fill_end_row,
+            fill_end_col,
+            self.config.row_count,
+            self.config.col_count,
+        );
+        for (row, col, value) in writes {
+            self.set_cell_data(row, col, value)?;
+        }
+        self.render()?;
+        Ok(())
+    }
+
+    /// Double-click fill handle: extend series down to adjacent data (Excel-style).
+    #[wasm_bindgen]
+    pub fn autofill_double_click_down(&mut self) -> Result<(), JsValue> {
+        let Some(source) = self.current_selection_range() else {
+            return Ok(());
+        };
+        let ref_col = if source.start_col > 0 {
+            source.start_col - 1
+        } else {
+            source.start_col
+        };
+        let mut target_last_row = source.end_row;
+        for row in (source.end_row + 1)..self.config.row_count {
+            if self
+                .stored_cell_value(row, ref_col)
+                .unwrap_or_default()
+                .is_empty()
+            {
+                break;
+            }
+            target_last_row = row;
+        }
+        if target_last_row <= source.end_row {
+            return Ok(());
+        }
+        let source_values = self.collect_range_values(source);
+        let writes = crate::autofill::plan_autofill_double_click_down(
+            source,
+            &source_values,
+            target_last_row,
+            self.config.row_count,
+            self.config.col_count,
+        );
+        for (row, col, value) in writes {
+            self.set_cell_data(row, col, value)?;
+        }
         self.render()?;
         Ok(())
     }
@@ -2025,6 +2144,9 @@ impl WasabiTable {
     pub fn get_selection_info(&self) -> String {
         if let Some(range) = self.selected_range {
             let cell_count = (range.end_row - range.start_row + 1) * (range.end_col - range.start_col + 1);
+            let (active_row, active_col) = self
+                .selected_cell
+                .unwrap_or((range.start_row, range.start_col));
             serde_json::json!({
                 "type": "range",
                 "hasSelection": true,
@@ -2033,6 +2155,8 @@ impl WasabiTable {
                 "start_col": range.start_col,
                 "end_row": range.end_row,
                 "end_col": range.end_col,
+                "active_row": active_row,
+                "active_col": active_col,
                 "cell_count": cell_count
             }).to_string()
         } else if let Some((row, col)) = self.selected_cell {
@@ -2042,6 +2166,8 @@ impl WasabiTable {
                 "isRange": false,
                 "row": row,
                 "col": col,
+                "active_row": row,
+                "active_col": col,
                 "cell_count": 1
             }).to_string()
         } else {

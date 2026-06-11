@@ -9,6 +9,8 @@ pub mod edit;
 pub mod format;
 pub mod validation;
 pub mod clipboard_tsv;
+pub mod clipboard_paste;
+pub mod autofill;
 
 #[cfg(all(test, target_arch = "wasm32"))]
 mod tests;
