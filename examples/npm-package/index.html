@@ -327,11 +327,7 @@
             canvas.style.width = containerWidth + 'px';
             canvas.style.height = containerHeight + 'px';
             
-            // Canvas contextのスケールを調整
-            const ctx = canvas.getContext('2d');
-            if (ctx && devicePixelRatio !== 1) {
-                ctx.scale(devicePixelRatio, devicePixelRatio);
-            }
+            // スケールは WasabiTable.updateCanvasSize 側で行う（二重スケールを避ける）
             
             return { width: containerWidth, height: containerHeight };
         }
@@ -357,6 +353,12 @@
                 if (tableListeners) {
                     tableListeners.destroy();
                     tableListeners = null;
+                }
+
+                if (table) {
+                    table.dispose();
+                    table = null;
+                    window.__wasabiTable = null;
                 }
 
                 const initialSize = resizeCanvas();

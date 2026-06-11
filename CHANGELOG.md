@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-06-11
+
+### Fixed
+- Demo re-init: `dispose()` old `WasabiTable` before `initTable()` to prevent duplicate canvas listeners (ghost grid / sample data visually wiped on margin click)
+- `WasabiTable.dispose()` now tears down canvas/document event listeners via `AbortController`
+- Render: fill viewport margins beyond table bounds with background color (no stray grid in dead zone)
+- Horizontal scroll max no longer adds extra 50px past last column
+
+### Added
+- E2E: sample reload listener leak and margin-click regression (`e2e/sample-data-bounds.spec.ts`)
+
 ## [1.0.1] - 2026-06-11
 
 ### Added
@@ -105,7 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/masanori0209/wasabi-table/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/masanori0209/wasabi-table/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/masanori0209/wasabi-table/compare/v0.1.4...v1.0.0
 [0.1.4]: https://github.com/masanori0209/wasabi-table/compare/v0.1.3...v0.1.4
