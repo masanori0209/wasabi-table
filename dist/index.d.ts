@@ -387,6 +387,16 @@ export declare class WasabiTable {
      * クリップボードからペースト
      */
     pasteFromClipboard(tsvData: string): void;
+    private getSelectionCellRange;
+    private collectRangeValues;
+    /**
+     * Excel-style autofill by dragging the fill handle.
+     */
+    applyAutofill(fillEndRow: number, fillEndCol: number): void;
+    /**
+     * Double-click fill handle: extend series down to adjacent column data.
+     */
+    applyAutofillDoubleClickDown(): void;
     /**
      * 選択情報を取得
      */

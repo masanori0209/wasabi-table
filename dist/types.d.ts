@@ -194,6 +194,8 @@ export interface SelectionInfo {
     end_col?: number;
     row?: number;
     col?: number;
+    active_row?: number;
+    active_col?: number;
     cell_count: number;
 }
 /**

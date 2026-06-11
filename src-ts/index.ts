@@ -81,6 +81,8 @@ export {
   isKeyboardShortcut,
 } from './utils';
 import { parseTsvRows, serializeTsvRows } from './clipboard-tsv';
+import { planExcelPaste } from './clipboard-paste';
+import { planAutofill, planAutofillDoubleClickDown, type CellRange as AutofillRange } from './autofill';
 import {
   applyFilters as runFilterSort,
   createFilterSortState,
@@ -163,6 +165,9 @@ interface ExtendedWasmWasabiTable extends WasmWasabiTable {
   get_selection_info(): string;
   handle_mouse_drag(canvasX: number, canvasY: number, isDragging: boolean): void;
   pixel_to_cell(x: number, y: number): string | undefined;
+  hit_test_fill_handle(canvasX: number, canvasY: number): boolean;
+  apply_autofill(fillEndRow: number, fillEndCol: number): void;
+  autofill_double_click_down(): void;
   select_cell_by_position(row: number, col: number): string | undefined;
   update_canvas_size(width: number, height: number): void;
   set_filtered_rows(filtered_rows_json: string): void;
@@ -1346,6 +1351,7 @@ export class WasabiTable {
     let resizeColumnIndex = -1;
     let resizeStartX = 0;
     let resizeStartWidth = 0;
+    let isAutofilling = false;
     
     // handleTableKey関数は不要（Rustのkeydownリスナーを無効化したため）
     // 矢印キー以外のキーは直接handle_canvas_keydownを呼び出す
@@ -1417,6 +1423,13 @@ export class WasabiTable {
       const rect = this.canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
+
+      if (this.wasmTable.hit_test_fill_handle(x, y)) {
+        event.preventDefault();
+        this.applyAutofillDoubleClickDown();
+        this.triggerCellSelectEvent();
+        return;
+      }
       
       const cellPos = this.wasmTable.pixel_to_cell(x, y);
       if (cellPos) {
@@ -1502,6 +1515,30 @@ export class WasabiTable {
       dragEndedAt = Date.now();
     };
 
+    const onAutofillMove = (event: MouseEvent): void => {
+      if (!isAutofilling) return;
+      this.canvas.style.cursor = 'crosshair';
+    };
+
+    const finishAutofill = (event: MouseEvent): void => {
+      if (!isAutofilling) return;
+      document.removeEventListener('mousemove', onAutofillMove);
+      document.removeEventListener('mouseup', finishAutofill);
+      isAutofilling = false;
+      this.canvas.style.cursor = '';
+
+      const rect = this.canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const cellPos = this.wasmTable.pixel_to_cell(x, y);
+      if (cellPos) {
+        const [row, col] = cellPos.split(':').map(Number);
+        this.applyAutofill(row, col);
+        this.triggerCellSelectEvent();
+      }
+      dragEndedAt = Date.now();
+    };
+
     this.canvas.addEventListener('mousemove', (event) => {
       if (isResizingColumn) {
         onColumnResizeMove(event);
@@ -1520,7 +1557,11 @@ export class WasabiTable {
         y,
         COLUMN_RESIZE_HANDLE_PX
       );
-      this.canvas.style.cursor = resizeHit >= 0 ? 'col-resize' : '';
+      if (this.wasmTable.hit_test_fill_handle(x, y)) {
+        this.canvas.style.cursor = 'crosshair';
+      } else {
+        this.canvas.style.cursor = resizeHit >= 0 ? 'col-resize' : '';
+      }
     }, { signal });
 
     this.canvas.addEventListener('mouseup', () => {
@@ -1551,6 +1592,15 @@ export class WasabiTable {
         event.preventDefault();
         document.addEventListener('mousemove', onColumnResizeMove);
         document.addEventListener('mouseup', finishColumnResize);
+        return;
+      }
+
+      if (this.wasmTable.hit_test_fill_handle(x, y)) {
+        isAutofilling = true;
+        event.preventDefault();
+        this.canvas.style.cursor = 'crosshair';
+        document.addEventListener('mousemove', onAutofillMove);
+        document.addEventListener('mouseup', finishAutofill);
         return;
       }
 
@@ -2442,30 +2492,131 @@ export class WasabiTable {
     if (rows.length === 0) return;
 
     const sel = this.getSelectionInfo();
-    const startRow = sel.start_row ?? sel.row ?? 0;
-    const startCol = sel.start_col ?? sel.col ?? 0;
+    const writes = planExcelPaste(
+      rows,
+      sel,
+      this.config.row_count,
+      this.config.col_count
+    );
     const changes: CellChange[] = [];
 
-    for (let rowOffset = 0; rowOffset < rows.length; rowOffset += 1) {
-      const cols = rows[rowOffset];
-      for (let colOffset = 0; colOffset < cols.length; colOffset += 1) {
-        const row = startRow + rowOffset;
-        const col = startCol + colOffset;
-        if (row >= this.config.row_count || col >= this.config.col_count) continue;
-        const oldValue = this.getCellValue(row, col) ?? '';
-        const newValue = cols[colOffset] ?? '';
-        if (oldValue !== newValue) {
-          changes.push({ row, col, oldValue, newValue });
-        }
+    for (const { row, col, value } of writes) {
+      const oldValue = this.getCellValue(row, col) ?? '';
+      if (oldValue !== value) {
+        changes.push({ row, col, oldValue, newValue: value });
       }
+      this.writeCellValue(row, col, value);
     }
 
-    if (this.recordsSource) {
-      for (const change of changes) {
-        this.writeCellValue(change.row, change.col, change.newValue);
+    this.pushUndoChanges(changes);
+    this.render();
+  }
+
+  private getSelectionCellRange(): AutofillRange | null {
+    const sel = this.getSelectionInfo();
+    if (
+      sel.isRange &&
+      sel.start_row != null &&
+      sel.end_row != null &&
+      sel.start_col != null &&
+      sel.end_col != null
+    ) {
+      return {
+        start_row: sel.start_row,
+        start_col: sel.start_col,
+        end_row: sel.end_row,
+        end_col: sel.end_col,
+      };
+    }
+    if (sel.row != null && sel.col != null) {
+      return {
+        start_row: sel.row,
+        start_col: sel.col,
+        end_row: sel.row,
+        end_col: sel.col,
+      };
+    }
+    return null;
+  }
+
+  private collectRangeValues(range: AutofillRange): string[][] {
+    const rows = range.end_row - range.start_row + 1;
+    const cols = range.end_col - range.start_col + 1;
+    const values: string[][] = [];
+    for (let r = 0; r < rows; r += 1) {
+      const rowValues: string[] = [];
+      for (let c = 0; c < cols; c += 1) {
+        rowValues.push(this.getCellValue(range.start_row + r, range.start_col + c) ?? '');
       }
-    } else {
-      this.wasmTable.paste_from_clipboard(tsvData);
+      values.push(rowValues);
+    }
+    return values;
+  }
+
+  /**
+   * Excel-style autofill by dragging the fill handle.
+   */
+  public applyAutofill(fillEndRow: number, fillEndCol: number): void {
+    this.ensureInitialized();
+    const source = this.getSelectionCellRange();
+    if (!source) return;
+
+    const sourceValues = this.collectRangeValues(source);
+    const writes = planAutofill(
+      source,
+      sourceValues,
+      fillEndRow,
+      fillEndCol,
+      this.config.row_count,
+      this.config.col_count
+    );
+    const changes: CellChange[] = [];
+
+    for (const { row, col, value } of writes) {
+      const oldValue = this.getCellValue(row, col) ?? '';
+      if (oldValue !== value) {
+        changes.push({ row, col, oldValue, newValue: value });
+      }
+      this.writeCellValue(row, col, value);
+    }
+
+    this.pushUndoChanges(changes);
+    this.render();
+  }
+
+  /**
+   * Double-click fill handle: extend series down to adjacent column data.
+   */
+  public applyAutofillDoubleClickDown(): void {
+    this.ensureInitialized();
+    const source = this.getSelectionCellRange();
+    if (!source) return;
+
+    const refCol = source.start_col > 0 ? source.start_col - 1 : source.start_col;
+    let targetLastRow = source.end_row;
+    for (let row = source.end_row + 1; row < this.config.row_count; row += 1) {
+      const neighbor = this.getCellValue(row, refCol) ?? '';
+      if (!neighbor) break;
+      targetLastRow = row;
+    }
+    if (targetLastRow <= source.end_row) return;
+
+    const sourceValues = this.collectRangeValues(source);
+    const writes = planAutofillDoubleClickDown(
+      source,
+      sourceValues,
+      targetLastRow,
+      this.config.row_count,
+      this.config.col_count
+    );
+    const changes: CellChange[] = [];
+
+    for (const { row, col, value } of writes) {
+      const oldValue = this.getCellValue(row, col) ?? '';
+      if (oldValue !== value) {
+        changes.push({ row, col, oldValue, newValue: value });
+      }
+      this.writeCellValue(row, col, value);
     }
 
     this.pushUndoChanges(changes);
