@@ -8,7 +8,7 @@
 npm install wasabi-table
 ```
 
-## Quick start (integrated listeners)
+## Quick start (`createWasabiTableWithListeners`)
 
 ```javascript
 import { createWasabiTableWithListeners } from 'wasabi-table';

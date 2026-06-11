@@ -229,7 +229,7 @@ export class HeaderDialogController {
   }
 
   /**
-   * 統合ヘッダーダイアログを作成
+   * ソート/フィルター用ヘッダーダイアログを作成
    */
   createHeaderDialog(columnIndex: number, header: ColumnHeader): HTMLElement {
     const dialog = document.createElement('div');

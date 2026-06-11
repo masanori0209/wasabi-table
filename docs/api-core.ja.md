@@ -60,6 +60,8 @@ table.setColumnHeaders(JSON.stringify([
 |----------|------|
 | `setColumnHeaders(json)` | 列定義を一括設定 |
 | `getColumnHeaders()` | 列定義 JSON を取得 |
+| `setColumnWidth(col, width)` | 列幅（px）を設定 |
+| `getColumnWidth(col)` | 列幅（px）を取得 |
 | `validateCellValue(col, value)` | 入力値を検証 |
 | `getSelectedCellValidationError()` | 選択セルの検証エラー |
 
@@ -105,6 +107,28 @@ table.setColumnHeaders(JSON.stringify([
 | `Ctrl/Cmd+V` | ペースト |
 | `Enter` / `F2` | セル編集開始 |
 | `Shift+矢印` | 範囲選択 |
+| 行ヘッダークリック | 行全体選択（Shift で拡張） |
+| 列ヘッダー端ドラッグ | 列リサイズ |
+
+コピー/ペーストは Excel 互換の TSV（`\r\n`）です。空行は保持され、Excel 由来の CRLF はペースト時に正規化されます。セル内のタブ・改行のエスケープは未対応です。
+
+## 固定列
+
+`TableConfig.freeze_cols` に固定するデータ列数（0 = なし）。列ヘッダー行・行番号列は常に固定表示。
+
+```typescript
+await WasabiTable.create(canvas, { row_count: 100, col_count: 20, freeze_cols: 1 });
+```
+
+## CSV 出力
+
+```typescript
+import { exportTableToCSV } from 'wasabi-table';
+
+exportTableToCSV(table, 'export.csv');
+```
+
+スパースモードの表示セルを出力します（`records` 全件は対象外）。大規模データはアプリ側のデータ層からエクスポートしてください。
 
 ## テーマ
 

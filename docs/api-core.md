@@ -58,6 +58,8 @@ table.setColumnHeaders(JSON.stringify([
 |--------|-------------|
 | `setColumnHeaders(json)` | Apply column definitions |
 | `getColumnHeaders()` | Get column JSON |
+| `setColumnWidth(col, width)` | Set column width (px) |
+| `getColumnWidth(col)` | Get column width (px) |
 | `validateCellValue(col, value)` | Validate input |
 | `getSelectedCellValidationError()` | Validation error for selection |
 
@@ -72,6 +74,9 @@ Field types include `CharField`, `EmailField`, `IntegerField`, `DecimalField`, `
 | `clearAllFilters()` | Clear all filters |
 | `setSortCondition(condition \| null)` | Set sort |
 | `getFilterState()` | Current filter/sort state |
+| `getFilterResult()` | Filtered row count, etc. |
+
+Logic lives in `filter-sort.ts` (unit-tested, reusable).
 
 ## Row / column / sheet selection
 
@@ -98,6 +103,28 @@ Column headers split into a **selection zone** (left) and a **filter control zon
 | `Ctrl/Cmd+Z` | Undo |
 | `Enter` / `F2` | Start editing |
 | `Shift+Arrow` | Range selection |
+| Row header click | Select entire row (Shift to extend) |
+| Column header edge drag | Resize column |
+
+Copy/paste uses Excel-style TSV (`\r\n` line endings). Empty rows are preserved; CRLF from Excel is normalized on paste. Cell values containing tabs or newlines are not escaped (see limitations in [api-stability](./api-stability.md)).
+
+## Frozen columns
+
+`TableConfig.freeze_cols` — number of data columns to pin on horizontal scroll (`0` = none). Row numbers and the column header row are always pinned.
+
+```typescript
+await WasabiTable.create(canvas, { row_count: 100, col_count: 20, freeze_cols: 1 });
+```
+
+## CSV export
+
+```typescript
+import { exportTableToCSV } from 'wasabi-table';
+
+exportTableToCSV(table, 'export.csv');
+```
+
+Exports visible sparse cells (not full `records` arrays). For large datasets, export from your data layer.
 
 ## Themes
 

@@ -2,7 +2,8 @@ const STORAGE_KEY = 'wasabi-demo-locale';
 
 export const messages = {
   en: {
-    'meta.title': 'WasabiTable — Retro Data Grid Demo',
+    'meta.title': 'WasabiTable — Live Demo',
+    'brand.eyebrow': 'HIGH-PERFORMANCE DATA GRID // WASM + CANVAS',
     'header.subtitle': 'High-performance Excel-like table component',
     'install.lead': 'High-performance grid library for TypeScript and JavaScript',
     'formula.placeholder': 'Enter cell value...',
@@ -50,11 +51,14 @@ export const messages = {
     'stats.format': 'Data {data} rows | Visible {visible} cells | Scroll ({x}, {y})',
     'stats.error': 'Init error: {msg}',
     'theme.custom': 'Custom',
+    'nav.demo': 'Live Demo',
+    'nav.bench': 'Benchmark',
     'lang.en': 'EN',
     'lang.ja': '日本語',
   },
   ja: {
-    'meta.title': 'WasabiTable — レトロデータグリッド デモ',
+    'meta.title': 'WasabiTable — ライブデモ',
+    'brand.eyebrow': '高性能データグリッド // WASM + Canvas',
     'header.subtitle': '高性能 Excel 風テーブルコンポーネント',
     'install.lead': 'TypeScript / JavaScript 両対応の高性能グリッド・ライブラリ',
     'formula.placeholder': 'セルの内容を入力...',
@@ -102,6 +106,8 @@ export const messages = {
     'stats.format': 'データ {data} 件 | 表示 {visible} セル | スクロール ({x}, {y})',
     'stats.error': '初期化エラー: {msg}',
     'theme.custom': 'カスタム',
+    'nav.demo': 'ライブデモ',
+    'nav.bench': 'ベンチマーク',
     'lang.en': 'EN',
     'lang.ja': '日本語',
   },

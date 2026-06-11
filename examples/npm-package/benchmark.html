@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="meta.title">WasabiTable — Performance Benchmark</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="benchmark.css">
+    <link rel="icon" href="images/wasabi-logo.svg" type="image/svg+xml">
+</head>
+<body>
+    <div class="crt-overlay" aria-hidden="true"></div>
+    <header class="page-header header" data-testid="bench-header">
+        <div class="page-header__grid"></div>
+        <div class="page-header__inner">
+            <div class="brand">
+                <img src="images/wasabi-logo.svg" alt="" class="brand__logo" width="52" height="52">
+                <div class="brand__text">
+                    <p class="brand__eyebrow" data-i18n="brand.eyebrow">PERFORMANCE BENCHMARK // WASM + CANVAS</p>
+                    <h1>WasabiTable</h1>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="lang-switch" data-testid="lang-switch" role="group" aria-label="Language">
+                    <button type="button" class="lang-btn" data-lang="en" data-i18n="lang.en">EN</button>
+                    <button type="button" class="lang-btn" data-lang="ja" data-i18n="lang.ja">日本語</button>
+                </div>
+                <div class="status-panel" aria-label="benchmark status">
+                    <span class="status-item"><span class="led led--pulse" id="benchLed"></span><span id="benchStatusText" data-i18n="status.idle">Ready</span></span>
+                </div>
+            </div>
+        </div>
+        <p class="page-header__subtitle" data-i18n="header.subtitle">Live measurements from your browser</p>
+        <nav class="bench-nav container" style="padding-top:0;padding-bottom:0;margin-top:0.75rem;">
+            <a href="index.html" data-i18n="nav.demo">Live Demo</a>
+            <a href="benchmark.html" class="is-active" data-i18n="nav.bench">Benchmark</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="demo-section panel">
+            <h2 class="section-title"><span class="section-tag">MOD-B0</span> <span data-i18n="section.env">Environment</span></h2>
+            <div class="bench-env" id="benchEnv" data-testid="bench-env"></div>
+            <div class="bench-actions">
+                <button type="button" class="btn btn-primary" id="btnRunBench" data-testid="btn-run-bench" data-i18n="btn.run">Run benchmarks</button>
+            </div>
+            <div class="bench-status">
+                <span id="benchRunLabel" data-i18n="status.idle">Ready</span>
+                <div class="bench-progress" aria-hidden="true"><div class="bench-progress__bar" id="benchProgressBar"></div></div>
+            </div>
+        </div>
+
+        <div class="demo-section panel">
+            <h2 class="section-title"><span class="section-tag">MOD-B1</span> <span data-i18n="section.results">Results</span></h2>
+            <table class="bench-results" data-testid="bench-results">
+                <thead>
+                    <tr>
+                        <th data-i18n="col.test">Test</th>
+                        <th data-i18n="col.result">Result</th>
+                        <th data-i18n="col.detail">Detail</th>
+                    </tr>
+                </thead>
+                <tbody id="benchResultsBody"></tbody>
+            </table>
+            <p class="bench-footnote" data-i18n="footnote">Results vary by device, browser, and load.</p>
+        </div>
+
+        <div class="demo-section panel bench-live">
+            <h2 class="section-title"><span class="section-tag">MOD-B2</span> <span data-i18n="section.live">Live grid (scroll test)</span></h2>
+            <div class="bench-live__canvas-wrap table-container crt-frame">
+                <canvas id="benchCanvas" data-testid="bench-canvas" tabindex="0"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initI18n, t, applyLocale } from './benchmark-i18n.js';
+        import { collectEnvironment, runBenchmarkSuite } from './benchmark.js';
+
+        initI18n();
+
+        const envEl = document.getElementById('benchEnv');
+        const resultsBody = document.getElementById('benchResultsBody');
+        const progressBar = document.getElementById('benchProgressBar');
+        const statusText = document.getElementById('benchStatusText');
+        const runLabel = document.getElementById('benchRunLabel');
+        const btnRun = document.getElementById('btnRunBench');
+        const rowEls = new Map();
+
+        function renderEnvironment(ranAt = '—') {
+            const env = collectEnvironment();
+            env.ranAt = ranAt;
+            envEl.innerHTML = `
+                <div class="bench-env__item"><div class="bench-env__label">${t('env.browser')}</div><div class="bench-env__value">${env.browser}</div></div>
+                <div class="bench-env__item"><div class="bench-env__label">${t('env.dpr')}</div><div class="bench-env__value">${env.dpr}</div></div>
+                <div class="bench-env__item"><div class="bench-env__label">${t('env.memory')}</div><div class="bench-env__value">${env.memory}</div></div>
+                <div class="bench-env__item"><div class="bench-env__label">${t('env.version')}</div><div class="bench-env__value">${env.version}</div></div>
+                <div class="bench-env__item"><div class="bench-env__label">${t('env.ranAt')}</div><div class="bench-env__value" data-testid="bench-ran-at">${env.ranAt}</div></div>
+            `;
+        }
+
+        function upsertResultRow(row) {
+            let tr = rowEls.get(row.id);
+            if (!tr) {
+                tr = document.createElement('tr');
+                tr.setAttribute('data-testid', `bench-row-${row.id}`);
+                tr.innerHTML = '<td></td><td class="bench-metric"></td><td></td>';
+                resultsBody.appendChild(tr);
+                rowEls.set(row.id, tr);
+            }
+            tr.className = row.status === 'running' ? 'is-running' : 'is-pass';
+            const cells = tr.querySelectorAll('td');
+            cells[0].textContent = row.label;
+            cells[1].textContent = row.result;
+            cells[1].classList.toggle('bench-metric--good', row.status === 'pass' && row.id === 'scroll-fps');
+            cells[1].classList.toggle('bench-metric--warn', row.status === 'pass' && row.ms != null && row.ms > 1000);
+            cells[2].textContent = [row.detail, row.extra].filter(Boolean).join(' · ');
+        }
+
+        function setRunning(running) {
+            btnRun.disabled = running;
+            btnRun.textContent = running ? '…' : t(running ? 'btn.run' : 'btn.rerun');
+            statusText.textContent = t(running ? 'status.running' : 'status.done');
+            runLabel.textContent = t(running ? 'status.running' : 'status.done');
+            document.getElementById('benchLed').classList.toggle('led--pulse', running);
+            document.getElementById('benchLed').classList.toggle('led--on', !running);
+        }
+
+        async function runAll() {
+            resultsBody.innerHTML = '';
+            rowEls.clear();
+            progressBar.style.width = '0%';
+            setRunning(true);
+            renderEnvironment(t('status.running'));
+
+            try {
+                await runBenchmarkSuite({
+                    onProgress: (ratio) => {
+                        progressBar.style.width = `${Math.round(ratio * 100)}%`;
+                    },
+                    onRow: upsertResultRow,
+                });
+                const ranAt = new Date().toLocaleString();
+                renderEnvironment(ranAt);
+            } catch (error) {
+                console.error(error);
+                runLabel.textContent = String(error.message || error);
+            } finally {
+                setRunning(false);
+                btnRun.textContent = t('btn.rerun');
+            }
+        }
+
+        btnRun.addEventListener('click', runAll);
+        window.addEventListener('wasabi-bench-locale-change', () => {
+            renderEnvironment(document.querySelector('[data-testid="bench-ran-at"]')?.textContent ?? '—');
+            btnRun.textContent = btnRun.disabled ? '…' : t(rowEls.size ? 'btn.rerun' : 'btn.run');
+        });
+
+        renderEnvironment();
+    </script>
+</body>
+</html>

@@ -138,6 +138,28 @@ body {
     letter-spacing: 0.06em;
 }
 
+.bench-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-size: 0.8rem;
+}
+
+.bench-nav a {
+    color: var(--wasabi-glow);
+    text-decoration: none;
+    letter-spacing: 0.08em;
+}
+
+.bench-nav a:hover {
+    text-decoration: underline;
+}
+
+.bench-nav a.is-active {
+    color: var(--phosphor);
+    text-decoration: underline;
+}
+
 .header-actions {
     display: flex;
     flex-wrap: wrap;

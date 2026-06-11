@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="meta.title">WasabiTable — Retro Data Grid Demo</title>
+    <title data-i18n="meta.title">WasabiTable — Live Demo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
             <div class="brand">
                 <img src="images/wasabi-logo.svg" alt="" class="brand__logo" width="52" height="52">
                 <div class="brand__text">
-                    <p class="brand__eyebrow">WASABI DATA GRID // RETRO-80S BUILD</p>
+                    <p class="brand__eyebrow" data-i18n="brand.eyebrow">HIGH-PERFORMANCE DATA GRID // WASM + CANVAS</p>
                     <h1>WasabiTable</h1>
                 </div>
             </div>
@@ -36,6 +36,10 @@
             </div>
         </div>
         <p class="page-header__subtitle" data-i18n="header.subtitle">High-performance Excel-like table component</p>
+        <nav class="bench-nav container" style="padding-top:0;padding-bottom:0;margin-top:0.75rem;">
+            <a href="index.html" class="is-active" data-i18n="nav.demo">Live Demo</a>
+            <a href="benchmark.html" data-i18n="nav.bench">Benchmark</a>
+        </nav>
     </header>
 
     <div class="container">
@@ -171,7 +175,7 @@
                     <p data-i18n="feature.wasm">Optimized performance with Rust + WebAssembly. Handles large datasets smoothly.</p>
                 </div>
                 <div class="feature-card">
-                    <h3>▸ EXCEL UX</h3>
+                    <h3>▸ EXCEL-LIKE UX</h3>
                     <p data-i18n="feature.excel">Keyboard navigation, cell editing, and formula bar with an Excel-like feel.</p>
                 </div>
                 <div class="feature-card">
@@ -342,7 +346,7 @@
             }
         }
 
-        // テーブル初期化（統合リスナー API）
+        // テーブル初期化（createWasabiTableWithListeners）
         async function initTable() {
             try {
                 const canvas = document.getElementById('myCanvas');
@@ -476,26 +480,28 @@
 
         window.showAvailableThemes = () => WasabiTable.getAvailableThemes();
 
-        window.loadSampleData = () => {
+        window.loadSampleData = async () => {
             if (!table) return;
             
-            // Step 1: サンプルデータに合わせてUI設定を更新
             const newConfig = {
-                row_count: 15,  // サンプルデータ8行 + 統計行 + 余裕
-                col_count: 10,  // サンプルデータの列数に合わせる
+                row_count: 15,
+                col_count: 10,
                 default_col_width: 100,
                 default_row_height: 25
             };
             
-            // UI要素を更新
             document.getElementById('rowCount').value = newConfig.row_count;
             document.getElementById('colCount').value = newConfig.col_count;
             document.getElementById('colWidth').value = newConfig.default_col_width;
             document.getElementById('rowHeight').value = newConfig.default_row_height;
             
-            updateTableConfig();
+            currentConfig.row_count = newConfig.row_count;
+            currentConfig.col_count = newConfig.col_count;
+            currentConfig.default_col_width = newConfig.default_col_width;
+            currentConfig.default_row_height = newConfig.default_row_height;
             
-            // Step 3: 新しいヘッダー設定を定義
+            await initTable();
+            
             const columnHeaders = [
                 {
                     name: "employee_id",
@@ -600,20 +606,20 @@
                 }
             ];
 
-            // Step 4: ヘッダー設定を遅延適用（テーブル再作成完了後）
-            setTimeout(() => {
-                try {
-                    table.setColumnHeaders(JSON.stringify(columnHeaders));
-                    loadSampleDataContent();
-                } catch (error) {
-                    console.error('❌ Failed to set column headers:', error);
-                }
-            }, 500); // 500ms遅延でテーブル再作成を待つ
+            try {
+                table.setColumnHeaders(JSON.stringify(columnHeaders));
+                currentConfig.column_headers = columnHeaders;
+                currentConfig.col_count = columnHeaders.length;
+                table.clearAllCellData();
+                table.resetScroll();
+                loadSampleDataContent();
+            } catch (error) {
+                console.error('❌ Failed to load sample data:', error);
+            }
         };
         
         // サンプルデータ設定を別関数に分離
         function loadSampleDataContent() {
-
             // サンプルデータ
             const sampleData = [
                 ['1001', '田中太郎', '28', 'エンジニア', '500000', '開発部', 'tanaka@example.com', '2020-04-01', 'A', 'true'],
@@ -646,14 +652,7 @@
 
         window.clearTable = () => {
             if (!table) return;
-            
-            const config = table.getConfig();
-            for (let row = 0; row < config.row_count; row++) {
-                for (let col = 0; col < config.col_count; col++) {
-                    table.setCellValue(row, col, '');
-                }
-            }
-            table.render();
+            table.clearAllCellData();
             refreshUI();
         };
 

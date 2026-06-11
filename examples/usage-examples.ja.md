@@ -1,4 +1,4 @@
-# WasabiTable 使用例（統合版）
+# WasabiTable 使用例
 
 [English](./usage-examples.md)
 
@@ -10,12 +10,12 @@ npm install wasabi-table
 
 ## JavaScript での使用例
 
-### 統合された初期化（推奨）
+### `createWasabiTableWithListeners` による初期化（推奨）
 
 ```javascript
 import { createWasabiTableWithListeners } from 'wasabi-table';
 
-// 基本的な使用方法（統合版）
+// 数式バー・統計表示と連携する初期化
 async function initTable() {
   const canvas = document.getElementById('myCanvas');
   
@@ -73,7 +73,7 @@ async function initTable() {
 initTable().catch(console.error);
 ```
 
-## TypeScript での使用例（統合版）
+## TypeScript での使用例
 
 ```typescript
 import { 
@@ -108,7 +108,7 @@ class SpreadsheetApp {
       font_size: 12
     };
 
-    // 統合された初期化
+    // createWasabiTableWithListeners で初期化
     const { table, listeners } = await createWasabiTableWithListeners(
       this.canvas,
       config,

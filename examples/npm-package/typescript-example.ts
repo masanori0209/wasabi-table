@@ -1,4 +1,4 @@
-// このファイルは TypeScript での使用例を示すサンプルコードです（統合版）
+// このファイルは TypeScript での使用例を示すサンプルコードです
 // 実際の使用時は 'wasabi-table' パッケージをインストールしてください: npm install wasabi-table
 
 // import { 
@@ -12,10 +12,10 @@
 // } from 'wasabi-table';
 
 /**
- * TypeScript での WasabiTable 使用例（統合版）
+ * TypeScript での WasabiTable 使用例
  * 
  * このファイルは、TypeScriptプロジェクトでWasabiTableを使用する方法を示しています。
- * リスナー機能が統合され、完全な型安全性とIntelliSenseサポートが提供されます。
+ * createWasabiTableWithListeners により、型安全なリスナー連携が利用できます。
  */
 
 // 型定義（実際のパッケージから import されます）

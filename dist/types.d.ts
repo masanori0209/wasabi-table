@@ -13,6 +13,9 @@ export interface ThemeColors {
 }
 export type PredefinedTheme = 'light' | 'dark';
 export declare const PREDEFINED_THEMES: Record<PredefinedTheme, ThemeColors>;
+export interface WasabiTableCreateOptions extends Partial<TableConfig> {
+    dataSource?: import('./records-data-source').RecordsDataSourceConfig;
+}
 export interface TableConfig {
     row_count: number;
     col_count: number;
@@ -31,6 +34,8 @@ export interface TableConfig {
     selected_cell_color: string;
     show_grid: boolean;
     column_headers: ColumnHeader[];
+    freeze_cols?: number;
+    freeze_rows?: number;
 }
 export interface CellData {
     value: string;

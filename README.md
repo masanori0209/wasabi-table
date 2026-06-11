@@ -2,7 +2,21 @@
 
 **English** | [日本語](./README.ja.md)
 
-A fast, lightweight Excel-like table component built with Rust and WebAssembly, rendered on Canvas.
+A fast, lightweight Excel-like table component built with Rust and WebAssembly, rendered on Canvas. Built for **SaaS admin master list/edit** screens — simple to start, optional depth via Tier 1/2/3 APIs.
+
+## Three tiers
+
+| Tier | Use case | Example |
+|------|----------|---------|
+| **1** | Minimal grid (~30s) | `WasabiTable.create(canvas)` → `setCellValue` → `render()` |
+| **2** | App screens | Column schema, validation, `createWasabiTableWithListeners` |
+| **3** | Large data | `dataSource.records`, filter/sort, column resize |
+
+See [roadmap](./docs/roadmap.md) · [Getting Started](./docs/getting-started.md)
+
+## Benchmark
+
+Run live measurements on [benchmark.html](https://masanori0209.github.io/wasabi-table/examples/npm-package/benchmark.html) (100 rows – 1M records). Results vary by environment.
 
 ## Project Structure
 
@@ -23,6 +37,8 @@ wasabi-table/
 - **Excel-like interaction**: cell selection, range selection, keyboard navigation
 - **Editing**: inline editing, copy & paste, cut, undo/redo
 - **Filter & sort**, conditional formatting, cell validation
+- **Column resize** (header edge drag)
+- **Row selection** (row header click), **freeze columns** (`freeze_cols`)
 - **Themes**: light / dark
 
 ## Quick Start
@@ -61,7 +77,7 @@ table.setCellValue(0, 1, 'World');
 table.render();
 ```
 
-### Listener Integration (Formula Bar & Stats)
+### Listener API (Formula Bar & Stats)
 
 ```typescript
 import { createWasabiTableWithListeners } from 'wasabi-table';
@@ -80,6 +96,7 @@ const { table, listeners } = await createWasabiTableWithListeners(
 ### Live Demo
 
 - **Online demo**: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html (`?lang=en` / `?lang=ja`)
+- **Benchmarks**: https://masanori0209.github.io/wasabi-table/examples/npm-package/benchmark.html
 - **Local**:
 
 ```bash
@@ -121,10 +138,31 @@ Re-run `npm run build:wasm` or `npm run build` after changing Rust/WASM code.
 
 ## Documentation
 
-- [Documentation index](./docs/README.md) (EN / JA)
+- [Documentation index](./docs/README.md) (product direction, roadmap, architecture)
 - [Getting Started](./docs/getting-started.md) · [はじめに](./docs/getting-started.ja.md)
 - [Core API](./docs/api-core.md) · [コア API](./docs/api-core.ja.md)
 - [Usage Examples](./examples/usage-examples.md) · [使用例](./examples/usage-examples.ja.md)
+- [Choosing a grid](./docs/choosing-a-grid.md) · [Browser support](./docs/browser-support.md)
+
+## Bundle size (approx.)
+
+After `npm run build` (pre-gzip):
+
+| Artifact | Size |
+|----------|------|
+| WASM (`pkg/wasabi_table_bg.wasm`) | ~1.2 MB |
+| JS wrapper (`dist/`) | ~250 KB |
+
+WASM is cached after first load.
+
+## Out of scope for 1.0
+
+- Formula engine (`=SUM`, etc.) — formula bar is a cell editor, not a spreadsheet engine
+- Pivot, charts, cell merge, real-time collaboration
+- SSR / Node-only runtime
+- Official React package (docs + sample only)
+
+See [positioning.md](./docs/positioning.md).
 
 ## Security
 
