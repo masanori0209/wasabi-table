@@ -1,4 +1,5 @@
-import init, { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
+import { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
+import { ensureWasmInitialized } from './wasm-init.js';
 import type {
   CellData,
   CellPosition,
@@ -67,6 +68,7 @@ export {
   getColumnName,
 } from './types';
 export { getSelectionReference } from './types';
+export { ensureWasmInitialized, initWasmFromExports } from './wasm-init.js';
 
 // --- 型定義は types.ts に集約 ---
 
@@ -280,8 +282,7 @@ export class WasabiTable {
     canvas: HTMLCanvasElement,
     options: WasabiTableCreateOptions = {}
   ): Promise<WasabiTable> {
-    // WebAssemblyモジュールを初期化
-    await init();
+    await ensureWasmInitialized();
 
     const { dataSource, ...configPartial } = options;
     const finalConfig: TableConfig = { ...DEFAULT_CONFIG, ...configPartial };

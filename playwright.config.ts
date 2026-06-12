@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI || process.env.RECORD_E2E ? 1 : undefined,
   reporter: [['html', { open: 'never' }], ['list']],
   use: {
-    baseURL: 'http://localhost:8501',
+    baseURL: 'http://127.0.0.1:8501',
     trace: 'on-first-retry',
     video: process.env.RECORD_E2E ? 'on' : 'on-first-retry',
     screenshot: 'only-on-failure',
@@ -22,7 +22,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run build && npm run serve',
-    url: 'http://localhost:8501',
+    url: 'http://127.0.0.1:8501/examples/npm-package/index.html',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },

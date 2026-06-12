@@ -1,6 +1,6 @@
 {
   "name": "wasabi-table",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "High-performance Excel-like table component built with Rust and WebAssembly",
   "type": "module",
   "main": "dist/index.js",
@@ -14,6 +14,8 @@
   "files": [
     "dist/",
     "pkg/wasabi_table.js",
+    "pkg/wasabi_table_bg.js",
+    "pkg/wasabi_table_bg.d.ts",
     "pkg/wasabi_table.d.ts",
     "pkg/wasabi_table_bg.wasm",
     "pkg/wasabi_table_bg.wasm.d.ts",
@@ -23,11 +25,12 @@
   ],
   "sideEffects": [
     "pkg/wasabi_table.js",
+    "pkg/wasabi_table_bg.js",
     "dist/index.js"
   ],
   "scripts": {
-    "build": "wasm-pack build --target web --out-dir pkg && rm -f pkg/.gitignore && npm run build:ts && npm run fix-imports",
-    "build:wasm": "wasm-pack build --target web --out-dir pkg && rm -f pkg/.gitignore",
+    "build": "wasm-pack build --target bundler --out-dir pkg && rm -f pkg/.gitignore && node scripts/patch-wasm-types.mjs && npm run build:ts && npm run fix-imports",
+    "build:wasm": "wasm-pack build --target bundler --out-dir pkg && rm -f pkg/.gitignore && node scripts/patch-wasm-types.mjs",
     "build:ts": "tsc",
     "fix-imports": "node scripts/fix-imports.js",
     "dev": "node scripts/dev.mjs",
@@ -43,9 +46,11 @@
     "strip-debug-logs": "node scripts/strip-debug-logs.mjs",
     "strip-debug-logs:dist": "node scripts/strip-debug-logs.mjs --dist",
     "build:publish": "npm run build && npm run strip-debug-logs:dist",
+    "build:site": "vite build --config vite.config.site.ts",
     "clean": "rm -rf dist pkg playwright-report test-results",
     "prepublishOnly": "npm run build:publish",
-    "serve": "python3 -m http.server 8501",
+    "serve": "vite --host 127.0.0.1 --port 8501 --strictPort",
+    "serve:static": "python3 -m http.server 8501",
     "serve:node": "npx http-server -p 8501 -c-1"
   },
   "keywords": [
@@ -73,6 +78,9 @@
     "happy-dom": "^20.10.2",
     "http-server": "^14.1.1",
     "typescript": "^5.0.0",
+    "vite": "^6.3.5",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.6.0",
     "vitest": "^4.1.8"
   },
   "engines": {

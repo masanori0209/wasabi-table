@@ -1,6 +1,6 @@
 [package]
 name = "wasabi-table"
-version = "1.0.3"
+version = "1.0.4"
 edition = "2021"
 description = "High-performance Excel-like table component for the web"
 license = "MIT"
@@ -13,8 +13,8 @@ wasm-opt = ["-Os"]
 crate-type = ["cdylib"]
 
 [dependencies]
-wasm-bindgen = { version = "0.2", features = ["serde-serialize"] }
-web-sys = { version = "0.3", features = [
+wasm-bindgen = { version = "0.2.100", features = ["serde-serialize"] }
+web-sys = { version = "0.3.77", features = [
     "console",
     "Document",
     "Element",
@@ -35,12 +35,12 @@ web-sys = { version = "0.3", features = [
     "DomRectReadOnly",
     "CssStyleDeclaration"
 ] }
-js-sys = "0.3"
+js-sys = "0.3.77"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 console_error_panic_hook = "0.1"
 regex = "1.0"
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3.42"
+wasm-bindgen-test = "0.3.50"
 

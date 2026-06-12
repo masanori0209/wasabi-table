@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-06-13
+
+### Changed
+- WASM build target switched from `web` to `bundler` (removes runtime `fetch` in wasm-bindgen glue; use a bundler such as Vite/webpack for `.wasm` imports)
+- WASM initialization uses side-effect import + `ensureWasmInitialized()`; advanced hosts can call `initWasmFromExports()`
+- Demo/E2E serving uses Vite instead of plain `http.server` (required for bundler-target WASM)
+- GitHub Pages deploy builds a Vite static site (`npm run build:site`)
+- Updated `wasm-bindgen`, `js-sys`, `web-sys`, and `wasm-bindgen-test`
+
 ## [1.0.3] - 2026-06-11
 
 ### Added
