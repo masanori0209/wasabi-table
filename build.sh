@@ -8,7 +8,7 @@ if ! command -v wasm-pack &> /dev/null; then
     exit 1
 fi
 
-wasm-pack build --target web --out-dir pkg
+wasm-pack build --target bundler --out-dir pkg
 npm run build:ts
 npm run fix-imports
 

@@ -2,6 +2,7 @@ import type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWa
 export type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterOperator, FilterResult, ListenerOptions, MenuFieldConfig, MenuFieldOption, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, UIElements, ValidationError, ValidationResult, WasabiTableCreateOptions, } from './types';
 export { DEFAULT_CONFIG, FieldType, HEADER_FILTER_CONTROL_WIDTH, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types';
 export { getSelectionReference } from './types';
+export { ensureWasmInitialized, initWasmFromExports } from './wasm-init.js';
 export { WasabiTableListeners } from './listeners';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut, } from './utils';
 import { type RecordRow } from './records-data-source';

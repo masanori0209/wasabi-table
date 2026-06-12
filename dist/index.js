@@ -1,7 +1,9 @@
-import init, { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
+import { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
+import { ensureWasmInitialized } from './wasm-init.js';
 import { DEFAULT_CONFIG, FieldType, HEADER_FILTER_CONTROL_WIDTH, PREDEFINED_THEMES, getCellReference as cellReferenceFn, getColumnName as columnNameFn, } from './types.js';
 export { DEFAULT_CONFIG, FieldType, HEADER_FILTER_CONTROL_WIDTH, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types.js';
 export { getSelectionReference } from './types.js';
+export { ensureWasmInitialized, initWasmFromExports } from './wasm-init.js';
 // --- 型定義は types.ts に集約 ---
 export { WasabiTableListeners } from './listeners.js';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut, } from './utils.js';
@@ -110,8 +112,7 @@ export class WasabiTable {
      * @returns WasabiTableインスタンス
      */
     static async create(canvas, options = {}) {
-        // WebAssemblyモジュールを初期化
-        await init();
+        await ensureWasmInitialized();
         const { dataSource, ...configPartial } = options;
         const finalConfig = { ...DEFAULT_CONFIG, ...configPartial };
         let recordsSource = null;

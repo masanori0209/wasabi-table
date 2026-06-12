@@ -51,15 +51,8 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --version 0.13.1 --locked --quiet
 
-      - name: Install dependencies and build
-        run: npm ci && npm run build
-
-      - name: Prepare site
-        run: |
-          mkdir -p site/dist site/pkg site/examples/npm-package
-          cp -r dist/* site/dist/
-          cp -r pkg/* site/pkg/
-          cp -r examples/npm-package/* site/examples/npm-package/
+      - name: Install dependencies and build site
+        run: npm ci && npm run build && npm run build:site
 
       - uses: actions/configure-pages@v5
         with:
