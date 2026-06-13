@@ -1,8 +1,5 @@
-import {
-  WasabiTable,
-  generatePersonRecords,
-  CHEETAH_STYLE_COLUMNS,
-} from '../../dist/index.js';
+import { WasabiTable } from '../../dist/index.js';
+import { generateSampleRecords, SAMPLE_RECORD_COLUMNS } from './benchmark-data.js';
 import { getLocale, t } from './benchmark-i18n.js';
 
 const PACKAGE_VERSION = '0.1.4';
@@ -302,7 +299,7 @@ export async function runBenchmarkSuite(hooks = {}) {
   // Records reference init (1M rows)
   {
     const rows = 1_000_000;
-    const cols = CHEETAH_STYLE_COLUMNS.length;
+    const cols = SAMPLE_RECORD_COLUMNS.length;
     const id = `init-records-${rows}x${cols}`;
     const sizeLabel = { rows: formatCount(rows), cols };
     emit({
@@ -315,10 +312,10 @@ export async function runBenchmarkSuite(hooks = {}) {
 
     let recordsTable = null;
     try {
-      const records = generatePersonRecords(rows);
+      const records = generateSampleRecords(rows);
       const createStart = performance.now();
       recordsTable = await WasabiTable.create(canvas, {
-        dataSource: { records, columns: CHEETAH_STYLE_COLUMNS },
+        dataSource: { records, columns: SAMPLE_RECORD_COLUMNS },
         default_col_width: 100,
         default_row_height: 25,
       });

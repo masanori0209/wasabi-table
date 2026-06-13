@@ -534,7 +534,7 @@ impl WasabiTable {
         self.mark_render_dirty();
     }
 
-    /// 行単位でセル値を一括設定（CheetahGrid records 相当の大量バインド向け）
+    /// 行単位でセル値を一括設定（records モードの大量バインド向け）
     #[wasm_bindgen]
     pub fn set_row_batch(&mut self, json: &str) -> Result<(), JsValue> {
         #[derive(serde::Deserialize)]

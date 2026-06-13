@@ -92,15 +92,15 @@ README や Getting Started 末尾で、**やらないこと**も併記する。
 
 選定ガイド（将来の `docs/choosing-a-grid.ja.md` 等）に限り、**中立な位置づけ**として記載してよい。
 
-- 良い例: 「CheetahGrid の records API に近い思想を持つ（互換 API ではない）」
-- 悪い例: 「CheetahGrid より速くて軽い」
+- 良い例: 「records 配列を列定義と組み合わせてバインドする思想（互換 API ではない）」
+- 悪い例: 「他製品より速くて軽い」
 
 Issue・Discussion で個別に聞かれた場合は、事実ベースで回答してよい。ただし README に昇格させない。
 
 ### ベンチマーク
 
 - 公開するのは **Wasabi Table 単体の計測結果**と環境・手順
-- 同等データ形状（例: `CHEETAH_STYLE_COLUMNS`）での計測は可。第三者製品名を結果表に並べない
+- 同等データ形状（benchmark ページ内のサンプル列定義）での計測は可。第三者製品名を結果表に並べない
 - 数値に再現 URL（`benchmark.html`）を必ず添える
 
 ## 内部用（非公開メモ）

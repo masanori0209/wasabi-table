@@ -7,7 +7,7 @@ export { WasabiTableListeners } from './listeners';
 export { createUIElements, exportTableToCSV, clearTable, loadSampleData, debounce, parseCellReference, isKeyboardShortcut, } from './utils';
 import { type RecordRow } from './records-data-source';
 export type { RecordRow, RecordColumnDef, RecordsDataSourceConfig, } from './records-data-source';
-export { RecordsDataSource, CHEETAH_STYLE_COLUMNS, generatePersonRecords, buildColumnHeadersFromRecords, } from './records-data-source';
+export { RecordsDataSource, buildColumnHeadersFromRecords, } from './records-data-source';
 export { applyFilters as applyFilterSort, createFilterSortState, getFilterResult as buildFilterResult, passesFilter, sortRows as sortRowsByCondition, } from './filter-sort';
 /**
  * WasabiTableとリスナーを簡単に初期化する関数

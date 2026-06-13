@@ -66,24 +66,3 @@ export class RecordsDataSource {
         return this.records.length * this.columns.length;
     }
 }
-/** CheetahGrid サンプル相当のテストデータ生成 */
-export function generatePersonRecords(count) {
-    const records = new Array(count);
-    for (let i = 0; i < count; i += 1) {
-        records[i] = {
-            personid: i + 1,
-            fname: `fname_${i}`,
-            lname: `lname_${i}`,
-            email: `user${i}@example.com`,
-            check: i % 3 === 0,
-        };
-    }
-    return records;
-}
-export const CHEETAH_STYLE_COLUMNS = [
-    { field: 'personid', header: 'ID', width: 100 },
-    { field: 'fname', header: 'First Name', width: 200 },
-    { field: 'lname', header: 'Last Name', width: 200 },
-    { field: 'email', header: 'Email', width: 250 },
-    { field: 'check', header: '', width: 50 },
-];

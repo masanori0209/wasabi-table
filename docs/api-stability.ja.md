@@ -27,7 +27,7 @@ Wasabi Table の **公開 API** の定義と、semver・破壊的変更の扱い
 
 - `dist/index.d.ts` および `dist/index.js` から **re-export されている** 型・定数・関数
   - 例: `TableConfig`, `ColumnHeader`, `EventHandlers`, `FieldType`, `DEFAULT_CONFIG`
-  - 例: `applyFilterSort`, `generatePersonRecords`, `exportTableToCSV`, `parseCellReference`
+  - 例: `applyFilterSort`, `exportTableToCSV`, `parseCellReference`
 
 ### 動作保証
 
