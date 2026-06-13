@@ -107,8 +107,6 @@ export type {
 } from './records-data-source';
 export {
   RecordsDataSource,
-  CHEETAH_STYLE_COLUMNS,
-  generatePersonRecords,
   buildColumnHeadersFromRecords,
 } from './records-data-source';
 

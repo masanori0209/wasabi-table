@@ -27,7 +27,7 @@ Anything importable from the npm entry `wasabi-table`. Types: `dist/index.d.ts` 
 
 - Types/constants/functions **re-exported** from `dist/index.d.ts` / `dist/index.js`
   - e.g. `TableConfig`, `ColumnHeader`, `EventHandlers`, `FieldType`, `DEFAULT_CONFIG`
-  - e.g. `applyFilterSort`, `generatePersonRecords`, `exportTableToCSV`, `parseCellReference`
+  - e.g. `applyFilterSort`, `exportTableToCSV`, `parseCellReference`
 
 ### Guarantees
 

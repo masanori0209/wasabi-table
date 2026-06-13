@@ -25,6 +25,3 @@ export declare class RecordsDataSource {
     getRowValues(row: number): string[];
     getLogicalCellCount(): number;
 }
-/** CheetahGrid サンプル相当のテストデータ生成 */
-export declare function generatePersonRecords(count: number): RecordRow[];
-export declare const CHEETAH_STYLE_COLUMNS: RecordColumnDef[];

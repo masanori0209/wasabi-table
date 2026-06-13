@@ -86,15 +86,15 @@ Also document what we **do not** build:
 
 In selection guides only (e.g. future `docs/choosing-a-grid.md`), neutral positioning is OK:
 
-- Good: "Similar in spirit to CheetahGrid's records API (not compatible)"
-- Bad: "Faster and lighter than CheetahGrid"
+- Good: "Bind a records array with column definitions (not a compatible API)"
+- Bad: "Faster and lighter than other grids"
 
 Answers in Issues/Discussions may be factual; do not promote them to README.
 
 ### Benchmarks
 
 - Publish **Wasabi Table measurements** with environment and steps
-- Same data shape (e.g. `CHEETAH_STYLE_COLUMNS`) is fine; do not put third-party product names in result tables
+- Same data shape (benchmark page sample columns) is fine; do not put third-party product names in result tables
 - Always link reproducible URL (`benchmark.html`)
 
 ## Internal only (do not commit)

@@ -15,7 +15,7 @@ import { HeaderDialogController } from './header-dialog.js';
 import { UndoStack } from './undo-stack.js';
 import { RecordsDataSource, buildColumnHeadersFromRecords, } from './records-data-source.js';
 import { buildValidationTooltipContent } from './utils.js';
-export { RecordsDataSource, CHEETAH_STYLE_COLUMNS, generatePersonRecords, buildColumnHeadersFromRecords, } from './records-data-source.js';
+export { RecordsDataSource, buildColumnHeadersFromRecords, } from './records-data-source.js';
 const RECORDS_VIEWPORT_BUFFER_ROWS = 40;
 export { applyFilters as applyFilterSort, createFilterSortState, getFilterResult as buildFilterResult, passesFilter, sortRows as sortRowsByCondition, } from './filter-sort.js';
 /**
