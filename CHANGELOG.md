@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-06-19
+
+### Fixed
+- Filtered and sorted range operations now only copy, clear, and paste into visible rows in records mode and standard table mode (#28)
+
+### Added
+- E2E regression coverage for filtered range copy/delete in records mode and standard table mode
+
 ## [1.0.5] - 2026-06-13
 
 ### Removed
@@ -142,7 +150,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.5...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.6...HEAD
+[1.0.6]: https://github.com/masanori0209/wasabi-table/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/masanori0209/wasabi-table/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/masanori0209/wasabi-table/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/masanori0209/wasabi-table/compare/v1.0.2...v1.0.3

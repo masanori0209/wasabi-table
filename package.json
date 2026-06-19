@@ -1,6 +1,6 @@
 {
   "name": "wasabi-table",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "High-performance Excel-like table component built with Rust and WebAssembly",
   "type": "module",
   "main": "dist/index.js",
@@ -66,7 +66,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/masanori0209/wasabi-table.git"
+    "url": "git+https://github.com/masanori0209/wasabi-table.git"
   },
   "bugs": {
     "url": "https://github.com/masanori0209/wasabi-table/issues"

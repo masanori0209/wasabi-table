@@ -309,8 +309,8 @@ impl WasabiTable {
             "Delete" | "Backspace" => {
                 // 範囲選択がある場合は、範囲内の全セルをクリア
                 if let Some(range) = self.selected_range {
-                    for row in range.start_row..=range.end_row {
-                        for col in range.start_col..=range.end_col {
+                    for row in self.selected_rows_in_display_order(range) {
+                        for col in Self::selected_cols(range) {
                             self.set_cell_data(row, col, String::new())?;
                         }
                     }
@@ -1969,9 +1969,9 @@ impl WasabiTable {
         let mut copied_data = Vec::new();
         
         if let Some(range) = self.selected_range {
-            for row in range.start_row..=range.end_row {
+            for row in self.selected_rows_in_display_order(range) {
                 let mut row_data = Vec::new();
-                for col in range.start_col..=range.end_col {
+                for col in Self::selected_cols(range) {
                     let value = self.get_cell_data(row, col).unwrap_or_default();
                     row_data.push(value);
                 }
@@ -1997,13 +1997,27 @@ impl WasabiTable {
             return Ok(());
         }
 
-        let writes = crate::clipboard_paste::plan_excel_paste(
-            &paste_data,
-            self.selected_range.as_ref(),
-            self.selected_cell,
-            self.config.row_count,
-            self.config.col_count,
-        );
+        let writes = if let Some(range) = self.selected_range {
+            if self.should_use_display_order_selection(range) {
+                self.plan_display_order_paste(&paste_data, range)
+            } else {
+                crate::clipboard_paste::plan_excel_paste(
+                    &paste_data,
+                    Some(&range),
+                    self.selected_cell,
+                    self.config.row_count,
+                    self.config.col_count,
+                )
+            }
+        } else {
+            crate::clipboard_paste::plan_excel_paste(
+                &paste_data,
+                None,
+                self.selected_cell,
+                self.config.row_count,
+                self.config.col_count,
+            )
+        };
 
         for (target_row, target_col, value) in writes {
             self.set_cell_data(target_row, target_col, value)?;
@@ -2021,6 +2035,101 @@ impl WasabiTable {
         } else {
             None
         }
+    }
+
+    fn should_use_display_order_selection(&self, range: crate::types::CellRange) -> bool {
+        if !self.is_filtered || self.filtered_rows.is_empty() {
+            return false;
+        }
+
+        self.filtered_rows.contains(&range.start_row)
+            && self.filtered_rows.contains(&range.end_row)
+    }
+
+    fn selected_rows_in_display_order(&self, range: crate::types::CellRange) -> Vec<usize> {
+        if self.should_use_display_order_selection(range) {
+            let start = self.filtered_rows.iter().position(|row| *row == range.start_row);
+            let end = self.filtered_rows.iter().position(|row| *row == range.end_row);
+            if let (Some(start), Some(end)) = (start, end) {
+                let from = start.min(end);
+                let to = start.max(end);
+                return self.filtered_rows[from..=to].to_vec();
+            }
+        }
+
+        (range.start_row..=range.end_row).collect()
+    }
+
+    fn selected_cols(range: crate::types::CellRange) -> Vec<usize> {
+        (range.start_col..=range.end_col).collect()
+    }
+
+    fn plan_display_order_paste(
+        &self,
+        paste_data: &[Vec<String>],
+        range: crate::types::CellRange,
+    ) -> Vec<(usize, usize, String)> {
+        if paste_data.is_empty() {
+            return Vec::new();
+        }
+
+        let selected_rows = self.selected_rows_in_display_order(range);
+        let selected_cols = Self::selected_cols(range);
+        if selected_rows.is_empty() || selected_cols.is_empty() {
+            return Vec::new();
+        }
+
+        let src_rows = paste_data.len();
+        let src_cols = paste_data.iter().map(|row| row.len()).max().unwrap_or(0);
+        if src_cols == 0 {
+            return Vec::new();
+        }
+
+        let mut writes = Vec::new();
+
+        if src_rows == 1 && src_cols == 1 && selected_rows.len() * selected_cols.len() > 1 {
+            let value = paste_data[0][0].clone();
+            for row in selected_rows {
+                for col in selected_cols.iter().copied() {
+                    if row < self.config.row_count && col < self.config.col_count {
+                        writes.push((row, col, value.clone()));
+                    }
+                }
+            }
+            return writes;
+        }
+
+        let (active_row, active_col) = self
+            .selected_cell
+            .unwrap_or((range.start_row, range.start_col));
+        let start_row_index = selected_rows
+            .iter()
+            .position(|row| *row == active_row)
+            .unwrap_or(0);
+        let start_col_index = selected_cols
+            .iter()
+            .position(|col| *col == active_col)
+            .unwrap_or(0);
+
+        for (row_offset, row_data) in paste_data.iter().enumerate() {
+            let Some(row) = selected_rows.get(start_row_index + row_offset).copied() else {
+                continue;
+            };
+            if row >= self.config.row_count {
+                continue;
+            }
+
+            for (col_offset, value) in row_data.iter().enumerate() {
+                let Some(col) = selected_cols.get(start_col_index + col_offset).copied() else {
+                    continue;
+                };
+                if col < self.config.col_count {
+                    writes.push((row, col, value.clone()));
+                }
+            }
+        }
+
+        writes
     }
 
     fn collect_range_values(&self, range: crate::types::CellRange) -> Vec<Vec<String>> {

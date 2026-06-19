@@ -388,6 +388,11 @@ export declare class WasabiTable {
      * クリップボードからペースト
      */
     pasteFromClipboard(tsvData: string): void;
+    private shouldUseDisplayOrderSelection;
+    private getSelectionRowsInDisplayOrder;
+    private getSelectionCols;
+    private getSelectionCoordinates;
+    private planDisplayOrderPaste;
     private getSelectionCellRange;
     private collectRangeValues;
     /**
