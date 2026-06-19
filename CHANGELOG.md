@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-06-19
+
+### Fixed
+- Zero-result filters no longer allow selection, hit-testing, copy, or paste operations to fall back to hidden row 0 (#31)
+- `clearAllFilters()` now preserves active sort state while rebuilding display-order rows (#31)
+
+### Added
+- E2E regression coverage for filtered range paste and undo/redo in records mode and standard table mode (#31)
+- E2E regression coverage for zero-result filters and sort state after clearing filters (#31)
+
 ## [1.0.6] - 2026-06-19
 
 ### Fixed
@@ -150,7 +160,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.6...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.7...HEAD
+[1.0.7]: https://github.com/masanori0209/wasabi-table/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/masanori0209/wasabi-table/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/masanori0209/wasabi-table/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/masanori0209/wasabi-table/compare/v1.0.3...v1.0.4
