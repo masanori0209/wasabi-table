@@ -2474,6 +2474,8 @@ export class WasabiTable {
     if (rows.length === 0) return;
 
     const sel = this.getSelectionInfo();
+    if (!sel.hasSelection) return;
+
     const writes = this.shouldUseDisplayOrderSelection(sel)
       ? this.planDisplayOrderPaste(rows, sel)
       : planExcelPaste(
@@ -2499,18 +2501,23 @@ export class WasabiTable {
   private shouldUseDisplayOrderSelection(sel: SelectionInfo): boolean {
     return Boolean(
       sel.isRange &&
-      (this.filterSortState.isFiltered || this.filterSortState.sortCondition) &&
-      this.filterSortState.filteredRows.length > 0
+      (this.filterSortState.isFiltered || this.filterSortState.sortCondition)
     );
   }
 
   private getSelectionRowsInDisplayOrder(sel: SelectionInfo): number[] {
+    const hasDisplayOrder =
+      this.filterSortState.isFiltered || this.filterSortState.sortCondition;
+
     if (
       sel.isRange &&
       sel.start_row != null &&
       sel.end_row != null
     ) {
-      if (this.shouldUseDisplayOrderSelection(sel)) {
+      if (hasDisplayOrder) {
+        if (this.filterSortState.filteredRows.length === 0) {
+          return [];
+        }
         const startIndex = this.filterSortState.filteredRows.indexOf(sel.start_row);
         const endIndex = this.filterSortState.filteredRows.indexOf(sel.end_row);
         if (startIndex !== -1 && endIndex !== -1) {
@@ -2518,6 +2525,7 @@ export class WasabiTable {
           const to = Math.max(startIndex, endIndex);
           return this.filterSortState.filteredRows.slice(from, to + 1);
         }
+        return [];
       }
 
       const rows: number[] = [];
@@ -2527,7 +2535,13 @@ export class WasabiTable {
       return rows;
     }
 
-    return sel.row != null ? [sel.row] : [];
+    if (sel.row == null) {
+      return [];
+    }
+    if (!hasDisplayOrder) {
+      return [sel.row];
+    }
+    return this.filterSortState.filteredRows.includes(sel.row) ? [sel.row] : [];
   }
 
   private getSelectionCols(sel: SelectionInfo): number[] {
@@ -3939,6 +3953,11 @@ export class WasabiTable {
    */
   public clearAllFilters(): void {
     this.filterSortState.filterConditions = [];
+    if (this.filterSortState.sortCondition) {
+      this.applyFilters();
+      return;
+    }
+
     this.filterSortState.isFiltered = false;
     this.filterSortState.filteredRows = [];
     this.wasmTable?.clear_filter();
