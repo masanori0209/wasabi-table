@@ -715,12 +715,11 @@ impl WasabiTable {
         let display_row =
             ((y - self.config.header_height + self.scroll_y) / self.config.default_row_height) as usize;
 
-        let row = if self.is_filtered && !self.filtered_rows.is_empty() {
-            if display_row < self.filtered_rows.len() {
-                self.filtered_rows[display_row]
-            } else {
+        let row = if self.is_filtered {
+            if self.filtered_rows.is_empty() || display_row >= self.filtered_rows.len() {
                 return None;
             }
+            self.filtered_rows[display_row]
         } else {
             display_row
         };
@@ -772,10 +771,14 @@ impl WasabiTable {
         let start_row_offset = (self.scroll_y / default_row_height).floor() as usize;
         
         // フィルターが適用されている場合
-        if self.is_filtered && !self.filtered_rows.is_empty() {
-            // フィルターされた行の中での表示範囲を計算
-            let end_row_offset = std::cmp::min(start_row_offset + max_visible_rows, self.filtered_rows.len());
-            self.visible_rows = (start_row_offset, end_row_offset);
+        if self.is_filtered {
+            if self.filtered_rows.is_empty() {
+                self.visible_rows = (0, 0);
+            } else {
+                // フィルターされた行の中での表示範囲を計算
+                let end_row_offset = std::cmp::min(start_row_offset + max_visible_rows, self.filtered_rows.len());
+                self.visible_rows = (start_row_offset, end_row_offset);
+            }
         } else {
             // 通常の表示範囲計算
             let end_row = std::cmp::min(start_row_offset + max_visible_rows, self.config.row_count);
@@ -817,7 +820,10 @@ impl WasabiTable {
 
     /// データ行番号を画面上のY座標に変換（フィルター対応）
     fn row_to_screen_y(&self, data_row: usize) -> Option<f64> {
-        if self.is_filtered && !self.filtered_rows.is_empty() {
+        if self.is_filtered {
+            if self.filtered_rows.is_empty() {
+                return None;
+            }
             self.filtered_rows
                 .iter()
                 .position(|&r| r == data_row)
@@ -1101,7 +1107,7 @@ impl WasabiTable {
         self.render_fixed_headers()?;
         
         // セルを描画（フィルターを考慮）
-        if self.is_filtered && !self.filtered_rows.is_empty() {
+        if self.is_filtered {
             // フィルターされた行のみを描画
             for display_row in self.visible_rows.0..self.visible_rows.1 {
                 if display_row < self.filtered_rows.len() {
@@ -1253,7 +1259,7 @@ impl WasabiTable {
         }
         
         // 行番号を描画（スクロール対応）
-        let max_row = if self.is_filtered && !self.filtered_rows.is_empty() {
+        let max_row = if self.is_filtered {
             self.visible_rows.1.min(self.filtered_rows.len())
         } else {
             self.visible_rows.1.min(self.config.row_count)
@@ -1261,7 +1267,7 @@ impl WasabiTable {
         for display_row in self.visible_rows.0..max_row {
             let y = display_row as f64 * self.config.default_row_height + self.config.header_height - self.scroll_y;
             if y + self.config.default_row_height > self.config.header_height && y < self.canvas_height {
-                let data_row = if self.is_filtered && !self.filtered_rows.is_empty() {
+                let data_row = if self.is_filtered {
                     if display_row < self.filtered_rows.len() {
                         self.filtered_rows[display_row]
                     } else {
@@ -1609,7 +1615,7 @@ impl WasabiTable {
         }
 
         // 横線をバッチ処理で描画（テーブル範囲内のみ）
-        let max_row = if self.is_filtered && !self.filtered_rows.is_empty() {
+        let max_row = if self.is_filtered {
             self.visible_rows.1.min(self.filtered_rows.len())
         } else {
             self.visible_rows.1.min(self.config.row_count)
@@ -2038,8 +2044,12 @@ impl WasabiTable {
     }
 
     fn should_use_display_order_selection(&self, range: crate::types::CellRange) -> bool {
-        if !self.is_filtered || self.filtered_rows.is_empty() {
+        if !self.is_filtered {
             return false;
+        }
+
+        if self.filtered_rows.is_empty() {
+            return true;
         }
 
         self.filtered_rows.contains(&range.start_row)
@@ -2055,6 +2065,10 @@ impl WasabiTable {
                 let to = start.max(end);
                 return self.filtered_rows[from..=to].to_vec();
             }
+        }
+
+        if self.is_filtered {
+            return Vec::new();
         }
 
         (range.start_row..=range.end_row).collect()
@@ -2332,8 +2346,9 @@ impl WasabiTable {
 
         // 範囲選択の妥当性をチェック
         if let Some(range) = &self.selected_range {
-            let is_valid = (range.start_row..=range.end_row)
-                .all(|row| self.filtered_rows.is_empty() || self.filtered_rows.contains(&row));
+            let is_valid = !self.filtered_rows.is_empty()
+                && self.filtered_rows.contains(&range.start_row)
+                && self.filtered_rows.contains(&range.end_row);
             if !is_valid {
                 self.clear_range_selection_if_needed(true);
             }
@@ -2458,12 +2473,11 @@ impl WasabiTable {
             / self.config.default_row_height as f64)
             .floor() as usize;
 
-        let row = if self.is_filtered && !self.filtered_rows.is_empty() {
-            if display_row < self.filtered_rows.len() {
-                self.filtered_rows[display_row]
-            } else {
+        let row = if self.is_filtered {
+            if self.filtered_rows.is_empty() || display_row >= self.filtered_rows.len() {
                 return -1;
             }
+            self.filtered_rows[display_row]
         } else if display_row < self.config.row_count {
             display_row
         } else {
