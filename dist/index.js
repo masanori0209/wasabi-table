@@ -342,19 +342,9 @@ export class WasabiTable {
                 changes.push({ row, col, oldValue, newValue: '' });
             }
         };
-        if (selectionInfo.isRange &&
-            selectionInfo.start_row != null &&
-            selectionInfo.end_row != null &&
-            selectionInfo.start_col != null &&
-            selectionInfo.end_col != null) {
-            for (let row = selectionInfo.start_row; row <= selectionInfo.end_row; row += 1) {
-                for (let col = selectionInfo.start_col; col <= selectionInfo.end_col; col += 1) {
-                    queueClear(row, col);
-                }
-            }
-        }
-        else if (selectionInfo.row != null && selectionInfo.col != null) {
-            queueClear(selectionInfo.row, selectionInfo.col);
+        const coordinates = this.getSelectionCoordinates(selectionInfo);
+        for (const { row, col } of coordinates) {
+            queueClear(row, col);
         }
         if (recordUndo && changes.length > 0) {
             this.pushUndoChanges(changes);
@@ -364,15 +354,20 @@ export class WasabiTable {
             for (const change of changes) {
                 this.writeCellValue(change.row, change.col, '');
             }
-            if (changes.length === 0 && selectionInfo.row != null && selectionInfo.col != null) {
-                this.writeCellValue(selectionInfo.row, selectionInfo.col, '');
+            if (changes.length === 0 && coordinates.length === 1) {
+                this.writeCellValue(coordinates[0].row, coordinates[0].col, '');
             }
         }
         finally {
             this.applyingHistory = false;
         }
-        // 選択状態の更新は WASM 側に委譲
-        this.wasmTable.handle_canvas_keydown('Delete');
+        if (this.recordsSource) {
+            this.clearSelection();
+        }
+        else {
+            // 選択状態の更新は WASM 側に委譲
+            this.wasmTable.handle_canvas_keydown('Delete');
+        }
         this.render();
     }
     invalidateRecordsViewport() {
@@ -2008,21 +2003,12 @@ export class WasabiTable {
         }
         const sel = this.getSelectionInfo();
         const rows = [];
-        if (sel.isRange &&
-            sel.start_row != null &&
-            sel.end_row != null &&
-            sel.start_col != null &&
-            sel.end_col != null) {
-            for (let row = sel.start_row; row <= sel.end_row; row += 1) {
-                const cols = [];
-                for (let col = sel.start_col; col <= sel.end_col; col += 1) {
-                    cols.push(this.recordsSource.getCellValue(row, col));
-                }
-                rows.push(cols);
+        for (const row of this.getSelectionRowsInDisplayOrder(sel)) {
+            const cols = [];
+            for (const col of this.getSelectionCols(sel)) {
+                cols.push(this.recordsSource.getCellValue(row, col));
             }
-        }
-        else if (sel.row != null && sel.col != null) {
-            rows.push([this.recordsSource.getCellValue(sel.row, sel.col)]);
+            rows.push(cols);
         }
         return serializeTsvRows(rows);
     }
@@ -2036,7 +2022,9 @@ export class WasabiTable {
         if (rows.length === 0)
             return;
         const sel = this.getSelectionInfo();
-        const writes = planExcelPaste(rows, sel, this.config.row_count, this.config.col_count);
+        const writes = this.shouldUseDisplayOrderSelection(sel)
+            ? this.planDisplayOrderPaste(rows, sel)
+            : planExcelPaste(rows, sel, this.config.row_count, this.config.col_count);
         const changes = [];
         for (const { row, col, value } of writes) {
             const oldValue = (_a = this.getCellValue(row, col)) !== null && _a !== void 0 ? _a : '';
@@ -2047,6 +2035,98 @@ export class WasabiTable {
         }
         this.pushUndoChanges(changes);
         this.render();
+    }
+    shouldUseDisplayOrderSelection(sel) {
+        return Boolean(sel.isRange &&
+            (this.filterSortState.isFiltered || this.filterSortState.sortCondition) &&
+            this.filterSortState.filteredRows.length > 0);
+    }
+    getSelectionRowsInDisplayOrder(sel) {
+        if (sel.isRange &&
+            sel.start_row != null &&
+            sel.end_row != null) {
+            if (this.shouldUseDisplayOrderSelection(sel)) {
+                const startIndex = this.filterSortState.filteredRows.indexOf(sel.start_row);
+                const endIndex = this.filterSortState.filteredRows.indexOf(sel.end_row);
+                if (startIndex !== -1 && endIndex !== -1) {
+                    const from = Math.min(startIndex, endIndex);
+                    const to = Math.max(startIndex, endIndex);
+                    return this.filterSortState.filteredRows.slice(from, to + 1);
+                }
+            }
+            const rows = [];
+            for (let row = sel.start_row; row <= sel.end_row; row += 1) {
+                rows.push(row);
+            }
+            return rows;
+        }
+        return sel.row != null ? [sel.row] : [];
+    }
+    getSelectionCols(sel) {
+        if (sel.isRange &&
+            sel.start_col != null &&
+            sel.end_col != null) {
+            const cols = [];
+            for (let col = sel.start_col; col <= sel.end_col; col += 1) {
+                cols.push(col);
+            }
+            return cols;
+        }
+        return sel.col != null ? [sel.col] : [];
+    }
+    getSelectionCoordinates(sel) {
+        const coordinates = [];
+        for (const row of this.getSelectionRowsInDisplayOrder(sel)) {
+            for (const col of this.getSelectionCols(sel)) {
+                coordinates.push({ row, col });
+            }
+        }
+        return coordinates;
+    }
+    planDisplayOrderPaste(pasteRows, sel) {
+        var _a, _b, _c;
+        const selectionRows = this.getSelectionRowsInDisplayOrder(sel);
+        const selectionCols = this.getSelectionCols(sel);
+        if (pasteRows.length === 0 || selectionRows.length === 0 || selectionCols.length === 0) {
+            return [];
+        }
+        const srcRows = pasteRows.length;
+        const srcCols = Math.max(...pasteRows.map((row) => row.length), 0);
+        if (srcCols === 0)
+            return [];
+        const writes = [];
+        if (srcRows === 1 && srcCols === 1 && selectionRows.length * selectionCols.length > 1) {
+            const value = (_a = pasteRows[0][0]) !== null && _a !== void 0 ? _a : '';
+            for (const row of selectionRows) {
+                for (const col of selectionCols) {
+                    if (row < this.config.row_count && col < this.config.col_count) {
+                        writes.push({ row, col, value });
+                    }
+                }
+            }
+            return writes;
+        }
+        const anchorRowIndex = sel.active_row != null
+            ? selectionRows.indexOf(sel.active_row)
+            : 0;
+        const anchorColIndex = sel.active_col != null
+            ? selectionCols.indexOf(sel.active_col)
+            : 0;
+        const startRowIndex = anchorRowIndex >= 0 ? anchorRowIndex : 0;
+        const startColIndex = anchorColIndex >= 0 ? anchorColIndex : 0;
+        for (let rowOffset = 0; rowOffset < pasteRows.length; rowOffset += 1) {
+            const targetRow = selectionRows[startRowIndex + rowOffset];
+            if (targetRow == null || targetRow >= this.config.row_count)
+                continue;
+            const rowData = (_b = pasteRows[rowOffset]) !== null && _b !== void 0 ? _b : [];
+            for (let colOffset = 0; colOffset < rowData.length; colOffset += 1) {
+                const targetCol = selectionCols[startColIndex + colOffset];
+                if (targetCol == null || targetCol >= this.config.col_count)
+                    continue;
+                writes.push({ row: targetRow, col: targetCol, value: (_c = rowData[colOffset]) !== null && _c !== void 0 ? _c : '' });
+            }
+        }
+        return writes;
     }
     getSelectionCellRange() {
         const sel = this.getSelectionInfo();

@@ -1,6 +1,6 @@
 [package]
 name = "wasabi-table"
-version = "1.0.5"
+version = "1.0.6"
 edition = "2021"
 description = "High-performance Excel-like table component for the web"
 license = "MIT"
@@ -43,4 +43,3 @@ regex = "1.0"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.50"
-
