@@ -2407,15 +2407,31 @@ impl WasabiTable {
         }
 
         let zone = if zone > 0.0 { zone } else { 6.0 };
+        let freeze = self.config.freeze_cols.min(self.config.col_count);
         let mut absolute_x = row_header_width;
 
-        for col in 0..self.config.col_count {
+        for col in 0..freeze {
             let w = self.get_column_width(col);
-            let screen_left = absolute_x - self.scroll_x;
+            let screen_left = absolute_x;
             let screen_right = screen_left + w;
 
             if screen_right > row_header_width && screen_left < self.canvas_width {
                 if canvas_x >= screen_right - zone && canvas_x <= screen_right + zone {
+                    return col as i32;
+                }
+            }
+            absolute_x += w;
+        }
+
+        let frozen_screen_right = absolute_x;
+        for col in freeze..self.config.col_count {
+            let w = self.get_column_width(col);
+            let screen_left = absolute_x - self.scroll_x;
+            let screen_right = screen_left + w;
+
+            if screen_right > frozen_screen_right && screen_left < self.canvas_width {
+                let hit_left = (screen_right - zone).max(frozen_screen_right);
+                if canvas_x >= hit_left && canvas_x <= screen_right + zone {
                     return col as i32;
                 }
             }
