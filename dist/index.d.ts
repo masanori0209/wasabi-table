@@ -37,6 +37,8 @@ export declare function createWasabiTableWithListeners(canvas: HTMLCanvasElement
  * ```
  */
 export declare class WasabiTable {
+    private static activeEditingTable;
+    private static globalEditingHandlersInstalled;
     private wasmTable;
     private config;
     private eventHandlers;
@@ -297,6 +299,10 @@ export declare class WasabiTable {
      * リソースを解放
      */
     private tearDownEventHandlers;
+    private static installGlobalEditingHandlers;
+    private handleEditingEnter;
+    private handleEditingTab;
+    private handleEditingEscape;
     private scheduleTimeout;
     private scheduleAnimationFrame;
     private clearScheduledWork;
@@ -638,6 +644,8 @@ export declare class WasabiTable {
         y: number;
     };
     private getColumnWidthAt;
+    private getFrozenColumnCount;
+    private getFrozenColumnsWidth;
     private getColumnHeaderLayout;
     private isColumnFilterControlClick;
     /**
