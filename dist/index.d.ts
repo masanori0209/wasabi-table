@@ -61,6 +61,10 @@ export declare class WasabiTable {
     private recordsSource;
     private viewportSyncRange;
     private eventAbortController;
+    private scheduledTimeouts;
+    private scheduledAnimationFrames;
+    private readonly boundHandleOutsideClick;
+    private readonly boundHandleSelectBoxKeydown;
     private constructor();
     /**
      * WasabiTableインスタンスを作成
@@ -293,6 +297,9 @@ export declare class WasabiTable {
      * リソースを解放
      */
     private tearDownEventHandlers;
+    private scheduleTimeout;
+    private scheduleAnimationFrame;
+    private clearScheduledWork;
     dispose(): void;
     /**
      * 列名を生成（A, B, C, ..., Z, AA, AB, ...）
