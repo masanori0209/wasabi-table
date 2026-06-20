@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-06-20
+
+### Fixed
+- MenuField select boxes now close on grid scroll so option lists cannot remain detached from their source cell (#34)
+- Validation tooltips are hidden during scroll and no longer reappear for off-screen selected cells (#34)
+
+### Added
+- E2E coverage for floating cell UI during scroll, including MenuField, inline edit, and validation tooltip behavior (#34)
+
 ## [1.0.7] - 2026-06-19
 
 ### Fixed
@@ -160,7 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.7...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.8...HEAD
+[1.0.8]: https://github.com/masanori0209/wasabi-table/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/masanori0209/wasabi-table/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/masanori0209/wasabi-table/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/masanori0209/wasabi-table/compare/v1.0.4...v1.0.5
