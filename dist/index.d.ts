@@ -280,6 +280,7 @@ export declare class WasabiTable {
      * 検証エラー吹き出しを非表示
      */
     private hideValidationTooltip;
+    private isCellScreenPositionVisible;
     /**
      * 選択されたセルの検証エラーを確認して吹き出しを表示
      */
@@ -332,6 +333,8 @@ export declare class WasabiTable {
      * 指定位置にスクロール
      */
     private scrollTo;
+    private handleGridScrollFloatingUi;
+    private scheduleValidationTooltipUpdate;
     /**
      * スクロールバーの表示を更新
      */

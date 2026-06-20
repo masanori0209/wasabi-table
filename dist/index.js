@@ -581,8 +581,10 @@ export class WasabiTable {
             // スクロール実行
             const deltaX = newScrollX - currentScrollX;
             const deltaY = newScrollY - currentScrollY;
+            this.handleGridScrollFloatingUi();
             this.wasmTable.scroll(deltaX, deltaY);
             this.updateScrollbars();
+            this.scheduleValidationTooltipUpdate();
         }
         else {
         }
@@ -871,6 +873,10 @@ export class WasabiTable {
         try {
             // 正確なセル位置を取得
             const cellScreenPos = this.getCellScreenPosition(cellPosition.row, cellPosition.col);
+            if (!this.isCellScreenPositionVisible(cellScreenPos)) {
+                this.hideValidationTooltip();
+                return;
+            }
             const canvasRect = this.canvas.getBoundingClientRect();
             // fixed positioningを使用して正確な位置を計算
             const absoluteX = canvasRect.left + cellScreenPos.centerX;
@@ -909,6 +915,23 @@ export class WasabiTable {
         if (this.tooltipElement) {
             this.tooltipElement.style.display = 'none';
         }
+    }
+    isCellScreenPositionVisible(cellScreenPos) {
+        const canvasWidth = parseFloat(this.canvas.style.width) ||
+            this.canvas.getBoundingClientRect().width ||
+            this.canvas.width;
+        const canvasHeight = parseFloat(this.canvas.style.height) ||
+            this.canvas.getBoundingClientRect().height ||
+            this.canvas.height;
+        const scrollbarSize = 17;
+        const minX = this.config.row_header_width;
+        const minY = this.config.header_height;
+        const maxX = Math.max(minX, canvasWidth - scrollbarSize);
+        const maxY = Math.max(minY, canvasHeight - scrollbarSize);
+        return (cellScreenPos.x + cellScreenPos.width > minX &&
+            cellScreenPos.x < maxX &&
+            cellScreenPos.y + cellScreenPos.height > minY &&
+            cellScreenPos.y < maxY);
     }
     /**
      * 選択されたセルの検証エラーを確認して吹き出しを表示
@@ -1283,8 +1306,8 @@ export class WasabiTable {
         }, { signal });
         this.canvas.addEventListener('wheel', (event) => {
             event.preventDefault();
+            this.handleGridScrollFloatingUi();
             this.wasmTable.handle_canvas_wheel(event.deltaX, event.deltaY);
-            this.hideValidationTooltip();
             this.updateScrollbars();
             const triggerRender = window.triggerRender;
             if (typeof triggerRender === 'function') {
@@ -1293,9 +1316,7 @@ export class WasabiTable {
             else {
                 this.render();
             }
-            setTimeout(() => {
-                this.updateValidationTooltip();
-            }, 150);
+            this.scheduleValidationTooltipUpdate();
         }, { passive: false, signal });
         // 統一されたキーボードイベント処理
         document.addEventListener('keydown', (event) => {
@@ -1733,11 +1754,22 @@ export class WasabiTable {
         const deltaY = y - stats.scrollY;
         // スムーズスクロール処理
         if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
+            this.handleGridScrollFloatingUi();
             requestAnimationFrame(() => {
                 this.wasmTable.handle_canvas_wheel(deltaX, deltaY);
                 this.updateScrollbars();
+                this.scheduleValidationTooltipUpdate();
             });
         }
+    }
+    handleGridScrollFloatingUi() {
+        this.hideMenuFieldSelectBox();
+        this.hideValidationTooltip();
+    }
+    scheduleValidationTooltipUpdate() {
+        setTimeout(() => {
+            this.updateValidationTooltip();
+        }, 150);
     }
     /**
      * スクロールバーの表示を更新
