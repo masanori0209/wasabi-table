@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-06-20
+
+### Fixed
+- Scheduled render, scroll, scrollbar, and validation tooltip callbacks are cancelled or guarded during `dispose()` so they cannot touch freed table state (#37)
+- MenuField document listeners now use stable references and are removed on close/dispose to avoid keydown listener accumulation (#37)
+- MenuField selection now reports the correct previous value in `onCellChange(oldValue, newValue)` (#37)
+
+### Added
+- E2E regression coverage for lifecycle disposal after scroll and MenuField listener/change-event behavior (#37)
+
 ## [1.0.8] - 2026-06-20
 
 ### Fixed
@@ -169,7 +179,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.8...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.9...HEAD
+[1.0.9]: https://github.com/masanori0209/wasabi-table/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/masanori0209/wasabi-table/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/masanori0209/wasabi-table/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/masanori0209/wasabi-table/compare/v1.0.5...v1.0.6
