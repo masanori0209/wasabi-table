@@ -78,6 +78,10 @@ export class WasabiTable {
         this.recordsSource = null;
         this.viewportSyncRange = null;
         this.eventAbortController = null;
+        this.scheduledTimeouts = new Set();
+        this.scheduledAnimationFrames = new Set();
+        this.boundHandleOutsideClick = (event) => this.handleOutsideClick(event);
+        this.boundHandleSelectBoxKeydown = (event) => this.handleSelectBoxKeydown(event);
         /**
          * SelectBoxのキーダウンハンドラー
          */
@@ -174,7 +178,7 @@ export class WasabiTable {
         this.ensureInitialized();
         const recordUndo = (_a = options === null || options === void 0 ? void 0 : options.recordUndo) !== null && _a !== void 0 ? _a : true;
         this.writeCellValue(row, col, value, { recordUndo });
-        setTimeout(() => {
+        this.scheduleTimeout(() => {
             this.updateValidationTooltip();
         }, 100);
     }
@@ -476,6 +480,8 @@ export class WasabiTable {
     render() {
         this.ensureInitialized();
         const draw = () => {
+            if (!this.isInitialized)
+                return;
             if (this.recordsSource) {
                 this.syncRecordsViewport();
             }
@@ -484,7 +490,7 @@ export class WasabiTable {
         };
         // レンダリング最適化: requestAnimationFrameを使用
         if ('requestAnimationFrame' in window) {
-            requestAnimationFrame(draw);
+            this.scheduleAnimationFrame(draw);
         }
         else {
             draw();
@@ -649,7 +655,7 @@ export class WasabiTable {
         this.wasmTable.finish_editing();
         this.focusCanvas();
         // 編集完了後に検証エラーを更新
-        setTimeout(() => {
+        this.scheduleTimeout(() => {
             this.updateValidationTooltip();
         }, 100);
     }
@@ -678,7 +684,7 @@ export class WasabiTable {
         this.ensureInitialized();
         this.wasmTable.cancel_editing();
         // 編集キャンセル後に検証エラーを更新
-        setTimeout(() => {
+        this.scheduleTimeout(() => {
             this.updateValidationTooltip();
         }, 100);
     }
@@ -943,7 +949,7 @@ export class WasabiTable {
                 const validationErrorMessage = this.wasmTable.get_selected_cell_validation_error();
                 if (validationErrorMessage && validationErrorMessage.trim() !== '') {
                     // 少し遅延させて正確な位置を取得
-                    setTimeout(() => {
+                    this.scheduleTimeout(() => {
                         this.showValidationTooltip(validationErrorMessage, selectedCell);
                     }, 50);
                 }
@@ -999,7 +1005,35 @@ export class WasabiTable {
         delete win.handleEditingEscape;
         delete win.triggerRender;
     }
+    scheduleTimeout(callback, delay) {
+        const timeoutId = window.setTimeout(() => {
+            this.scheduledTimeouts.delete(timeoutId);
+            if (!this.isInitialized)
+                return;
+            callback();
+        }, delay);
+        this.scheduledTimeouts.add(timeoutId);
+        return timeoutId;
+    }
+    scheduleAnimationFrame(callback) {
+        const frameId = window.requestAnimationFrame(() => {
+            this.scheduledAnimationFrames.delete(frameId);
+            if (!this.isInitialized)
+                return;
+            callback();
+        });
+        this.scheduledAnimationFrames.add(frameId);
+        return frameId;
+    }
+    clearScheduledWork() {
+        this.scheduledTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+        this.scheduledTimeouts.clear();
+        this.scheduledAnimationFrames.forEach((frameId) => window.cancelAnimationFrame(frameId));
+        this.scheduledAnimationFrames.clear();
+    }
     dispose() {
+        this.isInitialized = false;
+        this.clearScheduledWork();
         this.tearDownEventHandlers();
         // ResizeObserverを停止
         if (this.resizeObserver) {
@@ -1017,7 +1051,6 @@ export class WasabiTable {
         if (this.wasmTable) {
             this.wasmTable.free();
         }
-        this.isInitialized = false;
     }
     /**
      * 列名を生成（A, B, C, ..., Z, AA, AB, ...）
@@ -1755,7 +1788,7 @@ export class WasabiTable {
         // スムーズスクロール処理
         if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
             this.handleGridScrollFloatingUi();
-            requestAnimationFrame(() => {
+            this.scheduleAnimationFrame(() => {
                 this.wasmTable.handle_canvas_wheel(deltaX, deltaY);
                 this.updateScrollbars();
                 this.scheduleValidationTooltipUpdate();
@@ -1767,7 +1800,7 @@ export class WasabiTable {
         this.hideValidationTooltip();
     }
     scheduleValidationTooltipUpdate() {
-        setTimeout(() => {
+        this.scheduleTimeout(() => {
             this.updateValidationTooltip();
         }, 150);
     }
@@ -1779,7 +1812,7 @@ export class WasabiTable {
             !this.horizontalThumb || !this.verticalThumb)
             return;
         // requestAnimationFrameを使用してスムーズに更新
-        requestAnimationFrame(() => {
+        this.scheduleAnimationFrame(() => {
             const stats = this.getStats();
             const maxScrollX = this.calculateMaxScrollX();
             const maxScrollY = this.calculateMaxScrollY();
@@ -1866,6 +1899,7 @@ export class WasabiTable {
                 this.wasmTable.update_canvas_size(actualWidth, actualHeight);
             }
             catch (error) {
+                console.error('🔧 Error updating WASM canvas size:', error);
                 // フォールバック: 直接プロパティを更新
                 try {
                     if ('canvas_width' in this.wasmTable && 'canvas_height' in this.wasmTable) {
@@ -1874,6 +1908,7 @@ export class WasabiTable {
                     }
                 }
                 catch (fallbackError) {
+                    console.error('🔧 Fallback canvas size update also failed:', fallbackError);
                 }
             }
         }
@@ -1947,6 +1982,7 @@ export class WasabiTable {
             this.wasmTable.start_range_selection(row, col);
         }
         catch (error) {
+            console.error('❌ Failed to start range selection:', error);
         }
     }
     /**
@@ -1958,6 +1994,7 @@ export class WasabiTable {
             this.wasmTable.update_range_selection(row, col);
         }
         catch (error) {
+            console.error('❌ Failed to update range selection:', error);
         }
     }
     /**
@@ -1969,6 +2006,7 @@ export class WasabiTable {
             this.wasmTable.end_range_selection();
         }
         catch (error) {
+            console.error('❌ Failed to end range selection:', error);
         }
     }
     /**
@@ -2017,6 +2055,7 @@ export class WasabiTable {
             this.wasmTable.clear_selection();
         }
         catch (error) {
+            console.error('❌ Failed to clear selection:', error);
         }
     }
     /**
@@ -2360,6 +2399,7 @@ export class WasabiTable {
             }
         }
         catch (error) {
+            console.error('❌ Copy failed:', error);
             // エラー時はフォールバックを試行
             try {
                 const copiedData = this.copySelection();
@@ -2368,6 +2408,7 @@ export class WasabiTable {
                 }
             }
             catch (fallbackError) {
+                console.error('❌ Fallback copy also failed:', fallbackError);
             }
         }
     }
@@ -2402,6 +2443,7 @@ export class WasabiTable {
             }
         }
         catch (error) {
+            console.error('❌ Paste failed:', error);
         }
     }
     /**
@@ -2460,6 +2502,7 @@ export class WasabiTable {
             }
         }
         catch (error) {
+            console.error('❌ Cut failed:', error);
         }
     }
     /**
@@ -2475,6 +2518,7 @@ export class WasabiTable {
             this.render();
         }
         catch (error) {
+            console.error('❌ Select all failed:', error);
         }
     }
     /**
@@ -2494,9 +2538,11 @@ export class WasabiTable {
             if (successful) {
             }
             else {
+                console.error('❌ Fallback copy failed');
             }
         }
         catch (err) {
+            console.error('❌ Fallback copy error:', err);
         }
         finally {
             document.body.removeChild(textArea);
@@ -2932,8 +2978,9 @@ export class WasabiTable {
             this.selectBoxElement = null;
         }
         this.currentMenuFieldCell = null;
-        // ESCキーリスナーを削除
-        document.removeEventListener('keydown', this.handleSelectBoxKeydown);
+        // ドキュメントリスナーを削除
+        document.removeEventListener('click', this.boundHandleOutsideClick);
+        document.removeEventListener('keydown', this.boundHandleSelectBoxKeydown);
     }
     /**
      * SelectBox要素を作成
@@ -3038,11 +3085,13 @@ export class WasabiTable {
         // キーボードナビゲーションを設定
         this.setupSelectBoxKeyboardNavigation(searchInput);
         // 外部クリックで閉じる
-        setTimeout(() => {
-            document.addEventListener('click', this.handleOutsideClick.bind(this), { once: true });
+        this.scheduleTimeout(() => {
+            if (!this.selectBoxElement)
+                return;
+            document.addEventListener('click', this.boundHandleOutsideClick, { once: true });
         }, 0);
         // ESCキーで閉じる
-        document.addEventListener('keydown', this.handleSelectBoxKeydown.bind(this));
+        document.addEventListener('keydown', this.boundHandleSelectBoxKeydown);
     }
     /**
      * SelectBoxのキーボードナビゲーション設定
@@ -3166,6 +3215,7 @@ export class WasabiTable {
         if (!this.currentMenuFieldCell)
             return;
         const { row, col } = this.currentMenuFieldCell;
+        const oldValue = this.getCellValue(row, col) || '';
         // セル値を更新
         this.setCellValue(row, col, value);
         // SelectBoxを非表示
@@ -3173,7 +3223,7 @@ export class WasabiTable {
         // 再描画
         this.render();
         // イベントを発火
-        (_b = (_a = this.eventHandlers).onCellChange) === null || _b === void 0 ? void 0 : _b.call(_a, { row, col }, this.getCellValue(row, col) || '', value);
+        (_b = (_a = this.eventHandlers).onCellChange) === null || _b === void 0 ? void 0 : _b.call(_a, { row, col }, oldValue, value);
     }
     /**
      * 外部クリック処理

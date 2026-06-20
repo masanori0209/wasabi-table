@@ -242,6 +242,10 @@ export class WasabiTable {
   private recordsSource: RecordsDataSource | null = null;
   private viewportSyncRange: { start: number; end: number } | null = null;
   private eventAbortController: AbortController | null = null;
+  private scheduledTimeouts = new Set<number>();
+  private scheduledAnimationFrames = new Set<number>();
+  private readonly boundHandleOutsideClick = (event: MouseEvent): void => this.handleOutsideClick(event);
+  private readonly boundHandleSelectBoxKeydown = (event: KeyboardEvent): void => this.handleSelectBoxKeydown(event);
 
   private constructor(
     wasmTable: ExtendedWasmWasabiTable,
@@ -355,7 +359,7 @@ export class WasabiTable {
     const recordUndo = options?.recordUndo ?? true;
     this.writeCellValue(row, col, value, { recordUndo });
 
-    setTimeout(() => {
+    this.scheduleTimeout(() => {
       this.updateValidationTooltip();
     }, 100);
   }
@@ -712,6 +716,7 @@ export class WasabiTable {
     this.ensureInitialized();
 
     const draw = () => {
+      if (!this.isInitialized) return;
       if (this.recordsSource) {
         this.syncRecordsViewport();
       }
@@ -721,7 +726,7 @@ export class WasabiTable {
 
     // レンダリング最適化: requestAnimationFrameを使用
     if ('requestAnimationFrame' in window) {
-      requestAnimationFrame(draw);
+      this.scheduleAnimationFrame(draw);
     } else {
       draw();
     }
@@ -916,7 +921,7 @@ export class WasabiTable {
     this.focusCanvas();
     
     // 編集完了後に検証エラーを更新
-    setTimeout(() => {
+    this.scheduleTimeout(() => {
       this.updateValidationTooltip();
     }, 100);
   }
@@ -949,7 +954,7 @@ export class WasabiTable {
     this.wasmTable.cancel_editing();
     
     // 編集キャンセル後に検証エラーを更新
-    setTimeout(() => {
+    this.scheduleTimeout(() => {
       this.updateValidationTooltip();
     }, 100);
   }
@@ -1248,7 +1253,7 @@ export class WasabiTable {
         const validationErrorMessage = this.wasmTable.get_selected_cell_validation_error();
         if (validationErrorMessage && validationErrorMessage.trim() !== '') {
           // 少し遅延させて正確な位置を取得
-          setTimeout(() => {
+          this.scheduleTimeout(() => {
             this.showValidationTooltip(validationErrorMessage, selectedCell);
           }, 50);
         } else {
@@ -1312,7 +1317,36 @@ export class WasabiTable {
     delete win.triggerRender;
   }
 
+  private scheduleTimeout(callback: () => void, delay: number): number {
+    const timeoutId = window.setTimeout(() => {
+      this.scheduledTimeouts.delete(timeoutId);
+      if (!this.isInitialized) return;
+      callback();
+    }, delay);
+    this.scheduledTimeouts.add(timeoutId);
+    return timeoutId;
+  }
+
+  private scheduleAnimationFrame(callback: () => void): number {
+    const frameId = window.requestAnimationFrame(() => {
+      this.scheduledAnimationFrames.delete(frameId);
+      if (!this.isInitialized) return;
+      callback();
+    });
+    this.scheduledAnimationFrames.add(frameId);
+    return frameId;
+  }
+
+  private clearScheduledWork(): void {
+    this.scheduledTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    this.scheduledTimeouts.clear();
+    this.scheduledAnimationFrames.forEach((frameId) => window.cancelAnimationFrame(frameId));
+    this.scheduledAnimationFrames.clear();
+  }
+
   public dispose(): void {
+    this.isInitialized = false;
+    this.clearScheduledWork();
     this.tearDownEventHandlers();
 
     // ResizeObserverを停止
@@ -1335,7 +1369,6 @@ export class WasabiTable {
     if (this.wasmTable) {
       this.wasmTable.free();
     }
-    this.isInitialized = false;
   }
 
   /**
@@ -2182,7 +2215,7 @@ export class WasabiTable {
     // スムーズスクロール処理
     if (Math.abs(deltaX) > 0.1 || Math.abs(deltaY) > 0.1) {
       this.handleGridScrollFloatingUi();
-      requestAnimationFrame(() => {
+      this.scheduleAnimationFrame(() => {
         this.wasmTable.handle_canvas_wheel(deltaX, deltaY);
         this.updateScrollbars();
         this.scheduleValidationTooltipUpdate();
@@ -2196,7 +2229,7 @@ export class WasabiTable {
   }
 
   private scheduleValidationTooltipUpdate(): void {
-    setTimeout(() => {
+    this.scheduleTimeout(() => {
       this.updateValidationTooltip();
     }, 150);
   }
@@ -2209,7 +2242,7 @@ export class WasabiTable {
         !this.horizontalThumb || !this.verticalThumb) return;
 
     // requestAnimationFrameを使用してスムーズに更新
-    requestAnimationFrame(() => {
+    this.scheduleAnimationFrame(() => {
       const stats = this.getStats();
       const maxScrollX = this.calculateMaxScrollX();
       const maxScrollY = this.calculateMaxScrollY();
@@ -3524,8 +3557,9 @@ export class WasabiTable {
     }
     this.currentMenuFieldCell = null;
     
-    // ESCキーリスナーを削除
-    document.removeEventListener('keydown', this.handleSelectBoxKeydown);
+    // ドキュメントリスナーを削除
+    document.removeEventListener('click', this.boundHandleOutsideClick);
+    document.removeEventListener('keydown', this.boundHandleSelectBoxKeydown);
   }
 
   /**
@@ -3650,12 +3684,13 @@ export class WasabiTable {
     this.setupSelectBoxKeyboardNavigation(searchInput);
 
     // 外部クリックで閉じる
-    setTimeout(() => {
-      document.addEventListener('click', this.handleOutsideClick.bind(this), { once: true });
+    this.scheduleTimeout(() => {
+      if (!this.selectBoxElement) return;
+      document.addEventListener('click', this.boundHandleOutsideClick, { once: true });
     }, 0);
 
     // ESCキーで閉じる
-    document.addEventListener('keydown', this.handleSelectBoxKeydown.bind(this));
+    document.addEventListener('keydown', this.boundHandleSelectBoxKeydown);
   }
 
   /**
@@ -3790,6 +3825,7 @@ export class WasabiTable {
     if (!this.currentMenuFieldCell) return;
     
     const { row, col } = this.currentMenuFieldCell;
+    const oldValue = this.getCellValue(row, col) || '';
     
     // セル値を更新
     this.setCellValue(row, col, value);
@@ -3802,8 +3838,8 @@ export class WasabiTable {
     
     // イベントを発火
     this.eventHandlers.onCellChange?.(
-      { row, col }, 
-      this.getCellValue(row, col) || '', 
+      { row, col },
+      oldValue,
       value
     );
   }
