@@ -182,6 +182,7 @@ export interface HeaderDialogHost {
 
 export class HeaderDialogController {
   private filterDialogs: Map<number, HTMLElement> = new Map();
+  private outsideClickTimeout: number | null = null;
   private handleOutsideClick = (event: MouseEvent): void => {
     const target = event.target as HTMLElement;
     const isInsideDialog = target.closest('.wasabi-filter-dialog, .wasabi-header-dialog');
@@ -216,7 +217,8 @@ export class HeaderDialogController {
     this.filterDialogs.set(columnIndex, dialog);
 
     // 外側クリックで閉じる
-    setTimeout(() => {
+    this.outsideClickTimeout = window.setTimeout(() => {
+      this.outsideClickTimeout = null;
       document.addEventListener('click', this.handleOutsideClick);
     }, 100);
   }
@@ -755,6 +757,11 @@ export class HeaderDialogController {
     container.appendChild(buttonContainer);
   }
   hideAll(): void {
+    if (this.outsideClickTimeout !== null) {
+      window.clearTimeout(this.outsideClickTimeout);
+      this.outsideClickTimeout = null;
+    }
+
     this.filterDialogs.forEach((dialog) => {
       if (dialog.parentNode) {
         dialog.parentNode.removeChild(dialog);

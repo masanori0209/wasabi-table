@@ -1437,6 +1437,7 @@ export class WasabiTable {
 
     // MenuField SelectBoxを削除
     this.hideMenuFieldSelectBox();
+    this.headerDialogController?.hideAll();
 
     this.tearDownScrollbars();
 

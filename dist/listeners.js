@@ -6,6 +6,12 @@ export class WasabiTableListeners {
     constructor(table, uiElements, options = {}, callbacks = {}) {
         this.isComposing = false;
         this.validationTimeout = null;
+        this.abortController = new AbortController();
+        this.triggerRenderHandler = () => {
+            this.table.render();
+            this.updateCellReference();
+            this.updateStats();
+        };
         this.table = table;
         this.uiElements = uiElements;
         this.callbacks = callbacks;
@@ -34,6 +40,7 @@ export class WasabiTableListeners {
      */
     setupFormulaBarListeners() {
         const { formulaInput } = this.uiElements;
+        const { signal } = this.abortController;
         formulaInput.addEventListener('keydown', (e) => {
             var _a, _b, _c, _d, _e, _f;
             if (e.key === 'Enter') {
@@ -49,12 +56,12 @@ export class WasabiTableListeners {
                 this.updateCellReference();
                 (_f = (_e = this.table).focusCanvas) === null || _f === void 0 ? void 0 : _f.call(_e);
             }
-        });
+        }, { signal });
         // リアルタイム検証
         if (this.options.enableValidation) {
             formulaInput.addEventListener('input', () => {
                 this.handleFormulaInput();
-            });
+            }, { signal });
         }
     }
     /**
@@ -63,12 +70,13 @@ export class WasabiTableListeners {
     setupIMEListeners() {
         if (!this.options.enableIMESupport)
             return;
+        const { signal } = this.abortController;
         document.addEventListener('compositionstart', () => {
             this.isComposing = true;
-        });
+        }, { signal });
         document.addEventListener('compositionend', () => {
             this.isComposing = false;
-        });
+        }, { signal });
     }
     /**
      * テーブルのイベントハンドラーを設定
@@ -97,11 +105,20 @@ export class WasabiTableListeners {
      * WasabiTable が設定したクリック/ホイール/キーハンドラーは上書きしない
      */
     setupGlobalHandlers() {
-        window.triggerRender = () => {
-            this.table.render();
-            this.updateCellReference();
-            this.updateStats();
-        };
+        WasabiTableListeners.triggerRenderOwners = WasabiTableListeners.triggerRenderOwners
+            .filter((owner) => owner !== this);
+        WasabiTableListeners.triggerRenderOwners.push(this);
+        WasabiTableListeners.installLatestTriggerRenderOwner();
+    }
+    static installLatestTriggerRenderOwner() {
+        const win = window;
+        const owner = WasabiTableListeners.triggerRenderOwners[WasabiTableListeners.triggerRenderOwners.length - 1];
+        if (owner) {
+            win.triggerRender = owner.triggerRenderHandler;
+        }
+        else {
+            delete win.triggerRender;
+        }
     }
     /**
      * フォーミュラバーのEnter処理
@@ -297,9 +314,18 @@ export class WasabiTableListeners {
      * リスナーを破棄
      */
     destroy() {
+        this.abortController.abort();
         if (this.validationTimeout) {
             clearTimeout(this.validationTimeout);
+            this.validationTimeout = null;
         }
-        delete window.triggerRender;
+        WasabiTableListeners.triggerRenderOwners = WasabiTableListeners.triggerRenderOwners
+            .filter((owner) => owner !== this);
+        WasabiTableListeners.installLatestTriggerRenderOwner();
+        this.table.setEventHandlers({
+            onCellSelect: undefined,
+            onNotification: undefined,
+        });
     }
 }
+WasabiTableListeners.triggerRenderOwners = [];

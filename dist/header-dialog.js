@@ -162,6 +162,7 @@ export class HeaderDialogController {
     constructor(host) {
         this.host = host;
         this.filterDialogs = new Map();
+        this.outsideClickTimeout = null;
         this.handleOutsideClick = (event) => {
             const target = event.target;
             const isInsideDialog = target.closest('.wasabi-filter-dialog, .wasabi-header-dialog');
@@ -189,7 +190,8 @@ export class HeaderDialogController {
         document.body.appendChild(dialog);
         this.filterDialogs.set(columnIndex, dialog);
         // 外側クリックで閉じる
-        setTimeout(() => {
+        this.outsideClickTimeout = window.setTimeout(() => {
+            this.outsideClickTimeout = null;
             document.addEventListener('click', this.handleOutsideClick);
         }, 100);
     }
@@ -654,6 +656,10 @@ export class HeaderDialogController {
         container.appendChild(buttonContainer);
     }
     hideAll() {
+        if (this.outsideClickTimeout !== null) {
+            window.clearTimeout(this.outsideClickTimeout);
+            this.outsideClickTimeout = null;
+        }
         this.filterDialogs.forEach((dialog) => {
             if (dialog.parentNode) {
                 dialog.parentNode.removeChild(dialog);
