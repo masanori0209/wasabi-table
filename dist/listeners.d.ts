@@ -4,12 +4,15 @@ export type { EventCallbacks, ListenerOptions, UIElements } from './types';
  * WasabiTableのリスナー管理クラス
  */
 export declare class WasabiTableListeners {
+    private static triggerRenderOwners;
     private table;
     private options;
     private uiElements;
     private callbacks;
     private isComposing;
     private validationTimeout;
+    private readonly abortController;
+    private readonly triggerRenderHandler;
     constructor(table: IWasabiTable, uiElements: UIElements, options?: ListenerOptions, callbacks?: EventCallbacks);
     private initialize;
     /**
@@ -29,6 +32,7 @@ export declare class WasabiTableListeners {
      * WasabiTable が設定したクリック/ホイール/キーハンドラーは上書きしない
      */
     private setupGlobalHandlers;
+    private static installLatestTriggerRenderOwner;
     /**
      * フォーミュラバーのEnter処理
      */

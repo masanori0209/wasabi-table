@@ -19,6 +19,7 @@ export interface HeaderDialogHost {
 export declare class HeaderDialogController {
     private host;
     private filterDialogs;
+    private outsideClickTimeout;
     private handleOutsideClick;
     constructor(host: HeaderDialogHost);
     show(columnIndex: number): void;
