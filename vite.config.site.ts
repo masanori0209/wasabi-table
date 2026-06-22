@@ -13,6 +13,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         demo: resolve(import.meta.dirname, 'examples/npm-package/index.html'),
+        guide: resolve(import.meta.dirname, 'examples/npm-package/guide.html'),
         benchmark: resolve(import.meta.dirname, 'examples/npm-package/benchmark.html'),
       },
     },

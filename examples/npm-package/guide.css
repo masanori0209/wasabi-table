@@ -1,0 +1,235 @@
+/* Developer Guide — layout extensions */
+
+.guide-layout {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1.5rem 3rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+    .guide-layout {
+        grid-template-columns: 220px minmax(0, 1fr);
+        align-items: start;
+    }
+}
+
+.guide-toc {
+    position: sticky;
+    top: 1rem;
+    padding: 1rem;
+    background: var(--crt-panel);
+    border: 1px solid var(--crt-border);
+    font-size: 0.78rem;
+}
+
+.guide-toc h2 {
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    letter-spacing: 0.14em;
+    color: var(--wasabi-glow);
+    margin-bottom: 0.75rem;
+}
+
+.guide-toc ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.guide-toc a {
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.guide-toc a:hover {
+    color: var(--phosphor);
+}
+
+.guide-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    min-width: 0;
+}
+
+.guide-intro-lead {
+    color: var(--text-dim);
+    margin: 0.75rem 0 1rem;
+    max-width: 52rem;
+}
+
+.guide-demo-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: var(--wasabi-glow);
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+}
+
+.guide-demo-link:hover {
+    color: var(--phosphor);
+    text-decoration: underline;
+}
+
+.tier-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.tier-card {
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--crt-border);
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.tier-card__tag {
+    font-family: var(--font-display);
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    color: var(--amber);
+    margin-bottom: 0.35rem;
+}
+
+.tier-card h3 {
+    font-family: var(--font-display);
+    font-size: 0.82rem;
+    color: var(--phosphor);
+    margin-bottom: 0.5rem;
+}
+
+.tier-card p {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+}
+
+.capability-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.capability-group h3 {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--wasabi-bright);
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--crt-border);
+}
+
+.capability-group ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.capability-group li {
+    font-size: 0.8rem;
+    color: var(--text-main);
+    padding-left: 1.1rem;
+    position: relative;
+}
+
+.capability-group li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--wasabi-core);
+}
+
+.guide-note {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
+.guide-snippet {
+    margin-top: 1rem;
+}
+
+.guide-snippet + .guide-snippet {
+    margin-top: 1.25rem;
+}
+
+.guide-snippet h3 {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--wasabi-bright);
+    margin-bottom: 0.5rem;
+}
+
+.guide-snippet pre {
+    margin: 0;
+    padding: 1rem 1.25rem;
+    background: #050807;
+    border: 1px solid var(--crt-border);
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.55;
+    color: #a8d888;
+}
+
+.field-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 0.5rem 1.5rem;
+    margin-top: 1rem;
+}
+
+.field-list dt {
+    font-size: 0.82rem;
+    color: var(--phosphor);
+    font-weight: normal;
+}
+
+.field-list dd {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin: 0.15rem 0 0.75rem;
+}
+
+.react-notes {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.react-notes li {
+    font-size: 0.82rem;
+    color: var(--text-main);
+    padding-left: 1.1rem;
+    position: relative;
+}
+
+.react-notes li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: var(--wasabi-core);
+}
+
+@media (max-width: 1023px) {
+    .guide-toc {
+        position: static;
+    }
+
+    .guide-toc ul {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+}
