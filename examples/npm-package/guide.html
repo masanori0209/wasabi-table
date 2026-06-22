@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="meta.title">WasabiTable — Developer Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="guide.css">
+    <link rel="icon" href="images/wasabi-logo.svg" type="image/svg+xml">
+</head>
+<body>
+    <div class="crt-overlay" aria-hidden="true"></div>
+    <header class="page-header header">
+        <div class="page-header__grid"></div>
+        <div class="page-header__inner">
+            <div class="brand">
+                <img src="images/wasabi-logo.svg" alt="" class="brand__logo" width="52" height="52">
+                <div class="brand__text">
+                    <p class="brand__eyebrow" data-i18n="brand.eyebrow">LIBRARY GUIDE // WASM + CANVAS</p>
+                    <h1>WasabiTable</h1>
+                </div>
+            </div>
+            <div class="header-actions">
+                <div class="lang-switch" role="group" aria-label="Language">
+                    <button type="button" class="lang-btn" data-lang="en" data-i18n="lang.en">EN</button>
+                    <button type="button" class="lang-btn" data-lang="ja" data-i18n="lang.ja">日本語</button>
+                </div>
+            </div>
+        </div>
+        <p class="page-header__subtitle" data-i18n="header.subtitle">How to use wasabi-table in your app</p>
+        <nav class="bench-nav container" style="padding-top:0;padding-bottom:0;margin-top:0.75rem;">
+            <a href="index.html" data-i18n="nav.demo">Live Demo</a>
+            <a href="guide.html" class="is-active" data-i18n="nav.guide">Developer Guide</a>
+            <a href="benchmark.html" data-i18n="nav.bench">Benchmark</a>
+        </nav>
+    </header>
+
+    <div class="guide-layout">
+        <nav class="guide-toc" aria-label="Table of contents">
+            <h2>INDEX</h2>
+            <ul>
+                <li><a href="#intro">INTRO</a></li>
+                <li><a href="#tiers">TIERS</a></li>
+                <li><a href="#quick">QUICK START</a></li>
+                <li><a href="#capabilities">CAPABILITIES</a></li>
+                <li><a href="#examples">EXAMPLES</a></li>
+                <li><a href="#react">REACT</a></li>
+                <li><a href="#fields">FIELDS</a></li>
+                <li><a href="#browser">BROWSER</a></li>
+            </ul>
+        </nav>
+
+        <main class="guide-main">
+            <section id="intro" class="demo-section panel">
+                <h2 class="section-title"><span class="section-tag">MOD-G0</span> INTRO</h2>
+                <p class="guide-intro-lead" data-i18n="intro.lead">Practical guide for npm users.</p>
+                <div class="installation terminal-block">
+                    <span class="terminal-prompt">$</span> <span data-i18n="intro.npm">npm install wasabi-table</span>
+                </div>
+                <a href="index.html" class="guide-demo-link" data-i18n="intro.demoLink">Try the live demo →</a>
+            </section>
+
+            <section id="tiers" class="demo-section panel">
+                <h2 class="section-title"><span class="section-tag">MOD-G1</span> <span data-i18n="tier.title">Three integration tiers</span></h2>
+                <p class="section-lead" data-i18n="tier.lead">Start minimal and add depth only when you need it.</p>
+                <div class="tier-grid">
+                    <article class="tier-card">
+                        <p class="tier-card__tag" data-i18n="tier1.tag">Tier 1</p>
+                        <h3 data-i18n="tier1.name">Minimal grid</h3>
+                        <p data-i18n="tier1.desc">Canvas + create + setCellValue + render.</p>
+                    </article>
+                    <article class="tier-card">
+                        <p class="tier-card__tag" data-i18n="tier2.tag">Tier 2</p>
+                        <h3 data-i18n="tier2.name">App screens</h3>
+                        <p data-i18n="tier2.desc">Column schema, validation, listeners.</p>
+                    </article>
+                    <article class="tier-card">
+                        <p class="tier-card__tag" data-i18n="tier3.tag">Tier 3</p>
+                        <h3 data-i18n="tier3.name">Large data</h3>
+                        <p data-i18n="tier3.desc">records, filter/sort, resize, freeze.</p>
+                    </article>
+                </div>
+            </section>
+
+            <section id="quick" class="demo-section panel">
+                <h2 class="section-title"><span class="section-tag">MOD-G2</span> <span data-i18n="quick.title">Quick start</span></h2>
+                <p class="guide-note" data-i18n="quick.htmlNote">You need a canvas and a bundler.</p>
+
+                <div class="guide-snippet">
+                    <h3>Tier 1 — Minimal</h3>
+                    <pre><code>import { WasabiTable } from 'wasabi-table';
+
+const canvas = document.getElementById('grid');
+const table = await WasabiTable.create(canvas, {
+  row_count: 20,
+  col_count: 8,
+});
+
+table.setCellValue(0, 0, 'Hello');
+table.render();</code></pre>
+                </div>
+
+                <div class="guide-snippet">
+                    <h3>Tier 2 — Listeners + validation</h3>
+                    <pre><code>import { createWasabiTableWithListeners } from 'wasabi-table';
+
+const { table, listeners } = await createWasabiTableWithListeners(
+  canvas,
+  { row_count: 50, col_count: 10 },
+  {
+    cellReferenceSelector: '#cellRef',
+    formulaInputSelector: '#formula',
+    statsElementSelector: '#stats',
+  },
+  { enableValidation: true, enableIMESupport: true }
+);
+
+table.setColumnHeaders(JSON.stringify([
+  { name: 'email', display_name: 'Email', field_type: 'EmailField', width: 200, order: 0, is_visible: true },
+]));
+
+table.setEventHandlers({
+  onCellChange: (pos, oldVal, newVal) => console.log(pos, oldVal, newVal),
+});</code></pre>
+                </div>
+
+                <div class="guide-snippet">
+                    <h3>Tier 3 — records + filter/sort</h3>
+                    <pre><code>import { WasabiTable } from 'wasabi-table';
+
+const records = [
+  { id: 1, name: 'Alice', team: 'A' },
+  { id: 2, name: 'Bob', team: 'B' },
+  // ... millions of rows OK — viewport sync only
+];
+
+const table = await WasabiTable.create(canvas, {
+  dataSource: {
+    records,
+    columns: [
+      { field: 'id', header: 'ID', width: 60 },
+      { field: 'name', header: 'Name', width: 120 },
+      { field: 'team', header: 'Team', width: 80 },
+    ],
+  },
+  freeze_cols: 1,
+});
+
+table.addFilterCondition({
+  columnIndex: 2,
+  fieldType: 'CharField',
+  operator: 'equals',
+  value: 'A',
+  isActive: true,
+});
+table.setSortCondition({
+  columnIndex: 1,
+  fieldType: 'CharField',
+  direction: 'asc',
+});
+table.render();</code></pre>
+                </div>
+
+                <div class="guide-snippet">
+                    <h3 data-i18n="quick.html">HTML minimum</h3>
+                    <pre><code>&lt;canvas id="grid" width="800" height="400"&gt;&lt;/canvas&gt;
+&lt;div id="cellRef"&gt;A1&lt;/div&gt;
+&lt;input id="formula" type="text" /&gt;
+&lt;div id="stats"&gt;&lt;/div&gt;
+
+&lt;script type="module"&gt;
+  import { createWasabiTableWithListeners } from 'wasabi-table';
+  // ... init as above
+&lt;/script&gt;</code></pre>
+                </div>
+            </section>
+
+            <section id="capabilities" class="demo-section panel">
+                <h2 class="section-title"><span class="section-tag">MOD-G3</span> <span data-i18n="cap.title">What you can use</span></h2>
+                <p class="section-lead" data-i18n="cap.lead">Feature checklist.</p>
+                <div class="capability-grid">
+                    <div class="capability-group">
+                        <h3 data-i18n="cap.cat.core">Core</h3>
+                        <ul>
+                            <li data-i18n="cap.core1">WasabiTable.create</li>
+                            <li data-i18n="cap.core2">createWasabiTableWithListeners</li>
+                            <li data-i18n="cap.core3">setCellValue / getCellValue</li>
+                            <li data-i18n="cap.core4">setEventHandlers</li>
+                            <li data-i18n="cap.core5">Keyboard navigation</li>
+                            <li data-i18n="cap.core6">Range selection</li>
+                            <li data-i18n="cap.core7">Themes</li>
+                        </ul>
+                    </div>
+                    <div class="capability-group">
+                        <h3 data-i18n="cap.cat.edit">Editing</h3>
+                        <ul>
+                            <li data-i18n="cap.edit1">Inline editing</li>
+                            <li data-i18n="cap.edit2">Copy / paste</li>
+                            <li data-i18n="cap.edit3">Undo / redo</li>
+                            <li data-i18n="cap.edit4">Select all</li>
+                        </ul>
+                    </div>
+                    <div class="capability-group">
+                        <h3 data-i18n="cap.cat.schema">Schema</h3>
+                        <ul>
+                            <li data-i18n="cap.schema1">setColumnHeaders</li>
+                            <li data-i18n="cap.schema2">Validation</li>
+                            <li data-i18n="cap.schema3">Sort/filter dialog</li>
+                        </ul>
+                    </div>
+                    <div class="capability-group">
+                        <h3 data-i18n="cap.cat.data">Large data</h3>
+                        <ul>
+                            <li data-i18n="cap.data1">dataSource records</li>
+                            <li data-i18n="cap.data2">Filter / sort API</li>
+                            <li data-i18n="cap.data3">Viewport sync</li>
+                        </ul>
+                    </div>
+                    <div class="capability-group">
+                        <h3 data-i18n="cap.cat.ui">UI</h3>
+                        <ul>
+                            <li data-i18n="cap.ui1">Column resize</li>
+                            <li data-i18n="cap.ui2">freeze_cols</li>
+                            <li data-i18n="cap.ui3">Row selection</li>
+                            <li data-i18n="cap.ui4">Touch</li>
+                            <li data-i18n="cap.ui5">Conditional formatting</li>
+                        </ul>
+                    </div>
+                    <div class="capability-group">
+                        <h3 data-i18n="cap.cat.export">Export</h3>
+                        <ul>
+                            <li data-i18n="cap.export1">exportTableToCSV</li>
+                            <li data-i18n="cap.export2">dispose / destroy</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="examples" class="demo-section panel">
+                <h2 class="section-title"><span class="section-tag">MOD-G4</span> <span data-i18n="code.title">Code examples</span></h2>
+                <p class="section-lead" data-i18n="code.lead">Pick your stack.</p>
+                <div class="tabs">
+                    <button type="button" class="tab active" data-tab="javascript" data-i18n="tab.js">JavaScript</button>
+                    <button type="button" class="tab" data-tab="typescript" data-i18n="tab.ts">TypeScript</button>
+                    <button type="button" class="tab" data-tab="react" data-i18n="tab.react">React</button>
+                    <button type="button" class="tab" data-tab="headers" data-i18n="tab.headers">Column headers</button>
+                </div>
+                <div id="javascript" class="tab-content active"></div>
+                <div id="typescript" class="tab-content"></div>
+                <div id="react" class="tab-content"></div>
+                <div id="headers" class="tab-content"></div>
+            </section>
+
+            <section id="react" class="demo-section panel">
+                <h2 class="section-title"><span class="section-tag">MOD-G5</span> <span data-i18n="react.title">React &amp; SPA notes</span></h2>
+                <ul class="react-notes">
+                    <li data-i18n="react.1">useEffect init</li>
+                    <li data-i18n="react.2">Strict Mode</li>
+                    <li data-i18n="react.3">Resize</li>
+                    <li data-i18n="react.4">react-example.tsx</li>
+                </ul>
+            </section>
+
+            <section id="fields" class="demo-section panel">
+                <h2 class="section-title"><span class="section-tag">MOD-G6</span> <span data-i18n="fields.title">Field types</span></h2>
+                <p class="section-lead" data-i18n="fields.lead">Pass field_type in setColumnHeaders.</p>
+                <dl class="field-list">
+                    <div><dt>CharField</dt><dd data-i18n="fields.char">max_length</dd></div>
+                    <div><dt>EmailField</dt><dd data-i18n="fields.email">email</dd></div>
+                    <div><dt>IntegerField</dt><dd data-i18n="fields.int">min/max</dd></div>
+                    <div><dt>DecimalField</dt><dd data-i18n="fields.dec">digits</dd></div>
+                    <div><dt>DateField</dt><dd data-i18n="fields.date">calendar</dd></div>
+                    <div><dt>TimeField</dt><dd data-i18n="fields.time">HH:MM</dd></div>
+                    <div><dt>BooleanField</dt><dd data-i18n="fields.bool">bool</dd></div>
+                    <div><dt>MenuField</dt><dd data-i18n="fields.menu">choices</dd></div>
+                </dl>
+            </section>
+
+            <section id="browser" class="demo-section panel">
+                <h2 class="section-title"><span class="section-tag">MOD-G7</span> <span data-i18n="browser.title">Browser requirements</span></h2>
+                <p class="section-lead" data-i18n="browser.text">Modern browsers with WASM.</p>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="./guide-app.js"></script>
+</body>
+</html>
