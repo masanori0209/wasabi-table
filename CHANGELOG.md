@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-06-25
+
+### Added
+- `contextMenu.builtInActionLabels` for renaming built-in context menu actions without replacing their behavior (#49)
+- E2E coverage for renamed built-in actions preserving their original behavior (#49)
+
+### Changed
+- README and README.ja document built-in context menu label customization (#49)
+
 ## [1.1.0] - 2026-06-24
 
 ### Added
@@ -191,7 +200,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/masanori0209/wasabi-table/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/masanori0209/wasabi-table/compare/v1.0.11...v1.1.0
 [1.0.9]: https://github.com/masanori0209/wasabi-table/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/masanori0209/wasabi-table/compare/v1.0.7...v1.0.8
