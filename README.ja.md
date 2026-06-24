@@ -93,6 +93,28 @@ const { table, listeners } = await createWasabiTableWithListeners(
 );
 ```
 
+### セル右クリックメニュー
+
+セルを右クリックすると、コピー、切り取り、値貼り付け、行列入れ替え貼り付け、空セルをスキップして貼り付けの標準メニューを表示できます。
+
+```typescript
+const table = await WasabiTable.create(canvas, {
+  contextMenu: {
+    actions: [
+      {
+        id: 'open-record',
+        label: 'レコードを開く',
+        run: ({ cell, table }) => {
+          console.log(cell.reference, table.getCellValue(cell.row, cell.col));
+        },
+      },
+    ],
+  },
+});
+```
+
+`contextMenu.builtInActions` で標準メニューを絞り込めます。`false` を指定すると、アプリ独自の右クリックアクションだけを表示できます。
+
 ### ライブデモ
 
 - **オンラインデモ**: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html（`?lang=en` / `?lang=ja`）

@@ -93,6 +93,28 @@ const { table, listeners } = await createWasabiTableWithListeners(
 );
 ```
 
+### Cell Context Menu
+
+Right-click a cell to show the built-in context menu. The default actions are copy, cut, paste values, paste transposed, and paste skip empty.
+
+```typescript
+const table = await WasabiTable.create(canvas, {
+  contextMenu: {
+    actions: [
+      {
+        id: 'open-record',
+        label: 'Open record',
+        run: ({ cell, table }) => {
+          console.log(cell.reference, table.getCellValue(cell.row, cell.col));
+        },
+      },
+    ],
+  },
+});
+```
+
+Set `contextMenu.builtInActions` to a smaller action list, or to `false` when your app should provide only custom right-click actions.
+
 ### Live Demo
 
 - **Online demo**: https://masanori0209.github.io/wasabi-table/examples/npm-package/index.html (`?lang=en` / `?lang=ja`)

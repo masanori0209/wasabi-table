@@ -1,5 +1,5 @@
-import type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterResult, ListenerOptions, MenuFieldConfig, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, ValidationError, ValidationResult, WasabiTableCreateOptions } from './types';
-export type { CellData, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterOperator, FilterResult, ListenerOptions, MenuFieldConfig, MenuFieldOption, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, UIElements, ValidationError, ValidationResult, WasabiTableCreateOptions, } from './types';
+import type { CellData, ContextMenuOptions, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterResult, ListenerOptions, MenuFieldConfig, PasteSpecialOptions, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, ValidationError, ValidationResult, WasabiTableCreateOptions } from './types';
+export type { CellData, ContextMenuAction, ContextMenuActionContext, ContextMenuBuiltInActionId, ContextMenuOptions, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterOperator, FilterResult, ListenerOptions, MenuFieldConfig, MenuFieldOption, PasteSpecialOptions, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, UIElements, ValidationError, ValidationResult, WasabiTableCreateOptions, } from './types';
 export { DEFAULT_CONFIG, FieldType, HEADER_FILTER_CONTROL_WIDTH, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types';
 export { getSelectionReference } from './types';
 export { ensureWasmInitialized, initWasmFromExports } from './wasm-init.js';
@@ -55,6 +55,8 @@ export declare class WasabiTable {
     private selectBoxElement;
     private currentMenuFieldCell;
     private menuFieldOptions;
+    private contextMenuElement;
+    private contextMenuContext;
     private filterSortState;
     private keyboardShortcutsEnabled;
     private activeTheme;
@@ -67,6 +69,8 @@ export declare class WasabiTable {
     private scheduledAnimationFrames;
     private readonly boundHandleOutsideClick;
     private readonly boundHandleSelectBoxKeydown;
+    private readonly boundHandleContextMenuOutsidePointer;
+    private readonly boundHandleContextMenuKeydown;
     private constructor();
     /**
      * WasabiTableインスタンスを作成
@@ -396,6 +400,20 @@ export declare class WasabiTable {
      * 選択をクリア
      */
     clearSelection(): void;
+    setContextMenuOptions(options: ContextMenuOptions | null): void;
+    private handleCanvasContextMenu;
+    private finishEditingIfNeededBeforeContextMenu;
+    private selectionContainsCell;
+    private createContextMenuContext;
+    private getContextMenuActions;
+    private createBuiltInContextMenuAction;
+    private showContextMenu;
+    private runContextMenuAction;
+    hideContextMenu(): void;
+    private handleContextMenuOutsidePointer;
+    private handleContextMenuKeydown;
+    private positionContextMenu;
+    private ensureContextMenuStyles;
     /**
      * 選択範囲をコピー
      */
@@ -403,7 +421,8 @@ export declare class WasabiTable {
     /**
      * クリップボードからペースト
      */
-    pasteFromClipboard(tsvData: string): void;
+    pasteFromClipboard(tsvData: string, options?: PasteSpecialOptions): void;
+    private preparePasteRows;
     private shouldUseDisplayOrderSelection;
     private getSelectionRowsInDisplayOrder;
     private getSelectionCols;
@@ -433,6 +452,12 @@ export declare class WasabiTable {
     setKeyboardShortcutsEnabled(enabled: boolean): void;
     isKeyboardShortcutsEnabled(): boolean;
     handleKeyboardShortcut(event: KeyboardEvent): boolean;
+    /**
+     * コピー処理
+     */
+    copySelectionToClipboard(): Promise<string>;
+    pasteClipboardToSelection(options?: PasteSpecialOptions): Promise<void>;
+    cutSelectionToClipboard(): Promise<string>;
     /**
      * コピー処理
      */
