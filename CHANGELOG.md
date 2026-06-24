@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-24
+
+### Added
+- Cell right-click context menu with built-in copy, cut, paste values, paste transposed, and paste skip empty actions (#46)
+- Context menu extension API via `contextMenu.actions`, configurable `builtInActions`, and `setContextMenuOptions()` (#46)
+- Public clipboard helpers for library integrations: `copySelectionToClipboard()`, `cutSelectionToClipboard()`, and `pasteClipboardToSelection()` (#46)
+- E2E coverage for context menu open/close, copy, cut with undo, paste special, and custom actions (#46)
+
+### Changed
+- `pasteFromClipboard()` now accepts paste-special options for transpose and skip-empty behavior (#46)
+- README and README.ja document the context menu API (#46)
+
 ## [1.0.9] - 2026-06-20
 
 ### Fixed
@@ -179,7 +191,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection overlay fill visibility improved
 - Redo toast uses distinct gold styling
 
-[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.0.9...HEAD
+[Unreleased]: https://github.com/masanori0209/wasabi-table/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/masanori0209/wasabi-table/compare/v1.0.11...v1.1.0
 [1.0.9]: https://github.com/masanori0209/wasabi-table/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/masanori0209/wasabi-table/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/masanori0209/wasabi-table/compare/v1.0.6...v1.0.7
