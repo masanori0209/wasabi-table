@@ -100,6 +100,13 @@ const { table, listeners } = await createWasabiTableWithListeners(
 ```typescript
 const table = await WasabiTable.create(canvas, {
   contextMenu: {
+    builtInActionLabels: {
+      copy: 'セルをコピー',
+      cut: 'セルを移動',
+      'paste-values': '貼り付け',
+      'paste-transpose': '行列を入れ替えて貼り付け',
+      'paste-skip-empty': '空白を除いて貼り付け',
+    },
     actions: [
       {
         id: 'open-record',
@@ -114,6 +121,7 @@ const table = await WasabiTable.create(canvas, {
 ```
 
 `contextMenu.builtInActions` で標準メニューを絞り込めます。`false` を指定すると、アプリ独自の右クリックアクションだけを表示できます。
+`contextMenu.builtInActionLabels` を使うと、標準アクションの動作はそのままに表示名だけを変更できます。
 
 ### ライブデモ
 

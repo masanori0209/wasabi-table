@@ -100,6 +100,13 @@ Right-click a cell to show the built-in context menu. The default actions are co
 ```typescript
 const table = await WasabiTable.create(canvas, {
   contextMenu: {
+    builtInActionLabels: {
+      copy: 'Copy cell',
+      cut: 'Move cell',
+      'paste-values': 'Paste',
+      'paste-transpose': 'Paste transposed',
+      'paste-skip-empty': 'Paste without blanks',
+    },
     actions: [
       {
         id: 'open-record',
@@ -114,6 +121,7 @@ const table = await WasabiTable.create(canvas, {
 ```
 
 Set `contextMenu.builtInActions` to a smaller action list, or to `false` when your app should provide only custom right-click actions.
+Use `contextMenu.builtInActionLabels` to rename the built-in actions without replacing their behavior.
 
 ### Live Demo
 

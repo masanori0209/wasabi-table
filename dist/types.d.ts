@@ -56,6 +56,7 @@ export interface PasteSpecialOptions {
     skipEmpty?: boolean;
 }
 export type ContextMenuBuiltInActionId = 'copy' | 'cut' | 'paste-values' | 'paste-transpose' | 'paste-skip-empty';
+export type ContextMenuBuiltInActionLabels = Partial<Record<ContextMenuBuiltInActionId, string>>;
 export interface ContextMenuActionContext {
     table: IWasabiTable;
     cell: ContextMenuCell;
@@ -73,6 +74,7 @@ export interface ContextMenuAction {
 export interface ContextMenuOptions {
     enabled?: boolean;
     builtInActions?: ContextMenuBuiltInActionId[] | false;
+    builtInActionLabels?: ContextMenuBuiltInActionLabels;
     actions?: ContextMenuAction[];
 }
 export interface TableStats {
