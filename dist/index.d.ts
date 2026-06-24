@@ -1,5 +1,5 @@
 import type { CellData, ContextMenuOptions, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterResult, ListenerOptions, MenuFieldConfig, PasteSpecialOptions, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, ValidationError, ValidationResult, WasabiTableCreateOptions } from './types';
-export type { CellData, ContextMenuAction, ContextMenuActionContext, ContextMenuBuiltInActionId, ContextMenuOptions, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterOperator, FilterResult, ListenerOptions, MenuFieldConfig, MenuFieldOption, PasteSpecialOptions, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, UIElements, ValidationError, ValidationResult, WasabiTableCreateOptions, } from './types';
+export type { CellData, ContextMenuAction, ContextMenuActionContext, ContextMenuBuiltInActionId, ContextMenuBuiltInActionLabels, ContextMenuOptions, CellPosition, CellScreenPosition, ColumnHeader, CreateWasabiTableUIConfig, EventCallbacks, EventHandlers, FilterCondition, FilterOperator, FilterResult, ListenerOptions, MenuFieldConfig, MenuFieldOption, PasteSpecialOptions, PredefinedTheme, SelectionInfo, SortCondition, TableConfig, TableStats, ThemeColors, UIElements, ValidationError, ValidationResult, WasabiTableCreateOptions, } from './types';
 export { DEFAULT_CONFIG, FieldType, HEADER_FILTER_CONTROL_WIDTH, PREDEFINED_THEMES, getCellReference, getColumnName, } from './types';
 export { getSelectionReference } from './types';
 export { ensureWasmInitialized, initWasmFromExports } from './wasm-init.js';
@@ -407,6 +407,7 @@ export declare class WasabiTable {
     private createContextMenuContext;
     private getContextMenuActions;
     private createBuiltInContextMenuAction;
+    private getBuiltInContextMenuLabel;
     private showContextMenu;
     private runContextMenuAction;
     hideContextMenu(): void;

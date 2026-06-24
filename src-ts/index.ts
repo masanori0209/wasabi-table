@@ -5,6 +5,7 @@ import type {
   ContextMenuAction,
   ContextMenuActionContext,
   ContextMenuBuiltInActionId,
+  ContextMenuBuiltInActionLabels,
   ContextMenuOptions,
   CellPosition,
   CellScreenPosition,
@@ -44,6 +45,7 @@ export type {
   ContextMenuAction,
   ContextMenuActionContext,
   ContextMenuBuiltInActionId,
+  ContextMenuBuiltInActionLabels,
   ContextMenuOptions,
   CellPosition,
   CellScreenPosition,
@@ -2696,7 +2698,7 @@ export class WasabiTable {
   private createBuiltInContextMenuAction(id: ContextMenuBuiltInActionId): ContextMenuAction {
     return {
       id,
-      label: CONTEXT_MENU_LABELS[id],
+      label: this.getBuiltInContextMenuLabel(id),
       enabled: ({ selection }) => selection.hasSelection,
       run: async () => {
         switch (id) {
@@ -2718,6 +2720,10 @@ export class WasabiTable {
         }
       },
     };
+  }
+
+  private getBuiltInContextMenuLabel(id: ContextMenuBuiltInActionId): string {
+    return this.config.contextMenu?.builtInActionLabels?.[id] ?? CONTEXT_MENU_LABELS[id];
   }
 
   private showContextMenu(context: ContextMenuActionContext, clientX: number, clientY: number): void {

@@ -17,10 +17,10 @@ type TestTableWindow = Window & {
   __contextMenuResult?: unknown;
 };
 
-async function mountContextMenuTable(page: Page, options?: { customOnly?: boolean }) {
+async function mountContextMenuTable(page: Page, options?: { customOnly?: boolean; customBuiltInLabels?: boolean }) {
   await page.goto('/examples/npm-package/benchmark.html');
   await page.waitForSelector('[data-testid="bench-canvas"]', { timeout: 30_000 });
-  await page.evaluate(async ({ customOnly }) => {
+  await page.evaluate(async ({ customOnly, customBuiltInLabels }) => {
     const existing = (window as TestTableWindow).__contextMenuTable;
     existing?.dispose();
     document.getElementById('context-menu-e2e-root')?.remove();
@@ -64,6 +64,16 @@ async function mountContextMenuTable(page: Page, options?: { customOnly?: boolea
               },
             ],
           }
+        : customBuiltInLabels
+          ? {
+              builtInActionLabels: {
+                copy: 'セルをコピー',
+                cut: 'セルを切り取り',
+                'paste-values': '値を貼り付け',
+                'paste-transpose': '行列を入れ替えて貼り付け',
+                'paste-skip-empty': '空白を除いて貼り付け',
+              },
+            }
         : undefined,
     });
 
@@ -190,5 +200,13 @@ test.describe('Cell context menu', () => {
       selectionCells: 1,
       recordsMode: false,
     });
+  });
+
+  test('lets library users rename built-in actions without replacing behavior', async ({ page }) => {
+    await mountContextMenuTable(page, { customBuiltInLabels: true });
+    await rightClickCell(page, 0, 0);
+    await expect(page.getByRole('menuitem', { name: 'Copy' })).toHaveCount(0);
+    await page.getByRole('menuitem', { name: 'セルをコピー' }).click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe('Alpha\r\n');
   });
 });

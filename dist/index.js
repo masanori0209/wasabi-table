@@ -2206,7 +2206,7 @@ export class WasabiTable {
     createBuiltInContextMenuAction(id) {
         return {
             id,
-            label: CONTEXT_MENU_LABELS[id],
+            label: this.getBuiltInContextMenuLabel(id),
             enabled: ({ selection }) => selection.hasSelection,
             run: async () => {
                 switch (id) {
@@ -2228,6 +2228,10 @@ export class WasabiTable {
                 }
             },
         };
+    }
+    getBuiltInContextMenuLabel(id) {
+        var _a, _b, _c;
+        return (_c = (_b = (_a = this.config.contextMenu) === null || _a === void 0 ? void 0 : _a.builtInActionLabels) === null || _b === void 0 ? void 0 : _b[id]) !== null && _c !== void 0 ? _c : CONTEXT_MENU_LABELS[id];
     }
     showContextMenu(context, clientX, clientY) {
         this.hideContextMenu();
