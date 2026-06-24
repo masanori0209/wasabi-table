@@ -62,6 +62,7 @@ export interface TableConfig {
   column_headers: ColumnHeader[];
   freeze_cols?: number;
   freeze_rows?: number;
+  contextMenu?: ContextMenuOptions;
 }
 
 export interface CellData {
@@ -73,6 +74,45 @@ export interface CellData {
 export interface CellPosition {
   row: number;
   col: number;
+}
+
+export interface ContextMenuCell extends CellPosition {
+  value: string;
+  reference: string;
+}
+
+export interface PasteSpecialOptions {
+  transpose?: boolean;
+  skipEmpty?: boolean;
+}
+
+export type ContextMenuBuiltInActionId =
+  | 'copy'
+  | 'cut'
+  | 'paste-values'
+  | 'paste-transpose'
+  | 'paste-skip-empty';
+
+export interface ContextMenuActionContext {
+  table: IWasabiTable;
+  cell: ContextMenuCell;
+  selection: SelectionInfo;
+  event: MouseEvent;
+  recordsMode: boolean;
+}
+
+export interface ContextMenuAction {
+  id: string;
+  label: string;
+  run: (context: ContextMenuActionContext) => void | Promise<void>;
+  enabled?: (context: ContextMenuActionContext) => boolean;
+  visible?: (context: ContextMenuActionContext) => boolean;
+}
+
+export interface ContextMenuOptions {
+  enabled?: boolean;
+  builtInActions?: ContextMenuBuiltInActionId[] | false;
+  actions?: ContextMenuAction[];
 }
 
 export interface TableStats {
@@ -282,6 +322,11 @@ export interface IWasabiTable {
   focusCanvas?(): void;
   navigateSelectedCell?(key: string): void;
   setKeyboardShortcutsEnabled?(enabled: boolean): void;
+  copySelection(): string;
+  copySelectionToClipboard?(): Promise<string>;
+  cutSelectionToClipboard?(): Promise<string>;
+  pasteClipboardToSelection?(options?: PasteSpecialOptions): Promise<void>;
+  pasteFromClipboard(tsvData: string, options?: PasteSpecialOptions): void;
 }
 
 export interface CreateWasabiTableUIConfig {

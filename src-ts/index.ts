@@ -2,6 +2,10 @@ import { WasabiTable as WasmWasabiTable } from '../pkg/wasabi_table.js';
 import { ensureWasmInitialized } from './wasm-init.js';
 import type {
   CellData,
+  ContextMenuAction,
+  ContextMenuActionContext,
+  ContextMenuBuiltInActionId,
+  ContextMenuOptions,
   CellPosition,
   CellScreenPosition,
   ColumnHeader,
@@ -14,6 +18,7 @@ import type {
   MenuFieldConfig,
   MenuFieldOption,
   NotificationType,
+  PasteSpecialOptions,
   PredefinedTheme,
   SelectionInfo,
   SortCondition,
@@ -36,6 +41,10 @@ import {
 
 export type {
   CellData,
+  ContextMenuAction,
+  ContextMenuActionContext,
+  ContextMenuBuiltInActionId,
+  ContextMenuOptions,
   CellPosition,
   CellScreenPosition,
   ColumnHeader,
@@ -48,6 +57,7 @@ export type {
   ListenerOptions,
   MenuFieldConfig,
   MenuFieldOption,
+  PasteSpecialOptions,
   PredefinedTheme,
   SelectionInfo,
   SortCondition,
@@ -111,6 +121,21 @@ export {
 } from './records-data-source';
 
 const RECORDS_VIEWPORT_BUFFER_ROWS = 40;
+const CONTEXT_MENU_STYLE_ID = 'wasabi-context-menu-styles';
+const DEFAULT_CONTEXT_MENU_ACTIONS: ContextMenuBuiltInActionId[] = [
+  'copy',
+  'cut',
+  'paste-values',
+  'paste-transpose',
+  'paste-skip-empty',
+];
+const CONTEXT_MENU_LABELS: Record<ContextMenuBuiltInActionId, string> = {
+  copy: 'Copy',
+  cut: 'Cut',
+  'paste-values': 'Paste values',
+  'paste-transpose': 'Paste transposed',
+  'paste-skip-empty': 'Paste skip empty',
+};
 export {
   applyFilters as applyFilterSort,
   createFilterSortState,
@@ -235,6 +260,8 @@ export class WasabiTable {
   private selectBoxElement: HTMLElement | null = null;
   private currentMenuFieldCell: CellPosition | null = null;
   private menuFieldOptions: Map<string, MenuFieldConfig> = new Map();
+  private contextMenuElement: HTMLElement | null = null;
+  private contextMenuContext: ContextMenuActionContext | null = null;
 
   // フィルター・ソート関連
   private filterSortState = createFilterSortState();
@@ -249,6 +276,8 @@ export class WasabiTable {
   private scheduledAnimationFrames = new Set<number>();
   private readonly boundHandleOutsideClick = (event: MouseEvent): void => this.handleOutsideClick(event);
   private readonly boundHandleSelectBoxKeydown = (event: KeyboardEvent): void => this.handleSelectBoxKeydown(event);
+  private readonly boundHandleContextMenuOutsidePointer = (event: MouseEvent): void => this.handleContextMenuOutsidePointer(event);
+  private readonly boundHandleContextMenuKeydown = (event: KeyboardEvent): void => this.handleContextMenuKeydown(event);
 
   private constructor(
     wasmTable: ExtendedWasmWasabiTable,
@@ -1437,6 +1466,7 @@ export class WasabiTable {
 
     // MenuField SelectBoxを削除
     this.hideMenuFieldSelectBox();
+    this.hideContextMenu();
     this.headerDialogController?.hideAll();
 
     this.tearDownScrollbars();
@@ -1546,6 +1576,10 @@ export class WasabiTable {
           }
         }
       }
+    }, { signal });
+
+    this.canvas.addEventListener('contextmenu', (event) => {
+      this.handleCanvasContextMenu(event);
     }, { signal });
 
     // ダブルクリックで編集開始（MenuFieldは除く）
@@ -2270,6 +2304,7 @@ export class WasabiTable {
 
   private handleGridScrollFloatingUi(): void {
     this.hideMenuFieldSelectBox();
+    this.hideContextMenu();
     this.hideValidationTooltip();
   }
 
@@ -2562,6 +2597,278 @@ export class WasabiTable {
     }
   }
 
+  public setContextMenuOptions(options: ContextMenuOptions | null): void {
+    this.config.contextMenu = options ?? undefined;
+    if (options?.enabled === false) {
+      this.hideContextMenu();
+    }
+  }
+
+  private handleCanvasContextMenu(event: MouseEvent): void {
+    if (this.config.contextMenu?.enabled === false) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const cellPos = this.wasmTable.pixel_to_cell(x, y);
+    if (!cellPos) {
+      this.hideContextMenu();
+      return;
+    }
+
+    event.preventDefault();
+    this.canvas.focus();
+    this.finishEditingIfNeededBeforeContextMenu();
+    this.hideMenuFieldSelectBox();
+    this.headerDialogController?.hideAll();
+
+    const [row, col] = cellPos.split(':').map(Number);
+    let selection = this.getSelectionInfo();
+    if (!this.selectionContainsCell(selection, row, col)) {
+      this.selectCell(row, col);
+      this.render();
+      this.triggerCellSelectEvent();
+      selection = this.getSelectionInfo();
+    }
+
+    const context = this.createContextMenuContext(row, col, selection, event);
+    this.showContextMenu(context, event.clientX, event.clientY);
+  }
+
+  private finishEditingIfNeededBeforeContextMenu(): void {
+    if (this.isEditing()) {
+      this.finishEditing();
+      this.syncActiveFormulaBarValue();
+    }
+  }
+
+  private selectionContainsCell(selection: SelectionInfo, row: number, col: number): boolean {
+    if (!selection.hasSelection) return false;
+    if (
+      selection.isRange &&
+      selection.start_row != null &&
+      selection.end_row != null &&
+      selection.start_col != null &&
+      selection.end_col != null
+    ) {
+      const startRow = Math.min(selection.start_row, selection.end_row);
+      const endRow = Math.max(selection.start_row, selection.end_row);
+      const startCol = Math.min(selection.start_col, selection.end_col);
+      const endCol = Math.max(selection.start_col, selection.end_col);
+      return row >= startRow && row <= endRow && col >= startCol && col <= endCol;
+    }
+    return selection.row === row && selection.col === col;
+  }
+
+  private createContextMenuContext(
+    row: number,
+    col: number,
+    selection: SelectionInfo,
+    event: MouseEvent
+  ): ContextMenuActionContext {
+    return {
+      table: this,
+      cell: {
+        row,
+        col,
+        value: this.getCellValue(row, col) ?? '',
+        reference: WasabiTable.getCellReference(row, col),
+      },
+      selection,
+      event,
+      recordsMode: this.isRecordsMode(),
+    };
+  }
+
+  private getContextMenuActions(context: ContextMenuActionContext): ContextMenuAction[] {
+    const configuredBuiltIns = this.config.contextMenu?.builtInActions;
+    const builtInIds = configuredBuiltIns === false
+      ? []
+      : configuredBuiltIns ?? DEFAULT_CONTEXT_MENU_ACTIONS;
+    const builtInActions = builtInIds.map((id) => this.createBuiltInContextMenuAction(id));
+    const customActions = this.config.contextMenu?.actions ?? [];
+
+    return [...builtInActions, ...customActions].filter((action) => {
+      return action.visible ? action.visible(context) : true;
+    });
+  }
+
+  private createBuiltInContextMenuAction(id: ContextMenuBuiltInActionId): ContextMenuAction {
+    return {
+      id,
+      label: CONTEXT_MENU_LABELS[id],
+      enabled: ({ selection }) => selection.hasSelection,
+      run: async () => {
+        switch (id) {
+          case 'copy':
+            await this.copySelectionToClipboard();
+            break;
+          case 'cut':
+            await this.cutSelectionToClipboard();
+            break;
+          case 'paste-values':
+            await this.pasteClipboardToSelection();
+            break;
+          case 'paste-transpose':
+            await this.pasteClipboardToSelection({ transpose: true });
+            break;
+          case 'paste-skip-empty':
+            await this.pasteClipboardToSelection({ skipEmpty: true });
+            break;
+        }
+      },
+    };
+  }
+
+  private showContextMenu(context: ContextMenuActionContext, clientX: number, clientY: number): void {
+    this.hideContextMenu();
+    this.ensureContextMenuStyles();
+
+    const actions = this.getContextMenuActions(context);
+    if (actions.length === 0) return;
+
+    const menu = document.createElement('div');
+    menu.className = 'wasabi-context-menu';
+    menu.setAttribute('role', 'menu');
+    menu.style.left = `${clientX}px`;
+    menu.style.top = `${clientY}px`;
+
+    for (const action of actions) {
+      const isEnabled = action.enabled ? action.enabled(context) : true;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'wasabi-context-menu__item';
+      button.dataset.actionId = action.id;
+      button.setAttribute('role', 'menuitem');
+      button.textContent = action.label;
+      button.disabled = !isEnabled;
+      button.addEventListener('click', async () => {
+        if (button.disabled) return;
+        await this.runContextMenuAction(action, context);
+      });
+      menu.appendChild(button);
+    }
+
+    document.body.appendChild(menu);
+    this.contextMenuElement = menu;
+    this.contextMenuContext = context;
+    this.positionContextMenu(menu);
+
+    document.addEventListener('mousedown', this.boundHandleContextMenuOutsidePointer);
+    document.addEventListener('keydown', this.boundHandleContextMenuKeydown);
+  }
+
+  private async runContextMenuAction(
+    action: ContextMenuAction,
+    context: ContextMenuActionContext
+  ): Promise<void> {
+    this.hideContextMenu();
+    try {
+      await action.run(context);
+    } catch (error) {
+      console.error(`Context menu action failed: ${action.id}`, error);
+      this.notifyUser(`Context action failed: ${action.label}`, 'warning');
+    }
+  }
+
+  public hideContextMenu(): void {
+    if (this.contextMenuElement) {
+      this.contextMenuElement.remove();
+      this.contextMenuElement = null;
+    }
+    this.contextMenuContext = null;
+    document.removeEventListener('mousedown', this.boundHandleContextMenuOutsidePointer);
+    document.removeEventListener('keydown', this.boundHandleContextMenuKeydown);
+  }
+
+  private handleContextMenuOutsidePointer(event: MouseEvent): void {
+    if (!this.contextMenuElement) return;
+    const target = event.target as Node;
+    if (!this.contextMenuElement.contains(target)) {
+      this.hideContextMenu();
+    }
+  }
+
+  private handleContextMenuKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.hideContextMenu();
+    }
+  }
+
+  private positionContextMenu(menu: HTMLElement): void {
+    const rect = menu.getBoundingClientRect();
+    const margin = 8;
+    const left = Math.min(
+      Math.max(margin, rect.left),
+      Math.max(margin, window.innerWidth - rect.width - margin)
+    );
+    const top = Math.min(
+      Math.max(margin, rect.top),
+      Math.max(margin, window.innerHeight - rect.height - margin)
+    );
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+  }
+
+  private ensureContextMenuStyles(): void {
+    if (document.getElementById(CONTEXT_MENU_STYLE_ID)) return;
+
+    const style = document.createElement('style');
+    style.id = CONTEXT_MENU_STYLE_ID;
+    style.textContent = `
+      .wasabi-context-menu {
+        position: fixed;
+        min-width: 176px;
+        padding: 4px;
+        border: 1px solid rgba(0, 0, 0, 0.14);
+        border-radius: 6px;
+        background: #ffffff;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+        z-index: 10020;
+        font-family: Arial, sans-serif;
+        font-size: 13px;
+      }
+      .wasabi-context-menu__item {
+        display: block;
+        width: 100%;
+        min-height: 30px;
+        padding: 6px 10px;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #111827;
+        text-align: left;
+        cursor: pointer;
+      }
+      .wasabi-context-menu__item:hover:not(:disabled),
+      .wasabi-context-menu__item:focus-visible:not(:disabled) {
+        background: #e8f5e8;
+        outline: none;
+      }
+      .wasabi-context-menu__item:disabled {
+        color: #9ca3af;
+        cursor: default;
+      }
+      body.theme-dark .wasabi-context-menu {
+        border-color: rgba(255, 255, 255, 0.18);
+        background: #1f2937;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34);
+      }
+      body.theme-dark .wasabi-context-menu__item {
+        color: #e5e7eb;
+      }
+      body.theme-dark .wasabi-context-menu__item:hover:not(:disabled),
+      body.theme-dark .wasabi-context-menu__item:focus-visible:not(:disabled) {
+        background: #374151;
+      }
+      body.theme-dark .wasabi-context-menu__item:disabled {
+        color: #6b7280;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   /**
    * 選択範囲をコピー
    */
@@ -2586,23 +2893,24 @@ export class WasabiTable {
   /**
    * クリップボードからペースト
    */
-  public pasteFromClipboard(tsvData: string): void {
+  public pasteFromClipboard(tsvData: string, options: PasteSpecialOptions = {}): void {
     this.ensureInitialized();
 
-    const rows = parseTsvRows(tsvData);
+    const rows = this.preparePasteRows(parseTsvRows(tsvData), options);
     if (rows.length === 0) return;
 
     const sel = this.getSelectionInfo();
     if (!sel.hasSelection) return;
 
-    const writes = this.shouldUseDisplayOrderSelection(sel)
+    const writes = (this.shouldUseDisplayOrderSelection(sel)
       ? this.planDisplayOrderPaste(rows, sel)
       : planExcelPaste(
           rows,
           sel,
           this.config.row_count,
           this.config.col_count
-        );
+        ))
+      .filter(({ value }) => !options.skipEmpty || value !== '');
     const changes: CellChange[] = [];
 
     for (const { row, col, value } of writes) {
@@ -2615,6 +2923,22 @@ export class WasabiTable {
 
     this.pushUndoChanges(changes);
     this.render();
+  }
+
+  private preparePasteRows(rows: string[][], options: PasteSpecialOptions): string[][] {
+    if (!options.transpose) return rows;
+
+    const rowCount = rows.length;
+    const colCount = Math.max(...rows.map((row) => row.length), 0);
+    const transposed: string[][] = [];
+    for (let col = 0; col < colCount; col += 1) {
+      const targetRow: string[] = [];
+      for (let row = 0; row < rowCount; row += 1) {
+        targetRow.push(rows[row]?.[col] ?? '');
+      }
+      transposed.push(targetRow);
+    }
+    return transposed;
   }
 
   private shouldUseDisplayOrderSelection(sel: SelectionInfo): boolean {
@@ -2946,59 +3270,43 @@ export class WasabiTable {
   /**
    * コピー処理
    */
-  private async handleCopy(): Promise<void> {
+  public async copySelectionToClipboard(): Promise<string> {
     try {
-      // 選択状態をデバッグ
-      const selectionInfo = this.getSelectionInfo();
-      
       const copiedData = this.copySelection();
-      
-      if (copiedData) {
-        // モダンブラウザのClipboard APIを使用
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(copiedData);
-        } else {
-          // フォールバック: 古いブラウザ対応
-          this.fallbackCopyToClipboard(copiedData);
-        }
-        
-        // コピー成功の視覚的フィードバック（オプション）
-        this.showCopyFeedback();
+      if (!copiedData) return '';
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(copiedData);
+      } else {
+        this.fallbackCopyToClipboard(copiedData);
       }
+
+      this.showCopyFeedback();
+      return copiedData;
     } catch (error) {
       console.error('❌ Copy failed:', error);
-      // エラー時はフォールバックを試行
-      try {
-        const copiedData = this.copySelection();
-        if (copiedData) {
-          this.fallbackCopyToClipboard(copiedData);
-        }
-      } catch (fallbackError) {
-        console.error('❌ Fallback copy also failed:', fallbackError);
+      const copiedData = this.copySelection();
+      if (copiedData) {
+        this.fallbackCopyToClipboard(copiedData);
+        this.showCopyFeedback();
       }
+      return copiedData;
     }
   }
 
-  /**
-   * ペースト処理
-   */
-  private async handlePaste(): Promise<void> {
+  public async pasteClipboardToSelection(options: PasteSpecialOptions = {}): Promise<void> {
     try {
       let pasteData = '';
-      
-      // モダンブラウザのClipboard APIを使用
       if (navigator.clipboard && navigator.clipboard.readText) {
         pasteData = await navigator.clipboard.readText();
       } else {
-        // フォールバック: 古いブラウザ対応
         pasteData = this.fallbackReadFromClipboard();
       }
-      
+
       if (pasteData) {
         const selectedCell = this.getSelectedCell();
-        this.pasteFromClipboard(pasteData);
+        this.pasteFromClipboard(pasteData, options);
 
-        // レンダリングを更新
         this.render();
         this.triggerCellSelectEvent();
 
@@ -3017,64 +3325,39 @@ export class WasabiTable {
     }
   }
 
+  public async cutSelectionToClipboard(): Promise<string> {
+    try {
+      const copiedData = await this.copySelectionToClipboard();
+      if (copiedData) {
+        this.clearCellsInSelection(true);
+        this.triggerCellSelectEvent();
+      }
+      return copiedData;
+    } catch (error) {
+      console.error('❌ Cut failed:', error);
+      return '';
+    }
+  }
+
+  /**
+   * コピー処理
+   */
+  private async handleCopy(): Promise<void> {
+    await this.copySelectionToClipboard();
+  }
+
+  /**
+   * ペースト処理
+   */
+  private async handlePaste(): Promise<void> {
+    await this.pasteClipboardToSelection();
+  }
+
   /**
    * カット処理（コピー + 削除）
    */
   private async handleCut(): Promise<void> {
-    try {
-      // まずコピー
-      await this.handleCopy();
-      
-      const selectionInfo = this.getSelectionInfo();
-      if (selectionInfo && selectionInfo.hasSelection) {
-        const changes: CellChange[] = [];
-        if (selectionInfo.isRange) {
-          const startRow = selectionInfo.start_row;
-          const endRow = selectionInfo.end_row;
-          const startCol = selectionInfo.start_col;
-          const endCol = selectionInfo.end_col;
-          if (
-            startRow !== undefined &&
-            endRow !== undefined &&
-            startCol !== undefined &&
-            endCol !== undefined
-          ) {
-            for (let row = startRow; row <= endRow; row++) {
-              for (let col = startCol; col <= endCol; col++) {
-                const oldValue = this.getCellValue(row, col) ?? '';
-                if (oldValue !== '') {
-                  changes.push({ row, col, oldValue, newValue: '' });
-                }
-              }
-            }
-          }
-        } else if (selectionInfo.row !== undefined && selectionInfo.col !== undefined) {
-          const oldValue = this.getCellValue(selectionInfo.row, selectionInfo.col) ?? '';
-          if (oldValue !== '') {
-            changes.push({
-              row: selectionInfo.row,
-              col: selectionInfo.col,
-              oldValue,
-              newValue: '',
-            });
-          }
-        }
-
-        this.pushUndoChanges(changes);
-        this.applyingHistory = true;
-        try {
-          for (const change of changes) {
-            this.writeCellValue(change.row, change.col, '');
-          }
-        } finally {
-          this.applyingHistory = false;
-        }
-        this.render();
-        this.triggerCellSelectEvent();
-      }
-    } catch (error) {
-      console.error('❌ Cut failed:', error);
-    }
+    await this.cutSelectionToClipboard();
   }
 
   /**
