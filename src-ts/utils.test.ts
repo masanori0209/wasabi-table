@@ -3,7 +3,24 @@
  */
 import { describe, expect, it } from 'vitest';
 import { getCellReference, getColumnName, getSelectionReference } from './types';
-import { buildValidationTooltipContent, isKeyboardShortcut, parseCellReference } from './utils';
+import {
+  buildValidationTooltipContent,
+  isImeCompositionKey,
+  isKeyboardShortcut,
+  parseCellReference,
+} from './utils';
+
+describe('isImeCompositionKey', () => {
+  it('detects active composition state and composing keyboard events', () => {
+    expect(isImeCompositionKey({ isComposing: false, keyCode: 13 }, true)).toBe(true);
+    expect(isImeCompositionKey({ isComposing: true, keyCode: 13 })).toBe(true);
+  });
+
+  it('detects keyCode 229 fallback without blocking regular keys', () => {
+    expect(isImeCompositionKey({ isComposing: false, keyCode: 229 })).toBe(true);
+    expect(isImeCompositionKey({ isComposing: false, keyCode: 13 })).toBe(false);
+  });
+});
 
 describe('parseCellReference', () => {
   it('parses uppercase references', () => {

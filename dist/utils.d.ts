@@ -1,5 +1,10 @@
 import type { IWasabiTable, UIElements } from './types';
 /**
+ * IME変換中に発生したキーイベントかを判定する。
+ * keyCode 229 は isComposing が変換確定キーで false になるブラウザ向けのフォールバック。
+ */
+export declare function isImeCompositionKey(event: Pick<KeyboardEvent, 'isComposing' | 'keyCode'>, compositionActive?: boolean): boolean;
+/**
  * DOM要素を自動的に取得してUIElementsオブジェクトを作成
  */
 export declare function createUIElements(config: {

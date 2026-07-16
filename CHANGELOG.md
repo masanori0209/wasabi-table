@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Inline editor and formula bar key handling now ignore navigation and commit keys during IME composition, preventing keyboard navigation from becoming stuck after Japanese conversion (#51)
+- Formula bar Enter and arrow keys no longer bubble into the grid and trigger a second navigation or edit action (#51)
+
+### Added
+- E2E regression coverage for IME Enter/Tab/Escape, keyCode 229 fallback, formula bar composition, and normal edit navigation (#51)
+
 ## [1.1.1] - 2026-06-25
 
 ### Added
