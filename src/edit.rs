@@ -49,6 +49,10 @@ impl Editable for crate::table::WasabiTable {
 }
 
 impl crate::table::WasabiTable {
+    fn is_ime_composition_event(event: &KeyboardEvent) -> bool {
+        event.is_composing() || event.key_code() == 229
+    }
+
     pub(crate) fn remove_stale_editing_inputs() {
         let Some(document) = web_sys::window().and_then(|w| w.document()) else {
             return;
@@ -106,6 +110,10 @@ impl crate::table::WasabiTable {
         self.detach_editing_input_listeners(input)?;
 
         let keydown_closure = Closure::wrap(Box::new(move |event: KeyboardEvent| {
+            if Self::is_ime_composition_event(&event) {
+                return;
+            }
+
             match event.key().as_str() {
                 "Enter" => {
                     event.prevent_default();
@@ -130,7 +138,7 @@ impl crate::table::WasabiTable {
         }) as Box<dyn FnMut(KeyboardEvent)>);
 
         let keyup_closure = Closure::wrap(Box::new(move |event: KeyboardEvent| {
-            if event.key() == "Tab" {
+            if event.key() == "Tab" && !Self::is_ime_composition_event(&event) {
                 event.prevent_default();
                 event.stop_propagation();
                 event.stop_immediate_propagation();

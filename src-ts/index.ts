@@ -104,6 +104,7 @@ import {
 } from './filter-sort';
 import { HeaderDialogController } from './header-dialog';
 import { UndoStack, type CellChange } from './undo-stack';
+import { isImeCompositionKey } from './utils';
 import {
   RecordsDataSource,
   buildColumnHeadersFromRecords,
@@ -1828,7 +1829,7 @@ export class WasabiTable {
 
     // 統一されたキーボードイベント処理
     document.addEventListener('keydown', (event) => {
-      if (this.isComposing) {
+      if (isImeCompositionKey(event, this.isComposing)) {
         return;
       }
 

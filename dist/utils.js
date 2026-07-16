@@ -1,4 +1,11 @@
 /**
+ * IME変換中に発生したキーイベントかを判定する。
+ * keyCode 229 は isComposing が変換確定キーで false になるブラウザ向けのフォールバック。
+ */
+export function isImeCompositionKey(event, compositionActive = false) {
+    return compositionActive || event.isComposing || event.keyCode === 229;
+}
+/**
  * DOM要素を自動的に取得してUIElementsオブジェクトを作成
  */
 export function createUIElements(config) {

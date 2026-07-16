@@ -8,6 +8,7 @@ import type {
   ValidationResult,
 } from './types';
 import { getCellReference, getSelectionReference } from './types';
+import { isImeCompositionKey } from './utils';
 
 export type { EventCallbacks, ListenerOptions, UIElements } from './types';
 
@@ -72,8 +73,16 @@ export class WasabiTableListeners {
     const { signal } = this.abortController;
 
     formulaInput.addEventListener('keydown', (e) => {
+      if (
+        this.options.enableIMESupport &&
+        isImeCompositionKey(e, this.isComposing)
+      ) {
+        return;
+      }
+
       if (e.key === 'Enter') {
         e.preventDefault();
+        e.stopPropagation();
         this.handleFormulaEnter();
         return;
       }
@@ -84,6 +93,7 @@ export class WasabiTableListeners {
         !this.table.isEditing?.()
       ) {
         e.preventDefault();
+        e.stopPropagation();
         this.table.navigateSelectedCell?.(e.key);
         this.updateCellReference();
         this.table.focusCanvas?.();

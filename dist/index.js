@@ -13,6 +13,7 @@ import { planAutofill, planAutofillDoubleClickDown } from './autofill.js';
 import { applyFilters as runFilterSort, createFilterSortState, getFilterResult as buildFilterResult, } from './filter-sort.js';
 import { HeaderDialogController } from './header-dialog.js';
 import { UndoStack } from './undo-stack.js';
+import { isImeCompositionKey } from './utils.js';
 import { RecordsDataSource, buildColumnHeadersFromRecords, } from './records-data-source.js';
 import { buildValidationTooltipContent } from './utils.js';
 export { RecordsDataSource, buildColumnHeadersFromRecords, } from './records-data-source.js';
@@ -1447,7 +1448,7 @@ export class WasabiTable {
         }, { passive: false, signal });
         // 統一されたキーボードイベント処理
         document.addEventListener('keydown', (event) => {
-            if (this.isComposing) {
+            if (isImeCompositionKey(event, this.isComposing)) {
                 return;
             }
             // 編集中の処理
